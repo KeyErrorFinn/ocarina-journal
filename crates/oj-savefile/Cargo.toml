@@ -1,0 +1,10 @@
+[package]
+name = "oj-savefile"
+description = "Read-only reader for Longshot's OoT progress.sav (flag table + true-key list)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
