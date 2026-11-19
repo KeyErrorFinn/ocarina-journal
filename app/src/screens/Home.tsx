@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
 import { ForestBg } from "../components/art";
 import { Sheet, Sync } from "../components/chrome";
@@ -6,7 +7,7 @@ import { friendlyMap, TILES, type LiveState } from "../model";
 
 const GLYPHS: Record<string, () => ReactNode> = {
   GMap: Ic.GMap, GScroll: Ic.GScroll, GMedal: Ic.GMedal, GSkull: Ic.GSkull, GTapestry: Ic.GTapestry, GCamera: Ic.GCamera,
-  GOcarina: Ic.GOcarina, GQuiz: Ic.GQuiz, GRumor: Ic.GRumor, GChart: Ic.GChart, GAmiibo: Ic.GAmiibo,
+  GOcarina: Ic.GOcarina, GHistory: Ic.GHistory, GQuiz: Ic.GQuiz, GRumor: Ic.GRumor, GChart: Ic.GChart, GAmiibo: Ic.GAmiibo,
 };
 
 export function Hearts({ life, max }: { life: number; max: number }) {
@@ -19,6 +20,64 @@ export function Hearts({ life, max }: { life: number; max: number }) {
         </span>
       ))}
     </div>
+  );
+}
+
+interface Preview { path: string; exists: boolean; already: string | null; before: string; after: string }
+
+/** The two consented actions: turn the bridge on in longshot_env.txt, or start the game with it on. */
+function Actions({ s }: { s: LiveState }) {
+  const [sheet, setSheet] = useState<null | "enable" | "launch">(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = (cmd: string) => invoke<string>(cmd, { confirm: true }).then(setMsg).catch((e) => setMsg(String(e)));
+  if (s.mode === "live") return null;
+  const added = preview ? preview.after.split(/\r?\n/).filter((l) => !preview.before.split(/\r?\n/).includes(l) && l) : [];
+  return (
+    <>
+      <div style={{ padding: "0 1em .8em", position: "relative", zIndex: 2 }}>
+        {s.mode === "bridge_off" ? (
+          <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>
+            Turn on the bridge…
+          </button>
+        ) : (
+          <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); setSheet("launch"); }}>Start Longshot with the bridge…</button>
+        )}
+      </div>
+      {sheet === "enable" && (
+        <Sheet title="Turn on the bridge" onClose={() => setSheet(null)}>
+          <div style={{ padding: "0 1.2em", lineHeight: 1.55, fontSize: ".9em" }}>
+            {preview ? (
+              <>
+                <p>This adds a line to <b>longshot_env.txt</b> in the game folder so Longshot offers its control bridge the next time it starts. The bridge only lets this app read; it can't press buttons or change saves.</p>
+                <p className="muted small" style={{ margin: ".6em 0 0" }}>{preview.path}</p>
+                {preview.already ? (
+                  <p style={{ color: "var(--amber)" }}>HOS_CONTROL is already set to “{preview.already}”. If the game was started before that, restart it.</p>
+                ) : (
+                  <>
+                    <p className="small muted" style={{ margin: ".8em 0 .2em" }}>{preview.exists ? "The file exists. This line is added:" : "The file does not exist yet. It would contain:"}</p>
+                    <pre style={{ background: "#0b0807", padding: ".7em", border: "1px solid #3a2b1d", whiteSpace: "pre-wrap" }}>{added.map((l) => `+ ${l}`).join("\n")}</pre>
+                    <p className="small muted">{preview.exists ? "A backup copy of the old file is made first." : ""} You must restart the game afterwards.</p>
+                    {!msg && <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("apply_enable_bridge")}>{preview.exists ? "Back up and apply" : "Create the file"}</button>}
+                  </>
+                )}
+              </>
+            ) : null}
+            {msg && <p style={{ color: "var(--teal)" }}>{msg}</p>}
+          </div>
+        </Sheet>
+      )}
+      {sheet === "launch" && (
+        <Sheet title="Start Longshot" onClose={() => setSheet(null)}>
+          <div style={{ padding: "0 1.2em", lineHeight: 1.55, fontSize: ".9em" }}>
+            <p>This starts <b>longshot.exe</b> from your game folder with the control bridge on (<b>HOS_CONTROL={s.pipe || "longshot"}</b>, for this launch only) and your normal saves. Nothing is changed on disk.</p>
+            <p className="muted small">If you usually start the game from the Longshot Launcher, that works too, but the bridge is off unless you turn it on.</p>
+            {!msg && <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("launch_game")}>Start the game</button>}
+            {msg && <p style={{ color: "var(--teal)" }}>{msg}</p>}
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }
 
@@ -58,6 +117,7 @@ export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: st
         )}
       </div>
 
+      <Actions s={s} />
       <div className="tgrid">
         {TILES.map((t) => {
           const G = GLYPHS[t.icon];

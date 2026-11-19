@@ -31,7 +31,7 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
               <div style={{ textAlign: "center", padding: "1.4em 0 .4em" }}>
                 <div style={{ width: "5em", margin: "0 auto" }}><Crest name={open.label} /></div>
                 <div className="small muted" style={{ marginTop: ".6em" }}>Status</div>
-                <div className="big" style={{ fontSize: "1.8em" }}>{open.have ? "Defeated" : "Not yet"}</div>
+                <div className="big" style={{ fontSize: "1.8em" }}>{open.have ? (open.count ? `Defeated ×${open.count}` : "Defeated") : "Not yet"}</div>
                 {open.area && <div className="small muted">{prettyArea(open.area)}</div>}
               </div>
               <div className="card">
@@ -65,7 +65,7 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   const Row = (e: RepEntry & { boss: boolean }) => (
     <button key={e.id} className={`listcard ${e.have ? "" : "locked"}`} onClick={() => setOpen(e)}>
       <span className="pic"><Crest name={e.label} /></span>
-      <span className="mid">{e.have ? e.label : "???"}<div className="time">{hallTime(recordOf(e)) ?? (e.have ? "Defeated" : "Not yet")}</div></span>
+      <span className="mid">{e.have ? e.label : "???"}<div className="time">{hallTime(recordOf(e)) ?? (e.have ? (e.count ? `Defeated ×${e.count}` : "Defeated") : "Not yet")}</div></span>
       <Ribbon tier={e.have ? (e.boss ? 3 : 1) : 0} />
     </button>
   );

@@ -7,6 +7,8 @@ export interface RepEntry {
   have: number;
   of: number;
   note: string | null;
+  /** Times defeated (enemies and bosses). */
+  count?: number;
 }
 export interface RepCategory {
   id: string;
@@ -68,6 +70,10 @@ export const KIND_NAME: Record<MapKind, string> = {
   "heart-pieces": "Heart pieces",
   "heart-containers": "Heart containers",
 };
+
+/** All enemies and bosses defeated, from the game's own per-enemy counters. */
+export const totalKills = (r: Report | null): number =>
+  ["enemies", "bosses"].reduce((a, c) => a + (r?.categories.find((x) => x.id === c)?.entries.reduce((b, e) => b + (e.count ?? 0), 0) ?? 0), 0);
 
 export const cat = (r: Report | null, id: string): RepCategory | undefined => r?.categories.find((c) => c.id === id);
 

@@ -32,6 +32,7 @@ export const GQuiz = () => (<I><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5
 export const GRumor = () => (<I><path d="M4 5h16v11H9l-5 4z" /><path d="M8 9h8M8 12h5" /></I>);
 export const Grid = () => (<I><rect x="4" y="4" width="6.5" height="6.5" /><rect x="13.5" y="4" width="6.5" height="6.5" /><rect x="4" y="13.5" width="6.5" height="6.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" /></I>);
 export const Dots = () => (<I><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></I>);
+export const GHistory = () => (<I><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /><path d="M4 4v4h4" /></I>);
 export const GAmiibo = () => (<I><ellipse cx="12" cy="19" rx="7" ry="2.5" /><circle cx="12" cy="7" r="3" /><path d="M8 18c0-5 2-7 4-7s4 2 4 7" /></I>);
 export const GChart = () => (<I><path d="M4 20V10M10 20V4M16 20v-8M22 20H2" /></I>);
 

@@ -4,11 +4,20 @@ import { QUIZ, type Q } from "../data/content";
 import { useLocal } from "../store";
 
 const LEVELS = [
-  { id: "egg", name: "Egg Level", count: 10, secs: 15, icon: "🥚" },
-  { id: "cucco", name: "Cucco Level", count: 20, secs: 15, icon: "🐔" },
-  { id: "cojiro", name: "Cojiro Challenge", count: 20, secs: 8, icon: "🐤" },
+  { id: "egg", name: "Egg Level", count: 10, secs: 15, icon: "egg" },
+  { id: "cucco", name: "Cucco Level", count: 20, secs: 15, icon: "bird" },
+  { id: "cojiro", name: "Cojiro Challenge", count: 20, secs: 8, icon: "chick" },
 ] as const;
 type Level = (typeof LEVELS)[number];
+
+const Icon = ({ k }: { k: string }) => (
+  <svg viewBox="0 0 40 40" width="2.6em" height="2.6em" aria-hidden>
+    {k === "egg" && <ellipse cx="20" cy="22" rx="10" ry="13" fill="#e9c48a" stroke="#7a5230" strokeWidth="2" />}
+    {k === "bird" && (<g stroke="#7a5230" strokeWidth="2"><ellipse cx="20" cy="24" rx="12" ry="10" fill="#f6efe0" /><circle cx="26" cy="13" r="6" fill="#f6efe0" /><path d="M24 7l2-4 3 4z" fill="#d65a4f" /><path d="M31 13l5 2-5 2z" fill="#e8a33d" /></g>)}
+    {k === "chick" && (<g stroke="#7a5230" strokeWidth="2"><circle cx="20" cy="22" r="11" fill="#f2c94c" /><path d="M29 19l6 2-6 2z" fill="#e8a33d" /><circle cx="24" cy="18" r="1.4" fill="#3b2815" /></g>)}
+    {k === "lock" && (<g stroke="#cdb99c" strokeWidth="2.4" fill="none"><rect x="9" y="18" width="22" height="16" rx="2" fill="#5a4129" /><path d="M13 18v-5a7 7 0 0114 0v5" /></g>)}
+  </svg>
+);
 
 const shuffle = <T,>(a: T[]) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 function build(level: Level): (Q & { order: number[] })[] {
@@ -74,7 +83,7 @@ export function Quiz({ onHome }: { onHome: () => void }) {
               <div className="lv"><div style={{ font: "800 1.1em var(--body)" }}>{l.name}</div>
                 <div className="small muted">{unlocked(l) ? `Highest number of consecutive correct answers` : "Reach 20/20 on Cucco Level to unlock"}</div></div>
               <span className="num" style={{ fontSize: "1.3em" }}>{best[l.id] ?? 0}/{l.count}</span>
-              <span style={{ fontSize: "2.4em" }}>{unlocked(l) ? l.icon : "🔒"}</span>
+              <Icon k={unlocked(l) ? l.icon : "lock"} />
             </button>
           ))}
         </div>
