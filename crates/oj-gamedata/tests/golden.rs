@@ -37,6 +37,9 @@ fn matches_the_reference_tool() {
     // every slot's totals agree too
     for s in mine["slots"].as_array().unwrap() {
         let gs = gold["slots"].as_array().unwrap().iter().find(|x| x["slot"] == s["slot"]).expect("slot in reference");
+        for k in ["place", "age", "hearts", "rupees", "clock", "saved"] {
+            assert_eq!(s[k], gs[k], "{} {k}", s["slot"]);
+        }
         for (k, v) in s["totals"].as_object().unwrap() {
             assert_eq!(v, &gs["totals"][k], "{} totals of {k}", s["slot"]);
         }

@@ -27,12 +27,32 @@ export interface RepSlot {
   saved: string | null;
   totals: Record<string, [number, number]>;
 }
+export interface RepHall {
+  id: string;
+  label: string;
+  recorded: boolean;
+  /** The game's BestTimeFrame float. The unit is unverified (see HALL_FPS). */
+  best_frames: number | null;
+  other: number | null;
+}
+
+/** Frames per second assumed for BestTimeFrame. **Unverified**: no save on hand held a record to check. */
+export const HALL_FPS = 60;
+
+export function hallTime(h: RepHall | undefined): string | null {
+  if (!h?.recorded || h.best_frames == null || !(h.best_frames > 0)) return null;
+  const t = h.best_frames / HALL_FPS;
+  const m = Math.floor(t / 60);
+  return `${String(m).padStart(2, "0")}:${(t - m * 60).toFixed(2).padStart(5, "0")}`;
+}
+
 export interface Report {
   schema: number;
   game_revision: number;
   slot: string;
   slots: RepSlot[];
   categories: RepCategory[];
+  hall?: RepHall[];
 }
 export interface ReportFile {
   modified_ms: number;

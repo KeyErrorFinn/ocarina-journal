@@ -10,6 +10,7 @@ pub mod files;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
+use std::sync::Arc;
 
 use files::{msbt, GameFiles, Key, Val};
 use oj_savefile::{flag_hash, Save};
@@ -169,6 +170,14 @@ impl Placements {
 }
 
 // ------------------------------------------------------------------------------------------------------------ catalogue
+/// `(group, size, IsGet flag)` of every bag, quiver and wallet row: each says what it raises its group's cap to.
+type Bags = Arc<Vec<(String, i64, u32)>>;
+
+/// The largest bag Link has in a group (none: 0).
+fn limit(bags: &Bags, group: &str, gd: &GameData, sav: &Save) -> i64 {
+    bags.iter().filter(|(g, _, get)| g == group && sav.get(*get).filter(|_| gd.flags.contains_key(get)).is_some_and(|w| w != 0)).map(|(_, n, _)| *n).max().unwrap_or(0)
+}
+
 #[derive(Debug, Clone)]
 enum Kind {
     Flag(Option<u32>),
@@ -176,6 +185,9 @@ enum Kind {
     Count(u32),
     Step(u32, HashSet<u32>, Vec<String>),
     Hearts { flag: u32, of: u32 },
+    Rupees { flag: u32, bags: Bags },
+    Item { get: u32, stock: Option<u32>, group: Option<String>, fixed: Option<i64>, counted: bool, bags: Bags },
+    Keys { held: u32, found: u32, of: u32 },
 }
 
 #[derive(Debug, Clone)]
@@ -196,22 +208,41 @@ impl Entry {
         let word = |h: u32| sav.get(h).filter(|_| gd.flags.contains_key(&h));
         match &self.kind {
             Kind::Flag(h) => word((*h)?).map(|w| u32::from(w != 0)),
+            Kind::Item { get, .. } => word(*get).map(|w| u32::from(w != 0)),
             Kind::Key(k) => Some(u32::from(u64::try_from(*k).is_ok_and(|k| sav.has_key(k)) || sav.has_key(*k as u64))),
             Kind::Count(h) => word(*h).map(|w| u32::from((w as i32) >= 1)),
             Kind::Step(h, done, _) => word(*h).map(|w| u32::from(done.contains(&w))),
             Kind::Hearts { flag, of } => word(*flag).map(|w| (w / 4).min(*of)),
+            Kind::Rupees { flag, .. } => word(*flag).map(|w| w.min(self.size(gd, sav))),
+            Kind::Keys { found, of, .. } => word(*found).map(|w| (w as i32).max(0).min(*of as i32) as u32),
         }
     }
     /// What the entry says about this save: a placement's position, or a quest's current step.
     fn describe(&self, gd: &GameData, sav: &Save) -> Option<String> {
+        if let Kind::Item { stock, group, fixed, counted, bags, .. } = &self.kind {
+            let n = stock.filter(|h| gd.flags.contains_key(h)).and_then(|h| sav.get(h)).map(|w| w as i32)?;
+            if !counted {
+                return None;
+            }
+            let cap = fixed.or_else(|| group.as_deref().map(|g| limit(bags, g, gd, sav)))?;
+            return Some(format!("{n} of {cap}"));
+        }
+        if let Kind::Keys { held, .. } = &self.kind {
+            return sav.get(*held).filter(|_| gd.flags.contains_key(held)).map(|w| format!("{} in hand", w as i32));
+        }
         if let Kind::Step(h, _, values) = &self.kind {
             let w = sav.get(*h).filter(|_| gd.flags.contains_key(h))?;
             return Some(values.iter().find(|v| flag_hash(v) == w).cloned().unwrap_or_else(|| format!("{w:#x}")));
         }
         self.note.clone()
     }
-    fn size(&self) -> u32 {
-        if let Kind::Hearts { of, .. } = self.kind { of } else { 1 }
+    fn size(&self, gd: &GameData, sav: &Save) -> u32 {
+        match &self.kind {
+            Kind::Hearts { of, .. } | Kind::Keys { of, .. } => *of,
+            // the largest wallet Link has
+            Kind::Rupees { bags, .. } => limit(bags, "Rupee", gd, sav) as u32,
+            _ => 1,
+        }
     }
 }
 
@@ -223,15 +254,61 @@ pub struct Category {
 }
 
 const TITLES: &[(&str, &str)] = &[
-    ("songs", "Songs"), ("hearts", "Hearts"), ("heart-containers", "Heart containers"), ("heart-pieces", "Heart pieces"),
-    ("chests", "Chests opened"), ("skulltulas", "Gold Skulltulas"), ("bosses", "Bosses beaten"),
+    ("equipment", "Equipment"), ("items", "Items"), ("masks", "Masks"), ("upgrades", "Upgrades"), ("songs", "Songs"),
+    ("quest", "Quest items"), ("hearts", "Hearts"), ("heart-containers", "Heart containers"), ("heart-pieces", "Heart pieces"),
+    ("rupees", "Rupees"), ("chests", "Chests opened"), ("skulltulas", "Gold Skulltulas"),
+    ("dungeons", "Dungeon maps, compasses and boss keys"), ("small-keys", "Small keys"), ("bosses", "Bosses beaten"),
     ("enemies", "Hall of Fallen Foes (enemies defeated)"), ("story", "Story"), ("side-quests", "Side quests"), ("mini-games", "Mini-games"),
 ];
+
+/// One Hall rematch record: the game keeps `DreamWorld_TimeTrial.<enemy>` as a struct of three flags.
+struct HallSlot {
+    id: String,
+    label: String,
+    have: u32,
+    best: u32,
+    other: u32,
+}
+
+fn hall_slots(gd: &GameData, names: &Names, cats: &[Category]) -> Vec<HallSlot> {
+    let member = |n: &str| flag_hash(n);
+    let (m_have, m_best) = (member("HaveRecordedTime"), member("BestTimeFrame"));
+    let mut out = vec![];
+    let mut candidates: Vec<String> = vec![];
+    for c in cats {
+        for e in &c.entries {
+            match c.id {
+                "enemies" => candidates.push(e.ident.clone()),
+                "bosses" => candidates.push(format!("Enemy_DungeonBoss_{}", e.ident)),
+                _ => {}
+            }
+        }
+    }
+    for gy in candidates {
+        let Some(h) = gd.find(&format!("DreamWorld_TimeTrial.{gy}")) else { continue };
+        let members: HashMap<u32, u32> = gd.entry(h).and_then(|e| e.get("DefaultValue")).map(|v| v.as_arr().iter().filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32))).collect()).unwrap_or_default();
+        let (Some(have), Some(best)) = (members.get(&m_have), members.get(&m_best)) else { continue };
+        let other = members.iter().find(|(k, _)| **k != m_have && **k != m_best).map(|(_, v)| *v).unwrap_or(0);
+        out.push(HallSlot { id: gy.clone(), label: names.of(&gy), have: *have, best: *best, other });
+    }
+    // the three boss-rush trials
+    for (best, have, label) in [
+        ("DreamWorld_BossRushBestTime", "DreamBossStage_HaveRecordedTime_BossRush", "Boss rush (full)"),
+        ("DreamWorld_BossrushBestTime_01", "DreamBossStage_HaveRecordedTime_BossRush_01", "Boss rush 1"),
+        ("DreamWorld_BossrushBestTime_02", "DreamBossStage_HaveRecordedTime_BossRush_02", "Boss rush 2"),
+    ] {
+        if let (Some(b), Some(h)) = (gd.find(best), gd.find(have)) {
+            out.push(HallSlot { id: format!("trial/{best}"), label: label.into(), have: h, best: b, other: 0 });
+        }
+    }
+    out
+}
 
 pub struct Game {
     pub files: GameFiles,
     pub data: GameData,
     pub catalogue: Vec<Category>,
+    hall: Vec<HallSlot>,
 }
 
 impl Game {
@@ -242,17 +319,18 @@ impl Game {
         let names = Names::load(&files);
         let place = Placements::scan(&files)?;
         let mut cats: BTreeMap<&str, Vec<Entry>> = BTreeMap::new();
-        songs(&files, &data, &names, &mut cats);
+        items(&files, &data, &names, &mut cats);
         placed(&files, &data, &names, &place, &mut cats);
         quests(&files, &data, &mut cats);
-        let catalogue = TITLES
+        let catalogue: Vec<Category> = TITLES
             .iter()
             .filter_map(|(id, title)| {
                 let entries = cats.remove(id).unwrap_or_default();
                 (!entries.is_empty()).then(|| Category { id, title, counted: *id != "mini-games", entries })
             })
             .collect();
-        Ok(Self { files, data, catalogue })
+        let hall = hall_slots(&data, &names, &catalogue);
+        Ok(Self { files, data, catalogue, hall })
     }
 }
 
@@ -261,21 +339,68 @@ fn rows(files: &GameFiles, table: &str) -> Result<Val, Error> {
     files.byml(&rel)
 }
 
-fn songs(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&str, Vec<Entry>>) {
+/// The pouch: equipment, items, masks, upgrades, songs and quest items, and the rupee wallet.
+fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&str, Vec<Entry>>) {
     let Ok(rows) = rows(files, "PouchActorInfo") else { return };
-    let list = out.entry("songs").or_default();
+    const FAMILIES: [(&str, &str); 5] = [("Item_Melody_", "songs"), ("Item_Stone_", "quest"), ("Item_Medal_", "quest"), ("Item_Token_", "quest"), ("Item_AgonyStone", "quest")];
+    let mut all: Vec<(String, i64, u32)> = vec![];
     for row in rows.as_arr() {
         let Some(name) = row.get("__RowId").and_then(Val::as_str) else { continue };
-        if !name.starts_with("Item_Melody_") || name.contains("Bundle") {
+        if let (Some(size), Some(group), Some(get)) = (
+            row.get("AfterExpansionMaxNum").filter(|v| v.truthy()).and_then(Val::int),
+            row.get("MaxNumGameData").filter(|v| v.truthy()).and_then(Val::as_str),
+            gd.find(&format!("IsGet.{name}")),
+        ) {
+            all.push((group.to_string(), size as i64, get));
+        }
+    }
+    let bags: Bags = Arc::new(all);
+    for row in rows.as_arr() {
+        let Some(name) = row.get("__RowId").and_then(Val::as_str) else { continue };
+        if !["Item_", "Weapon_", "Armor_"].iter().any(|p| name.starts_with(p)) || name.starts_with("Item_Dungeon_") || name.starts_with("Pouch_") || name.contains("Bundle") {
             continue;
         }
         let Some(get) = gd.find(&format!("IsGet.{name}")) else { continue };
+        let mut stock = gd.find(&format!("PouchData.{name}.StockNum"));
+        let family = FAMILIES.iter().find(|(p, _)| name.starts_with(p)).map(|(_, c)| *c);
+        let bottle = row.get("PouchSpecialDeal").and_then(Val::as_str) == Some("Bottle") || row.get("BottleItem").is_some_and(Val::truthy);
+        if name == "Item_Bottle" && stock.is_none() {
+            if let Some(a) = row.get("AssignableItem").filter(|v| v.truthy()).and_then(Val::as_str) {
+                stock = gd.find(&format!("PouchData.{a}.StockNum"));
+            }
+        }
+        if stock.is_none() && family.is_none() && !bottle {
+            continue;
+        }
         if gd.entry(get).and_then(|e| e.get("DefaultValue")).is_some_and(Val::truthy) || name.contains("Amiibo") || name.ends_with("_Base") || name.ends_with("_Normal") {
             continue;
         }
-        list.push(Entry { area: String::new(), ident: name.to_string(), label: names.of(name), note: None, kind: Kind::Flag(Some(get)) });
+        let cat = family.unwrap_or_else(|| {
+            let cat_of = |k: &str| row.get(k).and_then(Val::as_str);
+            if row.get("AfterExpansionMaxNum").is_some_and(Val::truthy) || name.contains("Gauntlet") || name.contains("Scale") || name.contains("FairyBless") {
+                "upgrades"
+            } else if name.contains("_Mask_") {
+                "masks"
+            } else if matches!(cat_of("PouchCategory"), Some("Weapon" | "Shield" | "Armor" | "Boot")) && cat_of("PouchTabCategory") == Some("Equipment") {
+                "equipment"
+            } else {
+                "items"
+            }
+        });
+        let group = row.get("MaxNumGameData").filter(|v| v.truthy()).and_then(Val::as_str).map(String::from);
+        let fixed = row.get("FixedMaxNum").filter(|v| !matches!(v, Val::Null)).and_then(Val::int).map(|v| v as i64);
+        let counted = row.get("PouchStockable").is_some_and(Val::truthy) && (group.is_some() || fixed.is_some());
+        out.entry(cat).or_default().push(Entry {
+            area: String::new(), ident: name.to_string(), label: names.of(name), note: None,
+            kind: Kind::Item { get, stock, group, fixed, counted, bags: bags.clone() },
+        });
     }
-    list.sort_by_key(|e| e.label.to_lowercase());
+    for list in out.values_mut() {
+        list.sort_by_key(|e| e.label.to_lowercase());
+    }
+    if let Some(rupee) = gd.find("PlayerStatus.CurrentRupee") {
+        out.entry("rupees").or_default().push(Entry { area: String::new(), ident: "rupees".into(), label: "Rupees".into(), note: None, kind: Kind::Rupees { flag: rupee, bags: bags.clone() } });
+    }
 }
 
 fn actor_fields(a: &Actor) -> (String, Option<i128>) {
@@ -293,6 +418,8 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
     enum Anchor { Flag(String), Actor(i128), Own(i128) }
     let mut anchors: Vec<(Anchor, String, String)> = vec![];
     let mut chests: BTreeMap<i128, (String, String, String, Option<i64>)> = BTreeMap::new();
+    let mut dungeon: BTreeMap<String, [u32; 3]> = BTreeMap::new();
+    let mut keys_by: BTreeMap<String, BTreeSet<(u8, String)>> = BTreeMap::new();
     let mut bosses_seen: HashSet<String> = HashSet::new();
     let mut boss_list: Vec<Entry> = vec![];
     let mut bancs: Vec<&String> = place.folder.keys().collect();
@@ -334,6 +461,21 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
                     if !anchors.iter().any(|(x, _, _)| repr(x) == repr(&ident)) {
                         anchors.push((ident, banc.clone(), where_.clone()));
                     }
+                }
+            }
+            // what each dungeon places: maps, compasses, boss keys and small keys
+            let dname = area_of(banc);
+            for (i, what) in ["Map", "Compass", "BossKey"].iter().enumerate() {
+                if drop == format!("Item_Dungeon_{what}") {
+                    dungeon.entry(dname.clone()).or_default()[i] += 1;
+                }
+            }
+            if drop == "Item_Dungeon_SmallKey" || gy == "Obj_Dungeon_SmallKey" {
+                keys_by.entry(dname.clone()).or_default().insert((0, py_int(a.hash.as_ref())));
+            }
+            for source in [gy, drop] {
+                if let Some(n) = source.strip_prefix("Obj_Dungeon_SmallKey_").filter(|n| !n.is_empty()) {
+                    keys_by.entry(dname.clone()).or_default().insert((1, n.to_string()));
                 }
             }
             if let Some(g) = gy.strip_prefix("Enemy_DungeonBoss_") {
@@ -416,6 +558,30 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
                 area: area.clone(), ident: (i + 1).to_string(), label: format!("Chest {} in {} ({content})", i + 1, humanize(&area)),
                 note: Some(format!("room {room} at {w}")), kind: Kind::Flag(gd.find(&format!("IsTreasureBoxOpen.{h}"))),
             });
+        }
+    }
+
+    // dungeons: each dungeon's struct names the flags of its map, compass, boss key and keys
+    let member = |n: &str| flag_hash(n);
+    let (m_map, m_compass, m_boss, m_keys, m_total) = (member("IsGetMap"), member("IsGetCompass"), member("IsGetBossKey"), member("SmallKeyNum"), member("SmallKeyTotalNum"));
+    let dnames: HashMap<u32, String> = place.folder.keys().map(|b| (flag_hash(&format!("DungeonInfo.{}", area_of(b))), area_of(b))).collect();
+    let mut structs: Vec<(u32, HashMap<u32, u32>)> = gd.flags.iter().filter(|(_, (t, _))| t == "Struct").filter_map(|(h, (_, e))| {
+        let m: HashMap<u32, u32> = e.get("DefaultValue")?.as_arr().iter().filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32))).collect();
+        m.contains_key(&m_map).then_some((*h, m))
+    }).collect();
+    structs.sort_by_key(|(h, _)| dnames.get(h).cloned().unwrap_or_else(|| format!("~{h:08x}")));
+    for (h, members) in structs {
+        let name = dnames.get(&h).cloned().unwrap_or_else(|| format!("Dungeon {h:08x}"));
+        for (i, (key, what, ident)) in [(m_map, "map", "map"), (m_compass, "compass", "compass"), (m_boss, "boss key", "bosskey")].into_iter().enumerate() {
+            if dungeon.get(&name).is_some_and(|d| d[i] > 0) {
+                if let Some(flag) = members.get(&key) {
+                    out.entry("dungeons").or_default().push(Entry { area: name.clone(), ident: ident.into(), label: format!("{}: {what}", humanize(&name)), note: None, kind: Kind::Flag(Some(*flag)) });
+                }
+            }
+        }
+        let total = keys_by.get(&name).map_or(0, BTreeSet::len);
+        if let (true, Some(held), Some(found)) = (total > 0, members.get(&m_keys), members.get(&m_total)) {
+            out.entry("small-keys").or_default().push(Entry { area: name.clone(), ident: "keys".into(), label: format!("{}: small keys", humanize(&name)), note: None, kind: Kind::Keys { held: *held, found: *found, of: total as u32 } });
         }
     }
 
@@ -505,6 +671,17 @@ pub struct RepSlot {
     pub totals: BTreeMap<String, [u32; 2]>,
 }
 
+/// A rematch record as stored. `best_frames` is the game's `BestTimeFrame` float, **unit unverified**: the name says
+/// frames, but no save on hand held a record to check against.
+#[derive(Debug, Serialize)]
+pub struct RepHall {
+    pub id: String,
+    pub label: String,
+    pub recorded: bool,
+    pub best_frames: Option<f32>,
+    pub other: Option<f32>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct Report {
     pub schema: u32,
@@ -513,15 +690,35 @@ pub struct Report {
     pub slot: String,
     pub slots: Vec<RepSlot>,
     pub categories: Vec<RepCategory>,
+    pub hall: Vec<RepHall>,
 }
 
 impl Game {
+    /// What a slot is: where Link is, hearts, rupees, the day and time in the game, when it was saved.
+    fn slot_info(&self, n: u32, sav: &Save, caption: Option<&Save>) -> RepSlot {
+        let flag = |name: &str| self.data.find(name);
+        let banc = flag("Sequence_CurrentBanc").and_then(|h| sav.get_string(h, 64)).unwrap_or_default();
+        let age = flag("Sequence_IsChildhood").map(|h| if sav.get(h).is_none_or(|w| w != 0) { "child" } else { "adult" }.to_string());
+        let clock = sav.get_u64(0xEF10_B80F).map(|c| format!("day {} {:02}:{:02}", c >> 32, (c & 0xFFFF_FFFF) / 3600, (c & 0xFFFF_FFFF) % 3600 / 60));
+        let saved = caption.and_then(|c| {
+            let v: Option<Vec<u32>> = ["Year", "Month", "Day", "Hour", "Minute", "Second"].iter().map(|k| c.get(flag_hash(&format!("CaptionData.Date.{k}")))).collect();
+            let v = v?;
+            (v[0] != 0).then(|| format!("{:04}-{:02}-{:02} {:02}:{:02}", v[0], v[1], v[2], v[3], v[4]))
+        });
+        RepSlot {
+            slot: format!("slot_{n:02}"), number: n,
+            place: Some(serde_json::json!({ "area": banc, "name": if banc.is_empty() { None } else { Some(humanize(&area_of(&banc))) } })),
+            age, hearts: Some(sav.get(flag_hash("PlayerStatus.MaxLife")).unwrap_or(0) as f64 / 4.0),
+            rupees: Some(sav.get(flag_hash("PlayerStatus.CurrentRupee")).unwrap_or(0)), clock, saved, totals: self.totals(sav),
+        }
+    }
+
     /// Totals for one slot's save: `{category: [have, of]}`.
     pub fn totals(&self, sav: &Save) -> BTreeMap<String, [u32; 2]> {
         self.catalogue.iter().map(|c| {
             let (mut h, mut o) = (0, 0);
             for e in &c.entries {
-                if let Some(x) = e.have(&self.data, sav) { h += x; o += e.size(); }
+                if let Some(x) = e.have(&self.data, sav) { h += x; o += e.size(&self.data, sav); }
             }
             (c.id.to_string(), [h, o])
         }).collect()
@@ -531,30 +728,34 @@ impl Game {
     pub fn report(&self, user_dir: &Path, detail: Option<u32>) -> Result<Report, Error> {
         let mut slots = vec![];
         let mut saves: BTreeMap<u32, (Save, std::time::SystemTime)> = BTreeMap::new();
+        let mut captions: BTreeMap<u32, Save> = BTreeMap::new();
         for e in std::fs::read_dir(user_dir)?.flatten() {
             let name = e.file_name().to_string_lossy().into_owned();
             let Some(n) = name.strip_prefix("slot_").and_then(|n| n.parse::<u32>().ok()) else { continue };
             let file = e.path().join("progress.sav");
             let Ok(sav) = Save::read(&file) else { continue };
             let mt = std::fs::metadata(&file).and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+            if let Ok(c) = Save::read(&e.path().join("caption.sav")) {
+                captions.insert(n, c);
+            }
             saves.insert(n, (sav, mt));
         }
         let newest = saves.iter().max_by_key(|(_, (_, mt))| *mt).map(|(n, _)| *n);
         let pick = detail.filter(|d| saves.contains_key(d)).or(newest).ok_or_else(|| Error::Game("no save slot found".into()))?;
         for (n, (sav, _)) in &saves {
-            slots.push(RepSlot {
-                slot: format!("slot_{n:02}"), number: *n, place: None, age: None,
-                hearts: sav.get(flag_hash("PlayerStatus.MaxLife")).map(|v| v as f64 / 4.0),
-                rupees: sav.get(flag_hash("PlayerStatus.CurrentRupee")), clock: None, saved: None, totals: self.totals(sav),
-            });
+            slots.push(self.slot_info(*n, sav, captions.get(n)));
         }
         let sav = &saves[&pick].0;
         let categories = self.catalogue.iter().map(|c| {
             let entries: Vec<RepEntry> = c.entries.iter().filter_map(|e| {
-                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(), note: e.describe(&self.data, sav) })
+                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav) })
             }).collect();
             RepCategory { id: c.id.into(), title: c.title.into(), counted: c.counted, have: entries.iter().map(|e| e.have).sum(), of: entries.iter().map(|e| e.of).sum(), entries }
         }).collect();
-        Ok(Report { schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
+        let hall = self.hall.iter().map(|h| {
+            let w = |f: u32| sav.get(f).filter(|_| self.data.flags.contains_key(&f));
+            RepHall { id: h.id.clone(), label: h.label.clone(), recorded: w(h.have).is_some_and(|v| v != 0), best_frames: w(h.best).map(f32::from_bits), other: w(h.other).map(f32::from_bits) }
+        }).collect();
+        Ok(Report { hall, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
     }
 }
