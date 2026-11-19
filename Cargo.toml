@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/oj-protocol", "crates/oj-bridge", "crates/oj-testkit", "crates/oj-journal", "crates/oj-savefile", "app/src-tauri"]
+members = ["crates/oj-protocol", "crates/oj-bridge", "crates/oj-testkit", "crates/oj-journal", "crates/oj-savefile", "crates/oj-gamedata", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"

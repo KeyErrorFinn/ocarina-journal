@@ -139,6 +139,11 @@ impl Save {
         self.words.get(&hash).copied()
     }
 
+    /// Is this 64-bit placement key in the file's list of keys that are true?
+    pub fn has_key(&self, key: u64) -> bool {
+        self.true_keys.binary_search(&key).is_ok()
+    }
+
     pub fn flag_count(&self) -> usize {
         self.words.len()
     }

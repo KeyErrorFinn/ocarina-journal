@@ -22,6 +22,7 @@ export function App() {
   // `#today`, `#map:KokiriForest`, `#ocarina:Saria's Song` open a screen directly (handy for review).
   const [route, setRoute] = useState<string>(() => decodeURIComponent(location.hash.slice(1)) || "home");
   const [seen, setSeen] = useState(false);
+  const [repErr, setRepErr] = useState<string | null>(null);
 
   useEffect(() => {
     let off: (() => void) | undefined;
@@ -35,8 +36,10 @@ export function App() {
     let last = 0;
     const load = () =>
       invoke<ReportFile | null>("get_report").then((r) => {
+        setRepErr(null);
         if (r && r.modified_ms !== last) { last = r.modified_ms; setRep(r); }
-      }).catch(() => {
+      }).catch((e) => {
+        setRepErr(typeof e === "string" ? e : "The game folder could not be read.");
         // Plain-browser review only: a git-ignored copy of the report.
         if (import.meta.env.DEV && !last) fetch("/dev-report.json").then((r) => r.json()).then((r: ReportFile) => { last = 1; setRep(r); }).catch(() => {});
       });
@@ -54,7 +57,7 @@ export function App() {
   let body;
   switch (id) {
     case "home":
-      body = <Home s={s} hasNew={!seen && s.journal.entries.length > 0} go={(t) => { if (t === "today") setSeen(true); setRoute(t); }} />;
+      body = <Home s={s} reportError={repErr} hasNew={!seen && s.journal.entries.length > 0} go={(t) => { if (t === "today") setSeen(true); setRoute(t); }} />;
       break;
     case "map":
       body = <MapScreen report={report} game={game} connected={s.connected} onHome={home} start={arg} />;

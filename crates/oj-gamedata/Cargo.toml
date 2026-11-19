@@ -1,0 +1,13 @@
+[package]
+name = "oj-gamedata"
+description = "Reads the player's own Longshot game folder (read-only) to name what a save holds: chests, Skulltulas, enemies, songs, quests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+oj-savefile = { path = "../oj-savefile" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zstd = "0.13"

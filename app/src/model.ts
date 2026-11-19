@@ -72,6 +72,7 @@ export interface LiveState {
   journal: Journal;
   save_dir: string | null;
   saves: SlotSummary[];
+  game_dir: string | null;
 }
 
 export const EMPTY_TOTALS: Totals = {
@@ -91,6 +92,7 @@ export const EMPTY: LiveState = {
   journal: { started_wall_ms: 0, totals: EMPTY_TOTALS, entries: [] },
   save_dir: null,
   saves: [],
+  game_dir: null,
 };
 
 /** The most recently written save slot, if any. */
