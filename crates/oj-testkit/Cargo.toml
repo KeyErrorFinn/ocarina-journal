@@ -1,0 +1,17 @@
+[package]
+name = "oj-testkit"
+description = "Fake Longshot control bridge that replays recorded sessions (tests and offline demo)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+oj-protocol = { path = "../oj-protocol" }
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+
+[[bin]]
+name = "oj-fakebridge"
+path = "src/bin/oj-fakebridge.rs"

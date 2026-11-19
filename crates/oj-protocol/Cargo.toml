@@ -1,0 +1,11 @@
+[package]
+name = "oj-protocol"
+description = "Wire types for Longshot's control bridge (protocol 1), read-only subset"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
