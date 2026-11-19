@@ -104,7 +104,7 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
           <Pad lit={lit} onNote={press} />
           <div style={{ display: "flex", gap: "1em", justifyContent: "center", alignItems: "center" }}>
             <button className="btn" onClick={demo}>▶ Demo</button>
-            <button className={`pillbtn`} style={guided ? { borderColor: "var(--gold)" } : undefined} onClick={() => { stopAll(); setGuided(!guided); setAt(0); }}>🎵 Guided Play</button>
+            <button className={`pillbtn`} style={guided ? { borderColor: "var(--gold)" } : undefined} onClick={() => { stopAll(); setGuided(!guided); setAt(0); }}>♪ Guided Play</button>
           </div>
           <div style={{ margin: "1em" }}><Seg items={["Play only the beginning", "Play the full version"] as const} value={mode} onChange={(m) => { setMode(m); setAt(0); }} /></div>
           <Staff notes={seq} at={at} />

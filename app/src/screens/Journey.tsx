@@ -3,7 +3,7 @@ import { MedalBadge, Rupee } from "../components/icons";
 import { Bar, Header, Note } from "../components/chrome";
 import { MEDALS, TIER_NAMES } from "../data/content";
 import { useLocal } from "../store";
-import { cat, type Report } from "../report";
+import { cat, totalKills, type Report } from "../report";
 
 type Tier = "bronze" | "silver" | "gold" | "locked";
 const TIER_KEYS: Tier[] = ["bronze", "silver", "gold"];
@@ -17,7 +17,7 @@ export function Journey({ report, rupees, onHome, onCompare }: { report: Report 
   const [avatar] = useLocal<string | null>("profile.avatar", null);
   const [open, setOpen] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
-  const value = (c: string) => cat(report, c)?.have ?? 0;
+  const value = (c: string) => (c === "kills" ? totalKills(report) : cat(report, c)?.have ?? 0);
 
   const m = MEDALS.find((x) => x.id === open);
   if (m) {
@@ -31,7 +31,7 @@ export function Journey({ report, rupees, onHome, onCompare }: { report: Report 
           <div style={{ width: "42%", margin: "1.4em auto .4em" }}><MedalBadge tier={badgeTier(n)} glyph={n ? m.glyph : "?"} /></div>
           <p className="small muted" style={{ textAlign: "center" }}>{TIER_NAMES[Math.max(0, n - 1)]} · {m.rule}</p>
           <div className="card">
-            <div className="rowline"><span className="muted small">{cat(report, m.cat)?.title ?? m.cat}</span><span className="big" style={{ fontSize: "1.8em" }}>{v}</span></div>
+            <div className="rowline"><span className="muted small">{m.cat === "kills" ? "Enemies defeated" : cat(report, m.cat)?.title ?? m.cat}</span><span className="big" style={{ fontSize: "1.8em" }}>{v}</span></div>
             <div className="rowline small"><span className="muted">{next ? "Remaining to next tier" : "All tiers earned"}</span><b>{next ? next - v : 0}</b></div>
             <Bar value={next ? v / next : 1} />
           </div>

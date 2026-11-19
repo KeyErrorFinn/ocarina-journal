@@ -2,10 +2,10 @@ use std::sync::{atomic::Ordering, Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use oj_bridge::{spawn, BridgeEvent, Config, LocalConnector};
-use oj_journal::{Journal, Snapshot};
+use oj_journal::{Journal, Snapshot, Totals};
 use oj_protocol::Game;
 use oj_savefile::SlotSummary;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -38,6 +38,8 @@ struct LiveState {
     saves: Vec<SlotSummary>,
     /// The game folder, from the running process or the default install location.
     game_dir: Option<String>,
+    /// Earlier days, newest first (kept on disk).
+    history: Vec<DaySummary>,
 }
 
 impl LiveState {
@@ -50,6 +52,94 @@ impl LiveState {
             Mode::Offline
         };
     }
+}
+
+// ------------------------------------------------------------------------------------------------ journal on disk
+/// A finished journal day. The day runs from 05:00 to 04:59, like the original app's.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DaySummary {
+    date: String,
+    start_ms: u64,
+    totals: Totals,
+}
+
+#[derive(Serialize, Deserialize)]
+struct JournalFile {
+    day_start_ms: u64,
+    snapshot: Snapshot,
+}
+
+const MAX_DAYS: usize = 120;
+
+fn data_dir() -> Option<std::path::PathBuf> {
+    let d = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("OcarinaJournal");
+    std::fs::create_dir_all(&d).ok()?;
+    Some(d)
+}
+
+fn write_atomic(path: &std::path::Path, bytes: &[u8]) {
+    let tmp = path.with_extension("tmp");
+    if std::fs::write(&tmp, bytes).is_ok() {
+        let _ = std::fs::rename(&tmp, path);
+    }
+}
+
+/// Start of the journal day containing `now_ms`, in local time.
+fn day_start_ms(now_ms: u64) -> u64 {
+    use chrono::{Duration as D, Local, TimeZone};
+    let now = Local.timestamp_millis_opt(now_ms as i64).single().unwrap_or_else(Local::now);
+    let mut start = now.date_naive().and_hms_opt(5, 0, 0).unwrap();
+    if now.naive_local() < start {
+        start -= D::days(1);
+    }
+    Local.from_local_datetime(&start).earliest().map_or(now_ms, |t| t.timestamp_millis() as u64)
+}
+
+fn date_of(ms: u64) -> String {
+    use chrono::{Local, TimeZone};
+    Local.timestamp_millis_opt(ms as i64).single().map(|t| t.format("%Y-%m-%d").to_string()).unwrap_or_default()
+}
+
+fn load_history() -> Vec<DaySummary> {
+    data_dir().and_then(|d| std::fs::read(d.join("history.json")).ok()).and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+}
+
+fn save_history(h: &[DaySummary]) {
+    if let (Some(d), Ok(b)) = (data_dir(), serde_json::to_vec(h)) {
+        write_atomic(&d.join("history.json"), &b);
+    }
+}
+
+fn save_journal(day_start_ms: u64, snapshot: &Snapshot) {
+    if let Some(d) = data_dir() {
+        if let Ok(b) = serde_json::to_vec(&JournalFile { day_start_ms, snapshot: snapshot.clone() }) {
+            write_atomic(&d.join("journal.json"), &b);
+        }
+    }
+}
+
+/// Resumes today's journal from disk, or archives an older one into the history.
+fn load_journal(now_ms: u64, history: &mut Vec<DaySummary>) -> (Journal, u64) {
+    let today = day_start_ms(now_ms);
+    let saved: Option<JournalFile> = data_dir().and_then(|d| std::fs::read(d.join("journal.json")).ok()).and_then(|b| serde_json::from_slice(&b).ok());
+    match saved {
+        Some(f) if f.day_start_ms == today => (Journal::from_snapshot(f.snapshot), today),
+        Some(f) => {
+            archive(history, f.day_start_ms, &f.snapshot.totals);
+            (Journal::new(), today)
+        }
+        None => (Journal::new(), today),
+    }
+}
+
+fn archive(history: &mut Vec<DaySummary>, start_ms: u64, totals: &Totals) {
+    if totals.play_secs < 1.0 {
+        return;
+    }
+    history.retain(|d| d.start_ms != start_ms);
+    history.insert(0, DaySummary { date: date_of(start_ms), start_ms, totals: totals.clone() });
+    history.truncate(MAX_DAYS);
+    save_history(history);
 }
 
 struct Shared(Arc<Mutex<LiveState>>);
@@ -147,6 +237,85 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
     }
 }
 
+// -------------------------------------------------------------------------------------------- consented actions
+#[derive(Serialize)]
+struct BridgePreview {
+    path: String,
+    exists: bool,
+    already: Option<String>,
+    before: String,
+    after: String,
+}
+
+fn env_file(state: &Shared) -> Result<std::path::PathBuf, String> {
+    let dir = state.0.lock().unwrap().game_dir.clone();
+    let dir = find_game_dir(dir.as_deref()).ok_or("The game folder was not found.")?;
+    Ok(dir.join("longshot_env.txt"))
+}
+
+/// What turning the bridge on would change in `longshot_env.txt`. Changes nothing.
+#[tauri::command]
+fn preview_enable_bridge(state: State<'_, Shared>) -> Result<BridgePreview, String> {
+    let path = env_file(&state)?;
+    let before = std::fs::read_to_string(&path).unwrap_or_default();
+    let already = before.lines().find_map(|l| l.trim().strip_prefix("HOS_CONTROL=").map(|v| v.trim().to_string()));
+    let line = format!("HOS_CONTROL={}", pipe_name());
+    let eol = if before.contains("\r\n") { "\r\n" } else { "\n" };
+    let after = match &already {
+        Some(_) => before.clone(),
+        None if before.is_empty() || before.ends_with('\n') => format!("{before}{line}{eol}"),
+        None => format!("{before}{eol}{line}{eol}"),
+    };
+    Ok(BridgePreview { path: path.display().to_string(), exists: path.is_file(), already, before, after })
+}
+
+/// Writes the previewed change after copying the old file to a timestamped backup. Needs `confirm: true`, which the
+/// UI only sends after the player has seen the preview and pressed the button. The game must be restarted to use it.
+#[tauri::command]
+fn apply_enable_bridge(state: State<'_, Shared>, confirm: bool) -> Result<String, String> {
+    if !confirm {
+        return Err("not confirmed".into());
+    }
+    let preview = preview_enable_bridge(state)?;
+    if let Some(v) = &preview.already {
+        return Err(format!("HOS_CONTROL is already set ({v}). Nothing was changed."));
+    }
+    let path = std::path::PathBuf::from(&preview.path);
+    if preview.exists {
+        let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let backup = path.with_file_name(format!("longshot_env.txt.oj-backup-{stamp}"));
+        std::fs::copy(&path, &backup).map_err(|e| format!("could not back up the file: {e}"))?;
+    }
+    std::fs::write(&path, preview.after).map_err(|e| format!("could not write {}: {e}", path.display()))?;
+    let note = if preview.exists { "The old file was backed up beside it." } else { "The file did not exist before." };
+    Ok(format!("Done. Restart Longshot to use the bridge. {note}"))
+}
+
+/// Starts Longshot with the control bridge on, using the player's own saves. Needs `confirm: true` from the UI.
+#[tauri::command]
+fn launch_game(state: State<'_, Shared>, confirm: bool) -> Result<String, String> {
+    if !confirm {
+        return Err("not confirmed".into());
+    }
+    if state.0.lock().unwrap().game_running {
+        return Err("Longshot is already running.".into());
+    }
+    let known = state.0.lock().unwrap().game_dir.clone();
+    let dir = find_game_dir(known.as_deref()).ok_or("The game folder was not found.")?;
+    let exe = dir.join("bin").join("longshot.exe");
+    if !exe.is_file() {
+        return Err(format!("{} does not exist.", exe.display()));
+    }
+    let mut cmd = std::process::Command::new(&exe);
+    cmd.current_dir(&dir).env("HOS_CONTROL", pipe_name());
+    // Without --user a directly started game makes a new empty save folder inside the game folder.
+    if let Some(user) = oj_savefile::default_save_dir().and_then(|d| d.parent()?.parent().map(|p| p.to_path_buf())) {
+        cmd.arg("--user").arg(user);
+    }
+    cmd.spawn().map_err(|e| e.to_string())?;
+    Ok("Longshot is starting with the bridge on.".into())
+}
+
 #[tauri::command]
 fn get_state(state: State<'_, Shared>) -> LiveState {
     state.0.lock().unwrap().clone()
@@ -174,7 +343,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
-        .invoke_handler(tauri::generate_handler![get_state, get_report])
+        .invoke_handler(tauri::generate_handler![get_state, get_report, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 
@@ -184,7 +353,14 @@ pub fn run() {
                 let shared = shared.clone();
                 tauri::async_runtime::spawn(async move {
                     let (bridge, mut rx) = spawn(LocalConnector { name: pipe_name() }, Config::default());
-                    let mut journal = Journal::new();
+                    let mut history = load_history();
+                    let (mut journal, mut day) = load_journal(now_ms(), &mut history);
+                    {
+                        let mut s = shared.lock().unwrap();
+                        s.journal = journal.snapshot();
+                        s.history = history.clone();
+                    }
+                    let mut last_save = Instant::now();
                     let mut last_emit = Instant::now() - EMIT_EVERY;
                     while let Some(ev) = rx.recv().await {
                         let mut is_sample = false;
@@ -199,10 +375,23 @@ pub fn run() {
                                 BridgeEvent::Disconnected => {
                                     s.connected = false;
                                     s.game = None;
+                                    save_journal(day, &journal.snapshot());
                                 }
                                 BridgeEvent::Sample { game, .. } => {
                                     is_sample = true;
-                                    journal.push_sample(now_ms(), &game);
+                                    let now = now_ms();
+                                    let today = day_start_ms(now);
+                                    if today != day {
+                                        archive(&mut history, day, &journal.snapshot().totals);
+                                        journal = Journal::new();
+                                        day = today;
+                                        s.history = history.clone();
+                                    }
+                                    journal.push_sample(now, &game);
+                                    if last_save.elapsed() >= Duration::from_secs(10) {
+                                        save_journal(day, &journal.snapshot());
+                                        last_save = Instant::now();
+                                    }
                                     s.journal = journal.snapshot();
                                     s.game = Some(*game);
                                 }

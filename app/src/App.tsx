@@ -15,6 +15,7 @@ import { Tapestry } from "./screens/Tapestry";
 import { Amiibo } from "./screens/Amiibo";
 import { Ocarina } from "./screens/Ocarina";
 import { Quiz } from "./screens/Quiz";
+import { History } from "./screens/History";
 
 export function App() {
   const [s, setS] = useState<LiveState>(EMPTY);
@@ -76,6 +77,9 @@ export function App() {
       break;
     case "compare":
       body = <Compare report={report} journal={s.journal} onHome={home} onBack={() => setRoute("journey")} />;
+      break;
+    case "history":
+      body = <History days={s.history} onHome={home} />;
       break;
     case "photos":
       body = <Photos report={report} onHome={home} />;

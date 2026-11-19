@@ -15,7 +15,7 @@ export interface Game {
 export type Mode = "live" | "bridge_off" | "offline";
 
 export type EntryKind =
-  | { type: "area_entered"; area: string }
+  | { type: "area_entered"; entered: string }
   | { type: "battle_started" }
   | { type: "battle_ended"; secs: number }
   | { type: "rupees_gained"; amount: number }
@@ -60,6 +60,12 @@ export interface SlotSummary {
   true_keys: number;
 }
 
+export interface DaySummary {
+  date: string;
+  start_ms: number;
+  totals: Totals;
+}
+
 export interface LiveState {
   mode: Mode;
   connected: boolean;
@@ -73,6 +79,7 @@ export interface LiveState {
   save_dir: string | null;
   saves: SlotSummary[];
   game_dir: string | null;
+  history: DaySummary[];
 }
 
 export const EMPTY_TOTALS: Totals = {
@@ -93,6 +100,7 @@ export const EMPTY: LiveState = {
   save_dir: null,
   saves: [],
   game_dir: null,
+  history: [],
 };
 
 /** The most recently written save slot, if any. */
@@ -113,7 +121,7 @@ export function mins(secs: number): string {
 export function describe(e: Entry): { title: string; detail?: string; key: boolean } {
   const hearts = (q: number) => `${q / 4} ${q === 4 ? "heart" : "hearts"}`;
   switch (e.type) {
-    case "area_entered": return { title: `Entered ${friendlyMap(e.area)}`, key: true };
+    case "area_entered": return { title: `Entered ${friendlyMap(e.entered)}`, key: true };
     case "battle_started": return { title: "Battle started", detail: e.area ? friendlyMap(e.area) : undefined, key: false };
     case "battle_ended": return { title: "Battle ended", detail: `${Math.round(e.secs)} s`, key: false };
     case "rupees_gained": return { title: `+${e.amount} rupees`, key: false };
@@ -155,6 +163,7 @@ export const TILES: { id: string; title: string; desc: string; icon: string; dar
   { id: "today", title: "Today's Journal", desc: "Timeline and totals", icon: "GScroll" },
   { id: "journey", title: "My Journey", desc: "Medals and totals", icon: "GMedal", dark: true },
   { id: "compare", title: "Slot Compare", desc: "Your save slots side by side", icon: "GChart" },
+  { id: "history", title: "History", desc: "Your days over time", icon: "GHistory", dark: true },
   { id: "photos", title: "Photo Album", desc: "Frames and titles", icon: "GCamera" },
   { id: "tapestry", title: "Tapestry", desc: "Your story, woven", icon: "GTapestry", dark: true },
   { id: "amiibo", title: "amiibo", desc: "Needs the console", icon: "GAmiibo", locked: "amiibo needs the console's NFC reader, which a PC does not have." },

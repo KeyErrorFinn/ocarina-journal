@@ -2218,6 +2218,7 @@ dependencies = [
 name = "ocarina-journal"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "oj-bridge",
  "oj-gamedata",
  "oj-journal",

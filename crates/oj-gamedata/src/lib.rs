@@ -217,6 +217,14 @@ impl Entry {
             Kind::Keys { found, of, .. } => word(*found).map(|w| (w as i32).max(0).min(*of as i32) as u32),
         }
     }
+    /// The counter behind a defeat flag.
+    fn count(&self, gd: &GameData, sav: &Save) -> Option<u32> {
+        if let Kind::Count(h) = &self.kind {
+            return sav.get(*h).filter(|_| gd.flags.contains_key(h)).map(|w| (w as i32).max(0) as u32);
+        }
+        None
+    }
+
     /// What the entry says about this save: a placement's position, or a quest's current step.
     fn describe(&self, gd: &GameData, sav: &Save) -> Option<String> {
         if let Kind::Item { stock, group, fixed, counted, bags, .. } = &self.kind {
@@ -646,6 +654,9 @@ pub struct RepEntry {
     pub have: u32,
     pub of: u32,
     pub note: Option<String>,
+    /// How many times it was defeated (enemies and bosses only): the game's `DefeatedEnemyNum` counter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub count: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -748,7 +759,7 @@ impl Game {
         let sav = &saves[&pick].0;
         let categories = self.catalogue.iter().map(|c| {
             let entries: Vec<RepEntry> = c.entries.iter().filter_map(|e| {
-                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav) })
+                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav), count: e.count(&self.data, sav) })
             }).collect();
             RepCategory { id: c.id.into(), title: c.title.into(), counted: c.counted, have: entries.iter().map(|e| e.have).sum(), of: entries.iter().map(|e| e.of).sum(), entries }
         }).collect();

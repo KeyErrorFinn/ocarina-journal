@@ -61,3 +61,23 @@ The catalogue rules follow the behaviour of Longshot's save editor (PR #1655, au
 independent Rust implementation written from reading that logic and checked against its output, not a copy of its code.
 Its licence and whether a port needs the same terms are **not settled** and belong with the legal review in
 `RISKS_AND_LIMITATIONS.md`. If the PR changes before it merges, this crate's rules may need to follow.
+
+## Kill counters and the daily stats
+
+`DefeatedEnemyNum.<enemy gyaml>` (Int) is a real per-enemy kill count, not just a defeated flag. The report now carries it
+as `count`, and My Journey has a "Foe Slayer" medal on the total (tiers 100, 300, 500 and 1,000, the thresholds seen in a
+walkthrough of the original app; this app's own medal). The counters behind Today's Record (grass cut, pots, jumps, rolls,
+sword swings, rocks lifted) were searched for in the game's flag list, its text, its event flows and its binary and
+**not found by any name**, so Today's Record cannot show them. Zelda Notes itself leaves traces in the binary
+(`ZeldaNote_%02d`, `ExecuteZeldaNotesSendRupee`) but no matching save flag exists under those names.
+
+## Journal on disk and the other two modes
+
+- The journal is saved to `%LOCALAPPDATA%\OcarinaJournal\journal.json` every ten seconds and when the game disconnects.
+  A game restart no longer wipes the day. At 05:00 the finished day moves to `history.json` (up to 120 days), shown on
+  the History screen.
+- **Bridge off, game running:** "Turn on the bridge…" shows the exact line it would add to `longshot_env.txt`, makes a
+  timestamped backup copy first, and writes only after the button press (`confirm: true`). The game must be restarted.
+- **Game not running:** "Start Longshot with the bridge…" starts `bin\longshot.exe` with `HOS_CONTROL` set for that launch
+  only and `--user %APPDATA%\Longshot` so it uses the real saves. That `--user` argument was found by trial (a direct start
+  without it mounts a new empty folder inside the game folder); whether the Launcher passes the same is unverified.

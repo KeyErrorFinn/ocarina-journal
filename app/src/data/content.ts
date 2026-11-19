@@ -64,6 +64,7 @@ export const QUIZ: Q[] = [
 
 export const MEDALS = [
   { id: "skull", name: "Token Collector", rule: "Earned by collecting Gold Skulltula tokens", cat: "skulltulas", tiers: [10, 30, 50, 100], glyph: "sword" },
+  { id: "kills", name: "Foe Slayer", rule: "Earned by defeating enemies of any kind", cat: "kills", tiers: [100, 300, 500, 1000], glyph: "sword" },
   { id: "foes", name: "Foe Hunter", rule: "Earned by defeating different kinds of enemies", cat: "enemies", tiers: [20, 40, 60, 79], glyph: "sword" },
   { id: "chests", name: "Treasure Seeker", rule: "Earned by opening chests", cat: "chests", tiers: [25, 75, 125, 184], glyph: "gem" },
   { id: "hearts", name: "Big Hearted", rule: "Earned by growing your heart containers", cat: "hearts", tiers: [5, 10, 15, 20], glyph: "gem" },

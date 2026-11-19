@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use oj_protocol::Game;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Music cue seen during a fight (recorded session, 2026-11-19). Other battle/boss cues are unverified.
 pub const BATTLE_MUSIC: &[&str] = &["BGM_EnemyBattle"];
@@ -21,10 +21,10 @@ const MAX_DT: f64 = 5.0;
 const MAX_STEP: f64 = 60.0;
 const MAX_ENTRIES: usize = 300;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Kind {
-    AreaEntered { area: String },
+    AreaEntered { entered: String },
     BattleStarted,
     BattleEnded { secs: f64 },
     RupeesGained { amount: i64 },
@@ -38,7 +38,7 @@ pub enum Kind {
     Scene { secs: f64 },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub wall_ms: u64,
     pub game_t: f64,
@@ -47,7 +47,7 @@ pub struct Entry {
     pub kind: Kind,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Totals {
     pub play_secs: f64,
     pub by_area: BTreeMap<String, f64>,
@@ -63,7 +63,7 @@ pub struct Totals {
     pub areas_visited: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Snapshot {
     pub started_wall_ms: u64,
     pub totals: Totals,
@@ -101,6 +101,22 @@ impl Journal {
         *self = Self::default();
     }
 
+    /// Forget what belongs to one run of the game, keep what was recorded.
+    pub fn new_run(&mut self) {
+        let (started, totals, entries) = (self.started_wall_ms, std::mem::take(&mut self.totals), std::mem::take(&mut self.entries));
+        *self = Self::default();
+        (self.started_wall_ms, self.totals, self.entries) = (started, totals, entries);
+    }
+
+    /// Continue from a saved day (the first sample after this is a baseline).
+    pub fn from_snapshot(s: Snapshot) -> Self {
+        let mut j = Self::default();
+        j.started_wall_ms = s.started_wall_ms;
+        j.totals = s.totals;
+        j.entries = s.entries.into_iter().rev().collect();
+        j
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
             started_wall_ms: self.started_wall_ms,
@@ -120,11 +136,10 @@ impl Journal {
         if self.started_wall_ms == 0 {
             self.started_wall_ms = wall_ms;
         }
-        // A game clock that goes backwards means a new run of the game.
+        // A game clock that goes backwards means a new run of the game: the day's totals and entries stay, the
+        // per-run state (what the counters were, the fight in progress) starts again.
         if matches!(&self.last, Some(l) if g.t + 1.0 < l.t) {
-            let started = self.started_wall_ms;
-            self.reset();
-            self.started_wall_ms = started;
+            self.new_run();
         }
         let t = g.t;
 
@@ -152,7 +167,7 @@ impl Journal {
                     self.totals.areas_visited.insert(m.clone());
                     // The very first sample is a baseline, not an arrival.
                     if self.last.is_some() {
-                        self.push(wall_ms, t, Kind::AreaEntered { area: m.clone() });
+                        self.push(wall_ms, t, Kind::AreaEntered { entered: m.clone() });
                     }
                 }
             }
@@ -308,7 +323,7 @@ mod tests {
         a.loading = false;
         a.t = 0.2;
         j.push_sample(3, &a);
-        assert_eq!(kinds(&j), vec![Kind::AreaEntered { area: "Market".into() }]);
+        assert_eq!(kinds(&j), vec![Kind::AreaEntered { entered: "Market".into() }]);
     }
 
     #[test]
@@ -415,13 +430,28 @@ mod tests {
     }
 
     #[test]
-    fn game_restart_resets_totals() {
+    fn game_restart_keeps_the_days_totals() {
         let mut j = Journal::new();
         j.push_sample(1, &g(100.0));
         j.push_sample(2, &g(101.0));
         assert!(j.snapshot().totals.play_secs > 0.9);
         j.push_sample(3, &g(0.5));
-        assert!(j.snapshot().totals.play_secs < 0.1);
+        j.push_sample(4, &g(1.5));
+        assert!(j.snapshot().totals.play_secs > 1.9, "the new run adds to the day");
+    }
+
+    #[test]
+    fn a_saved_day_can_be_restored() {
+        let mut j = Journal::new();
+        j.push_sample(1, &g(0.0));
+        let mut a = g(0.2);
+        a.map = Some("Market".into());
+        j.push_sample(2, &a);
+        let text = serde_json::to_string(&j.snapshot()).unwrap();
+        let mut back = Journal::from_snapshot(serde_json::from_str(&text).unwrap());
+        assert_eq!(back.snapshot().entries, j.snapshot().entries);
+        back.push_sample(3, &g(50.0)); // a baseline after the restore, not an arrival or a time jump
+        assert_eq!(back.snapshot().entries.len(), 1);
     }
 
     /// The recorded session replays without panicking and yields plausible totals.
