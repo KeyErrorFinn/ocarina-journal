@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Header, RefreshBtn, Tabs } from "../components/chrome";
 import { Crest, Ribbon } from "../components/art";
-import { cat, prettyArea, type RepEntry, type Report } from "../report";
+import { cat, hallTime, prettyArea, type RepEntry, type RepHall, type Report } from "../report";
 import type { Entry } from "../model";
 
 const TABS = ["Records", "Rankings"] as const;
@@ -12,6 +12,12 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   const bosses = (cat(report, "bosses")?.entries ?? []).map((e) => ({ ...e, boss: true }));
   const foes = (cat(report, "enemies")?.entries ?? []).map((e) => ({ ...e, boss: false }));
   const done = (l: { have: number }[]) => l.filter((e) => e.have).length;
+  const hall = report?.hall ?? [];
+  const recordOf = (e: RepEntry & { boss: boolean }): RepHall | undefined => {
+    const last = e.id.split("/").pop() ?? "";
+    return hall.find((h) => h.id === (e.boss ? `Enemy_DungeonBoss_${last}` : last));
+  };
+  const trials = hall.filter((h) => h.id.startsWith("trial/"));
 
   if (open) {
     const fights = entries.filter((e) => e.type === "battle_ended") as Extract<Entry, { type: "battle_ended" }>[];
@@ -30,7 +36,16 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
               </div>
               <div className="card">
                 <h3>Best time</h3>
-                <p className="small muted">The game's own record times are not in the data this app can read yet, so no tier thresholds are shown. They are set per enemy in the original app and were not copied here.</p>
+                {hallTime(recordOf(open)) ? (
+                  <>
+                    <div className="big" style={{ fontSize: "2em" }}>{hallTime(recordOf(open))}</div>
+                    <p className="small muted">From the game's rematch record. The time unit is assumed (60 frames a second) and not yet confirmed against a real rematch.</p>
+                  </>
+                ) : (
+                  <p className="small muted">
+                    {recordOf(open) ? "No rematch time recorded yet in this save." : "This one has no timed rematch."} Medal tiers (Bronze to Master) belong to the original phone app and are not in the game's files, so none are shown.
+                  </p>
+                )}
               </div>
             </>
           ) : (
@@ -50,7 +65,7 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   const Row = (e: RepEntry & { boss: boolean }) => (
     <button key={e.id} className={`listcard ${e.have ? "" : "locked"}`} onClick={() => setOpen(e)}>
       <span className="pic"><Crest name={e.label} /></span>
-      <span className="mid">{e.have ? e.label : "???"}<div className="time">{e.have ? "Defeated" : "Not yet"}</div></span>
+      <span className="mid">{e.have ? e.label : "???"}<div className="time">{hallTime(recordOf(e)) ?? (e.have ? "Defeated" : "Not yet")}</div></span>
       <Ribbon tier={e.have ? (e.boss ? 3 : 1) : 0} />
     </button>
   );
@@ -58,10 +73,20 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   return (
     <>
       <Header title="Hall of Foes" onLeft={onHome} right={<RefreshBtn />}
-        help="Every enemy kind and boss the game tracks, with whether you have defeated it. Defeat counts are read from your save; the game's rematch times are not available to this app yet." />
+        help="Every enemy kind and boss the game tracks, with whether you have defeated it. Defeat counts and rematch times are read from your save. The time unit is assumed and not yet confirmed." />
       <div className="scroll grain">
         {!report ? <p className="empty">No save report yet.</p> : (
           <>
+            {trials.length > 0 && (
+              <>
+                <div className="rowline" style={{ margin: "1em 1.2em 0" }}><b>Trials</b><span className="num">{trials.filter((t) => t.recorded).length}/{trials.length}</span></div>
+                {trials.map((t) => (
+                  <div key={t.id} className={`listcard ${t.recorded ? "" : "locked"}`}>
+                    <span className="mid" style={{ textAlign: "left" }}>{t.label}<div className="time">{hallTime(t) ?? "Not yet"}</div></span>
+                  </div>
+                ))}
+              </>
+            )}
             <div className="rowline" style={{ margin: "1em 1.2em 0" }}><b>Bosses</b><span className="num">{done(bosses)}/{bosses.length}</span></div>
             {bosses.map(Row)}
             <div className="rowline" style={{ margin: "1.2em 1.2em 0" }}><b>Enemies</b><span className="num">{done(foes)}/{foes.length}</span></div>

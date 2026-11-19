@@ -84,6 +84,7 @@ pub mod known {
 #[derive(Debug, Clone)]
 pub struct Save {
     pub revision: u32,
+    raw: Vec<u8>,
     words: HashMap<u32, u32>,
     /// Keys that are true (one per placed object: chest, Gold Skulltula, heart piece ...).
     pub true_keys: Vec<u64>,
@@ -101,33 +102,42 @@ impl Save {
             return Err(Error::BadMagic);
         }
         let revision = u32_at(4)?;
+        let start = u32_at(8)? as usize;
+        if start <= TABLE || start > b.len() {
+            return Err(Error::Damaged("data offset out of range"));
+        }
         let mut words = HashMap::new();
         let mut o = TABLE;
-        let key_off = loop {
+        // The flag table runs to the data section; a progress file ends it with the tail entry that points at the key list.
+        let mut key_off = None;
+        while o + 8 <= start {
             let (h, v) = (u32_at(o)?, u32_at(o + 4)?);
             o += 8;
             if h == TAIL_HASH {
-                break v as usize;
+                key_off = Some(v as usize);
+                break;
             }
             if h != 0 {
                 words.insert(h, v);
             }
-        };
-        if key_off < o || key_off > b.len() {
-            return Err(Error::Damaged("key list offset out of range"));
         }
         let mut true_keys = Vec::new();
-        let mut k = key_off;
-        loop {
-            let Some(s) = b.get(k..k + 8) else { return Err(Error::Damaged("key list not terminated")) };
-            let x = u64::from_le_bytes(s.try_into().unwrap());
-            if x == 0 {
-                break;
+        if let Some(key_off) = key_off {
+            if key_off < o || key_off > b.len() {
+                return Err(Error::Damaged("key list offset out of range"));
             }
-            true_keys.push(x);
-            k += 8;
+            let mut k = key_off;
+            loop {
+                let Some(s) = b.get(k..k + 8) else { return Err(Error::Damaged("key list not terminated")) };
+                let x = u64::from_le_bytes(s.try_into().unwrap());
+                if x == 0 {
+                    break;
+                }
+                true_keys.push(x);
+                k += 8;
+            }
         }
-        Ok(Self { revision, words, true_keys })
+        Ok(Self { revision, raw: b.to_vec(), words, true_keys })
     }
 
     pub fn read(path: &Path) -> Result<Self, Error> {
@@ -137,6 +147,25 @@ impl Save {
 
     pub fn get(&self, hash: u32) -> Option<u32> {
         self.words.get(&hash).copied()
+    }
+
+    /// A Float flag's value (stored in the table word itself).
+    pub fn get_f32(&self, hash: u32) -> Option<f32> {
+        self.get(hash).map(f32::from_bits)
+    }
+
+    /// A String flag's text (the table value is an offset to NUL-terminated bytes of at most `max`).
+    pub fn get_string(&self, hash: u32, max: usize) -> Option<String> {
+        let o = self.get(hash)? as usize;
+        let s = self.raw.get(o..(o + max).min(self.raw.len()))?;
+        let n = s.iter().position(|b| *b == 0).unwrap_or(s.len());
+        Some(String::from_utf8_lossy(&s[..n]).into_owned())
+    }
+
+    /// A 64-bit flag's value (the table value is an offset to eight bytes).
+    pub fn get_u64(&self, hash: u32) -> Option<u64> {
+        let o = self.get(hash)? as usize;
+        Some(u64::from_le_bytes(self.raw.get(o..o + 8)?.try_into().ok()?))
     }
 
     /// Is this 64-bit placement key in the file's list of keys that are true?
@@ -222,6 +251,8 @@ mod tests {
         let key_off = (b.len() + 8) as u32;
         b.extend_from_slice(&TAIL_HASH.to_le_bytes());
         b.extend_from_slice(&key_off.to_le_bytes());
+        let start = b.len() as u32; // the data section starts after the table
+        b[8..12].copy_from_slice(&start.to_le_bytes());
         for k in keys {
             b.extend_from_slice(&k.to_le_bytes());
         }

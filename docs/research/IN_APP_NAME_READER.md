@@ -36,11 +36,24 @@ under `%USERPROFILE%\Games\Longshot`) and the saves under `%APPDATA%\Longshot\sa
 the saves, and serves it to the UI. A hand-made `report.json` (`OJ_REPORT`, or `%LOCALAPPDATA%\OcarinaJournal`) is a
 fallback only when the game folder cannot be read.
 
-## Covered and not covered
+## Covered
 
-Covered: songs, hearts, heart containers, heart pieces, chests, Gold Skulltulas, bosses, the Hall of Fallen Foes, story,
-side quests, mini-games. **Not** covered yet: equipment, items, masks, upgrades, quest items, dungeon maps/compasses/keys,
-small keys, rupees as an entry, and the slot's place, age and in-game clock (the UI does not need them).
+All 19 categories of the reference tool: equipment, items, masks, upgrades, songs, quest items, hearts, heart
+containers, heart pieces, rupees, chests, Gold Skulltulas, dungeon maps/compasses/boss keys, small keys, bosses, the Hall
+of Fallen Foes, story, side quests and mini-games, plus each slot's place, age, in-game clock and save date. The golden
+test compares **619 entries** and every slot's totals and info.
+
+## Hall rematch records (found, not yet verified)
+
+The game keeps each timed rematch as a struct flag `DreamWorld_TimeTrial.<enemy gyaml>` (for example
+`DreamWorld_TimeTrial.Enemy_Stalfos`) with members `HaveRecordedTime` (Bool), `BestTimeFrame` (Float) and one more Float.
+23 enemies and bosses have one. The three boss-rush trials use `DreamWorld_BossRushBestTime` and
+`DreamWorld_BossrushBestTime_01/_02` (Float) with `DreamBossStage_HaveRecordedTime_BossRush[_01/_02]` (Bool). The names
+came from the game's event flows and the flag list, then were confirmed by membership in the list.
+
+**Unverified:** none of this PC's six slots holds a record, so the unit of `BestTimeFrame` is assumed to be 60 frames
+a second (`HALL_FPS`). One real rematch, saved, settles it. The Bronze, Silver, Gold and Master tiers are not in the
+game's files; they belong to the phone app.
 
 ## Provenance and legal
 
