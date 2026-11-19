@@ -21,4 +21,5 @@ oj-protocol = { path = "../../crates/oj-protocol" }
 oj-bridge = { path = "../../crates/oj-bridge" }
 oj-journal = { path = "../../crates/oj-journal" }
 oj-savefile = { path = "../../crates/oj-savefile" }
+oj-gamedata = { path = "../../crates/oj-gamedata" }
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }

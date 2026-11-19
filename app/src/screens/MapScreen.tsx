@@ -78,8 +78,8 @@ export function MapScreen({ report, game, connected, onHome, start }: Props) {
           <Sync on={connected} />
         </div>
         <p className="empty" style={{ marginTop: "5em" }}>
-          No save report yet. The map needs the list of chests, Gold Skulltulas and Heart pieces, which is made from your own game files
-          (see docs/research/GAME_STATE_AND_SAVE_FORMATS.md). Run the report helper, then reopen this screen.
+          The map needs the list of chests, Gold Skulltulas and Heart pieces, which this app reads from your own Longshot game folder
+          and save. It could not find them yet. Start Longshot once, or set OJ_GAME to the folder that holds romfs.
         </p>
       </div>
     );

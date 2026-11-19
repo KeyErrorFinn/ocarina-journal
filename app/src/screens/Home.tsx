@@ -22,7 +22,7 @@ export function Hearts({ life, max }: { life: number; max: number }) {
   );
 }
 
-export function Home({ s, go, hasNew }: { s: LiveState; go: (id: string) => void; hasNew: boolean }) {
+export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: string) => void; hasNew: boolean; reportError: string | null }) {
   const [menu, setMenu] = useState(false);
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
@@ -77,6 +77,10 @@ export function Home({ s, go, hasNew }: { s: LiveState; go: (id: string) => void
             <p><b>Mode:</b> {s.mode === "live" ? "Live (bridge connected)" : s.mode === "bridge_off" ? "Game running, bridge off" : "Game not running"}</p>
             {s.version && <p className="muted small">{s.version}</p>}
             <p className="muted small">Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}</p>
+            <p className="muted small">Game folder: {s.game_dir ?? "not detected (found when the game runs, or set OJ_GAME)"}</p>
+            <p className="small" style={{ color: reportError ? "var(--amber)" : "var(--teal)" }}>
+              Names and positions: {reportError ? `unavailable (${reportError})` : "read from your game folder"}
+            </p>
             {s.mode === "bridge_off" && (
               <p style={{ marginTop: ".8em" }}>
                 Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>, or add
