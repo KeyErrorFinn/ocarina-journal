@@ -1,6 +1,6 @@
 # Spike S1: control bridge on the user's Windows machine (2026-11-19)
 
-Build: Longshot `v3.0.0-rc.5` (source `013b1d3a`), test GPU, Windows 11. Game started with `HOS_CONTROL=zn-spike` set **only in the launched process's environment** (no config file written) and `--user` pointing at a scratch copy of the six real save slots. Real saves under `%APPDATA%\Longshot\save` were not touched (slot_01 mtime unchanged). A read-only Python client subscribed to `oot` and `map` events (`every:6`, `changes:true`). A second connection drove input (`press`, `stick`, `shot`) to load a save and walk: this used the bridge's write-capable commands, on a scratch copy, at the user's request. Raw logs are local (`%USERPROFILE%\research-clones\spike\`), not committed.
+Build: Longshot `v3.0.0-rc.5` (source `013b1d3a`), test GPU, Windows 11. Game started with `HOS_CONTROL=zn-spike` set **only in the launched process's environment** (no config file written) and `--user` pointing at a scratch copy of the six real save slots. Real saves under `%APPDATA%\Longshot\save` were not touched (slot_01 mtime unchanged). A read-only Python client subscribed to `oot` and `map` events (`every:6`, `changes:true`). A second connection drove input (`press`, `stick`, `shot`) to load a save and walk: this used the bridge's write-capable commands, on a scratch copy, at the user's request. Raw logs are local (`<scratch>\spike\`), not committed.
 
 ## Results
 
@@ -36,7 +36,7 @@ Opening a chest, rupee pickups, taking damage, killing an enemy, game over, savi
 
 # Run 2: combat session (same day)
 
-Real saves were first backed up (14 files, SHA-256 identical) to `%USERPROFILE%\Documents\Longshot-save-backups\save-<timestamp>`, and verified **still identical after the session**. The game again ran on a fresh scratch copy via `--user`. The bridge drove input (`press`, `stick`, `sequence`) and `teleport` (a debug write command) to reach enemies; 4,122 `oot` samples, 0 errors, 3 simultaneous clients.
+Real saves were first backed up (14 files, SHA-256 identical) to `<backups>\save-<timestamp>`, and verified **still identical after the session**. The game again ran on a fresh scratch copy via `--user`. The bridge drove input (`press`, `stick`, `sequence`) and `teleport` (a debug write command) to reach enemies; 4,122 `oot` samples, 0 errors, 3 simultaneous clients.
 
 ## What happened
 

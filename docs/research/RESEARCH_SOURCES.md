@@ -27,9 +27,9 @@ Investigation date: **2026-11-19**. Everything below was read on that day.
 
 | Item | Finding |
 |---|---|
-| **Dump file** | `%USERPROFILE%\Documents\The Legend of Zelda Ocarina of Time [0400486024DEC000][v131072].nup`, 23.86 GB, modified 2026-11-05. Recorded as `nup` in both the launcher's `settings.json` and `builds.json`. This is the single `.nup` package (base v65536 + update v131072) described in `docs/design.md` s.5. **[C]** |
-| Launcher | `%USERPROFILE%\AppData\Local\Programs\LongshotLauncher\LongshotLauncher.exe` (running when inspected). Data: `%LOCALAPPDATA%\LongshotLauncher\` with `settings.json`, `builds.json`, `work\` (`image`, `lift-store`, `obj-store`, `objcache`, `sa`, `build_times.json`), `toolchains`, `ffx-sdk`, `ngx-sdk`. |
-| Builds | `%USERPROFILE%\Games\Longshot\` holds `v3.0.0-rc.3`, `v3.0.0-rc.4`, `v3.0.0-rc.5`. `builds.json` lists only **`v3.0.0-rc.5`** (default, channel `rc`, id `02dfca68f291`, updated 2026-11-17). v3.0.0 stable is **not** installed. rc.5 is after rc.4, so it contains the control bridge and OoT state tap (`oot_state_tap.c` first appears in rc.4). |
+| **Dump file** | `<documents>\The Legend of Zelda Ocarina of Time [0400486024DEC000][v131072].nup`, 23.86 GB, modified 2026-11-05. Recorded as `nup` in both the launcher's `settings.json` and `builds.json`. This is the single `.nup` package (base v65536 + update v131072) described in `docs/design.md` s.5. **[C]** |
+| Launcher | `%LOCALAPPDATA%\Programs\LongshotLauncher\LongshotLauncher.exe` (running when inspected). Data: `%LOCALAPPDATA%\LongshotLauncher\` with `settings.json`, `builds.json`, `work\` (`image`, `lift-store`, `obj-store`, `objcache`, `sa`, `build_times.json`), `toolchains`, `ffx-sdk`, `ngx-sdk`. |
+| Builds | `<games>\Longshot\` holds `v3.0.0-rc.3`, `v3.0.0-rc.4`, `v3.0.0-rc.5`. `builds.json` lists only **`v3.0.0-rc.5`** (default, channel `rc`, id `02dfca68f291`, updated 2026-11-17). v3.0.0 stable is **not** installed. rc.5 is after rc.4, so it contains the control bridge and OoT state tap (`oot_state_tap.c` first appears in rc.4). |
 | Built game folder | `Games\Longshot\v3.0.0-rc.5\` contains `bin\longshot.exe` (478.8 MB), `bin\longshot_vk.dll`, `image.bin` (96 MB), **`romfs\`** (already extracted from the dump), `.longshot_exefs`, `.longshot_romfs`, `cache\`, `logs\`, `texts\`, `prompts\`, `longshot_options.ini`, `language.txt`. **No `longshot_env.txt` exists**, so the bridge is currently off. |
 | Saves | `%APPDATA%\Longshot\save\5a3c9e1f0b7d24680000000000000001\` with `account.sav` (320 B), `option.sav` (42,100 B) and **six slots** `slot_00..slot_05`, each `progress.sav` (~224 KB) and `caption.sav` (~36-42 KB). The user id matches the one in `docs/control.md` examples. Saves were written 2026-11-15 to 2026-11-17. |
 | Backups | `%LOCALAPPDATA%\Longshot\oot-save-backups\` |
@@ -114,4 +114,4 @@ git -C Longshot log -1                       # 868f6be871f9...
 curl https://git.magicbean.dev/api/v1/repos/MagicBeanDev/Longshot/releases?limit=15
 ```
 
-The scratch clones used for this study live outside the project, in `%USERPROFILE%\research-clones\` (`longshot`, and `pr\` for the two pull-request diffs). They are deliberately not committed.
+The scratch clones used for this study live outside the project, in `<scratch>\` (`longshot`, and `pr\` for the two pull-request diffs). They are deliberately not committed.

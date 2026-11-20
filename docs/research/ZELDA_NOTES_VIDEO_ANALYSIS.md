@@ -9,7 +9,7 @@ Evidence from one public walkthrough of the whole Zelda Notes app, used to close
 |---|---|
 | Video | "The 100% Correct Way to Use Zelda Notes (Ocarina of Time)", channel PhillyBeatzU, uploaded 2026-11-12, 17 min 28 s, 1280x720. URL: `https://www.youtube.com/watch?v=poXxSGOCK-o` |
 | What was read | The English captions (auto-generated, uploader's own speech) and about 90 frames from the phone overlay. Chapters in the video: Map 0:50, Gossip Quests 4:40, Hall of Fallen Foes 7:30, Today's Record 9:15, My Play Data 10:00, Photo Studio 11:30, Threads of Time 12:30, amiibo 12:57, Play Ocarina 14:07, Quiz 15:15. |
-| Where files are | `%USERPROFILE%\research-clones\zn-video\` (captions, frames, video). **Outside the repo, not distributed.** Frames and the video are Nintendo's UI and the creator's footage; they stay private reference only. |
+| Where files are | `<scratch>\zn-video\` (captions, frames, video). **Outside the repo, not distributed.** Frames and the video are Nintendo's UI and the creator's footage; they stay private reference only. |
 | How it is used | Descriptions of layout and behaviour, with short quotes. No screenshot, icon, text asset or copy from the app goes into Ocarina Journal. |
 | Reliability | One player's screen on one account (Switch 2, Nintendo Switch app on a phone, game build with Zelda Notes). The overlay is small, so exact colours, fonts and pixel sizes are **not** taken from it. Numbers in examples (997 enemies, 76%) are that player's, not rules. |
 
