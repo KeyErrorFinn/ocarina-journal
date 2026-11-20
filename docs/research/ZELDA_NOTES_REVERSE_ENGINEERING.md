@@ -14,7 +14,7 @@ Tags: **[N]** Nintendo's own page, **[A]** observed directly in the APK, **[S]**
 | Provenance | Third-party mirror, not Google Play. Not signature-verified against Nintendo's certificate (the bundle carries `stamp-cert-sha256`; verification not done). |
 | Tools | JADX 1.5.7 (decompile), Python scripts for string extraction, ZIP inspection. Java 17. |
 | Method | **Static only.** Nothing was installed, executed, instrumented or proxied. No network traffic was captured. No account was used. |
-| Output | 12,300 decompiled sources, resources and manifest, in `C:\Users\finnl\research-clones\apk\` (kept outside the repository; not redistributed). |
+| Output | 12,300 decompiled sources, resources and manifest, in `<scratch>\apk\` (kept outside the repository; not redistributed). |
 
 ### What was deliberately not done
 
