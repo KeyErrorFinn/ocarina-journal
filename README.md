@@ -20,7 +20,7 @@ The app is a phone-shaped window with twelve tiles:
 
 | Tile | What it shows |
 |---|---|
-| **Map** | Areas of Hyrule with the chests, Gold Skulltulas, heart pieces and other collectibles you have and haven't found |
+| **Map** | The game's own world, area and dungeon-floor maps (read from your game folder), with the chests, Gold Skulltulas and hearts you have and haven't found, exits, floors, and Link live |
 | **Rumor Hunt** | Hints about what is still missing |
 | **Hall of Foes** | Enemies and bosses defeated, kill counts, and Hall rematch records |
 | **Today's Journal** | A timeline of the session: areas entered, fights, rupees, damage, deaths |
@@ -39,8 +39,9 @@ It has three modes:
   turn the bridge on (after showing you exactly what it would change and asking first).
 - **Offline** – the game isn't running. The app reads your save files.
 
-The names, categories and totals come from your own installed game files and saves, read by the app itself.
-Nothing is uploaded anywhere.
+The names, categories, totals and map pictures come from your own installed game files and saves, read by the app
+itself on your PC (see `docs/research/GAME_MAPS.md`). Nothing from the game is in this repository, and nothing is
+uploaded anywhere.
 
 ## Safety and privacy
 
@@ -87,7 +88,7 @@ crates/oj-protocol    Bridge request/response types (read-only commands only)
 crates/oj-bridge      Named-pipe client with reconnect
 crates/oj-journal     Turns live samples into a timeline and daily totals
 crates/oj-savefile    Reader for the game's save files (progress.sav flag table)
-crates/oj-gamedata    Reads names and categories from your game files (zstd, SARC, BYML, MSBT)
+crates/oj-gamedata    Reads names, categories and maps from your game files (zstd, SARC, BYML, MSBT, BNTX)
 crates/oj-testkit     Fake bridge and recorded fixtures for tests
 docs/research/        Investigation notes, formats, architecture, risks and open questions
 ```
@@ -107,8 +108,8 @@ Honesty about what hasn't been confirmed is part of this project. Open items:
 
 - **Hall record times**: the unit of the saved best time is assumed to be 60 frames per second. No save with a
   recorded rematch has been checked yet.
-- **Map Link position**: the live position is projected onto each area's bounds; this hasn't been verified
-  against the game.
+- **Map details**: the Water Temple's water level and dungeon room states aren't read yet; the map shows the first
+  of each (see `docs/research/GAME_MAPS.md`).
 - **Daily stat counters** (grass cut, jumps, and similar): no matching save flags were found, so Today's
   Journal doesn't show them.
 - **Launcher behaviour**: starting `longshot.exe` directly needs `--user <your Longshot data folder>` to use your

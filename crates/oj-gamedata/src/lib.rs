@@ -7,6 +7,8 @@
 //! implementation, tested against that tool's output. **Nothing from the game is stored in this repository.**
 
 pub mod files;
+pub mod maps;
+pub mod tex;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;

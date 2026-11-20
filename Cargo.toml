@@ -16,3 +16,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-uti
 tokio-util = { version = "0.7", features = ["codec"] }
 futures = "0.3"
 tracing = "0.1"
+
+# Decoding the game's map pictures is slow unoptimised (seconds per picture); optimise the decoders in dev builds too.
+[profile.dev.package.oj-gamedata]
+opt-level = 3
+[profile.dev.package."*"]
+opt-level = 2

@@ -6,8 +6,11 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+jpeg-encoder = "0.7.1"
 oj-savefile = { path = "../oj-savefile" }
+png = "0.18.1"
 serde.workspace = true
 serde_json.workspace = true
+texture2ddecoder = "0.1.2"
 thiserror.workspace = true
 zstd = "0.13"

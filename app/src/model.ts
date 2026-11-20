@@ -3,6 +3,8 @@ export interface Game {
   frame: number;
   map: string | null;
   pos: [number, number, number] | null;
+  /** Degrees; 0 faces +Z, increasing toward +X (checked against recorded movement). */
+  facing?: number | null;
   age: string | null;
   life: number | null;
   max_life: number | null;

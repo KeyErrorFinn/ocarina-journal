@@ -237,6 +237,56 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
     }
 }
 
+// ------------------------------------------------------------------------------------------------- the game's maps
+/// The game's own map pictures and where things fall on them, read from the player's game folder. Decoded pictures
+/// are cached under the app's folder in LOCALAPPDATA (they never leave the PC and are not part of the app).
+#[derive(Default)]
+struct Maps(Mutex<Option<(std::path::PathBuf, Arc<oj_gamedata::files::GameFiles>, serde_json::Value)>>);
+
+fn map_source(app: &AppHandle) -> Result<(std::path::PathBuf, Arc<oj_gamedata::files::GameFiles>, serde_json::Value), String> {
+    let game_dir = app.state::<Shared>().0.lock().unwrap().game_dir.clone();
+    let dir = find_game_dir(game_dir.as_deref()).ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
+    let maps = app.state::<Maps>();
+    let mut slot = maps.0.lock().unwrap();
+    if let Some((d, f, i)) = slot.as_ref().filter(|(d, _, _)| *d == dir) {
+        return Ok((d.clone(), f.clone(), i.clone()));
+    }
+    let files = Arc::new(oj_gamedata::files::GameFiles::open(&dir).map_err(|e| e.to_string())?);
+    let index = serde_json::to_value(oj_gamedata::maps::map_index(&files).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    *slot = Some((dir.clone(), files.clone(), index.clone()));
+    Ok((dir, files, index))
+}
+
+#[tauri::command]
+async fn get_map_index(app: AppHandle) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || map_source(&app).map(|(_, _, i)| i)).await.map_err(|e| e.to_string())?
+}
+
+/// One map picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`) as JPEG (world) or PNG bytes.
+#[tauri::command]
+async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Response, String> {
+    let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let (dir, files, _) = map_source(&app)?;
+        let build = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let file = data_dir()
+            .map(|d| d.join("maps").join(build.replace(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '-', "_")))
+            .map(|d| d.join(format!("{}.{}", name.replace('/', "~"), if name == "world" { "jpg" } else { "png" })));
+        if let Some(bytes) = file.as_ref().and_then(|f| std::fs::read(f).ok()) {
+            return Ok(bytes);
+        }
+        let (bytes, _) = oj_gamedata::maps::map_file(&files, &name).map_err(|e| e.to_string())?;
+        if let Some(f) = file {
+            if f.parent().is_some_and(|p| std::fs::create_dir_all(p).is_ok()) {
+                write_atomic(&f, &bytes);
+            }
+        }
+        Ok(bytes)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 // -------------------------------------------------------------------------------------------- consented actions
 #[derive(Serialize)]
 struct BridgePreview {
@@ -343,7 +393,8 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
-        .invoke_handler(tauri::generate_handler![get_state, get_report, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .manage(Maps::default())
+        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 
