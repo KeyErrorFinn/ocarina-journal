@@ -238,6 +238,12 @@ h1, h2, h3, p { margin: 0; }
 /* ---------- Medals ---------- */
 .avatar { width: 6em; height: 6em; border-radius: 50%; margin: 1.2em auto .5em; background: radial-gradient(circle at 30% 30%, #5a7a4a, #243a22); border: 3px solid #a98a4d; display: grid; place-items: center; overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+label.avatar { position: relative; overflow: visible; cursor: pointer; }
+label.avatar img { border-radius: 50%; }
+.avatar .edit { position: absolute; right: -.15em; bottom: -.1em; width: 1.7em; height: 1.7em; border-radius: 50%; background: #1a120b; border: 2px solid #d9b25f; color: #f1e8d6; display: grid; place-items: center; font-style: normal; font-size: .85em; }
+.known { text-align: center; font-size: .85em; margin: .5em 1em 0; }
+.known b { color: var(--gold); }
+.master { filter: drop-shadow(0 0 .35em #ffe9a0) drop-shadow(0 0 .8em #c88bff); }
 .minimedals { display: grid; grid-template-columns: repeat(9, 1fr); gap: .3em; padding: .8em 1em; margin: 0 1em; background: #130e0a; border: 1px solid #3a2b1d; }
 .minimedals svg { width: 100%; }
 .medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em .7em; padding: 1.2em 1em 5em; }

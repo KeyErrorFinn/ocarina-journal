@@ -6,17 +6,19 @@ import { Ribbon } from "./art";
 const ART = import.meta.glob<string>("../assets/medals/*.webp", { eager: true, import: "default" });
 const art = (name: string): string | undefined => ART[`../assets/medals/${name}.webp`];
 
-export type Tier = "bronze" | "silver" | "gold" | "locked";
-const TIERS: Tier[] = ["locked", "bronze", "silver", "gold"];
+export type Tier = "bronze" | "silver" | "gold" | "master" | "locked";
+const TIERS = ["locked", "bronze", "silver", "gold"] as const;
 
 export const PORTRAIT = art("portrait");
 
 /** A My Journey medal: the tier's shield with the medal's emblem on it. */
 export function Medal({ id, tier, glyph }: { id: string; tier: Tier; glyph: string }) {
-  const base = art(`shield_${tier}`), emblem = art(`emblem_${id}`);
-  if (!base || !emblem) return <MedalBadge tier={tier} glyph={tier === "locked" ? "?" : glyph} />;
+  // Master (the fourth tier) is the gold shield with a glow.
+  const metal = tier === "master" ? "gold" : tier;
+  const base = art(`shield_${metal}`), emblem = art(`emblem_${id}`);
+  if (!base || !emblem) return <span className={tier === "master" ? "master" : undefined}><MedalBadge tier={metal} glyph={tier === "locked" ? "?" : glyph} /></span>;
   return (
-    <span className="medal-art">
+    <span className={`medal-art ${tier === "master" ? "master" : ""}`}>
       <img src={base} alt="" />
       {tier !== "locked" && <img className="emblem" src={emblem} alt="" />}
     </span>

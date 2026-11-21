@@ -7,15 +7,27 @@ import { cat, totalKills, type Report } from "../report";
 
 import { Medal, PORTRAIT, type Tier } from "../components/medals";
 
-const TIER_KEYS: Tier[] = ["bronze", "silver", "gold"];
+const TIER_KEYS: Tier[] = ["bronze", "silver", "gold", "master"];
 
 /** How many tiers (0..4) a value has reached. Thresholds are this app's own. */
 export const tiersReached = (v: number, th: readonly number[]) => th.filter((t) => v >= t).length;
-const badgeTier = (n: number): Tier => (n === 0 ? "locked" : TIER_KEYS[Math.min(n, 3) - 1]);
+const badgeTier = (n: number): Tier => (n === 0 ? "locked" : TIER_KEYS[Math.min(n, 4) - 1]);
 
 export function Journey({ report, rupees, onHome, onCompare }: { report: Report | null; rupees: number | null; onHome: () => void; onCompare: () => void }) {
   const [name, setName] = useLocal("profile.name", "Adventurer");
-  const [avatar] = useLocal<string | null>("profile.avatar", null);
+  const [avatar, setAvatar] = useLocal<string | null>("profile.avatar", null);
+  // "You are known for...": the enemy this save has defeated most, as the original's play data names it.
+  const top = [...(cat(report, "enemies")?.entries ?? [])].sort((a, b) => (b.count ?? 0) - (a.count ?? 0))[0];
+  const pick = (f: File) => {
+    const r = new FileReader();
+    r.onload = () => {
+      // (scaled down to keep the stored picture small)
+      const img = new Image();
+      img.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 256; const s = Math.min(img.width, img.height); c.getContext("2d")!.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256); setAvatar(c.toDataURL("image/jpeg", 0.85)); };
+      img.src = r.result as string;
+    };
+    r.readAsDataURL(f);
+  };
   const [open, setOpen] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
   const value = (c: string) => (c === "kills" ? totalKills(report) : cat(report, c)?.have ?? 0);
@@ -55,11 +67,13 @@ export function Journey({ report, rupees, onHome, onCompare }: { report: Report 
     <>
       <Header title="My Journey" onLeft={onHome} help="Medals earned from your save: skulltulas, enemy kinds, chests, hearts, songs, bosses and story steps. Thresholds are set by this app." />
       <div className="scroll grain" style={{ paddingBottom: "4em" }}>
-        <div className="avatar" aria-hidden>
+        <label className="avatar" title="Change your picture">
+          <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pick(f); }} />
+          <i className="edit" aria-label="Change picture">✎</i>
           {avatar || PORTRAIT ? <img src={avatar ?? PORTRAIT} alt="" /> : (
             <svg viewBox="0 0 48 48" width="60%" fill="none" stroke="#e9f5d8" strokeWidth="2.2" strokeLinecap="round"><circle cx="24" cy="18" r="8" /><path d="M8 42c2-9 9-13 16-13s14 4 16 13" /></svg>
           )}
-        </div>
+        </label>
         {edit ? (
           <div style={{ padding: "0 3em" }}>
             <input type="text" value={name} maxLength={20} autoFocus onChange={(e) => setName(e.target.value)} onBlur={() => setEdit(false)} onKeyDown={(e) => e.key === "Enter" && setEdit(false)} />
@@ -67,6 +81,7 @@ export function Journey({ report, rupees, onHome, onCompare }: { report: Report 
         ) : (
           <button style={{ display: "block", margin: "0 auto", background: "none", border: 0, font: "800 1.2em var(--body)" }} onClick={() => setEdit(true)}>{name}</button>
         )}
+        {top?.count ? <p className="known">You are known for... <b>Defeating {top.label}</b> <span className="muted">×{top.count}</span></p> : null}
         <div className="minimedals" style={{ marginTop: "1.2em" }}>
           {MEDALS.map((x) => <Medal key={x.id} id={x.id} tier={badgeTier(tiersReached(value(x.cat), x.tiers))} glyph={x.glyph} />)}
         </div>
