@@ -38,7 +38,7 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
       <Header title="Rumor Hunt" onLeft={onHome} right={<RefreshBtn />}
         help="Every chest, Gold Skulltula and Heart piece still missing in your save becomes a rumour. Reveal the area hint, then the exact spot. Points are this app's own count of what you have found." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
-      <div className="scroll grain">
+      <div className="scroll grain rumor-bg">
         {!report ? (
           <p className="empty">No save report yet, so there is nothing to hunt for.</p>
         ) : tab === "Quests" ? (

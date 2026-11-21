@@ -47,6 +47,8 @@ h1, h2, h3, p { margin: 0; }
 .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; }
 .scroll::-webkit-scrollbar { display: none; }
 .grain { background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px); background-size: 3px 3px; }
+/* Rumor Hunt glows orange, like hints told by firelight (texture drawn for this app). */
+.grain.rumor-bg { background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px), url(./assets/bg/rumors.webp); background-size: 3px 3px, cover; background-position: 0 0, center top; }
 
 /* ---------- Header band ---------- */
 .band { position: relative; flex: none; padding: .7em 1em 2.1em; color: var(--text);
