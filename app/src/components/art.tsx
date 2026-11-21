@@ -7,7 +7,7 @@ const MARKS = import.meta.glob<string>("../assets/markers/*.webp", { eager: true
 const mark = (name: string, done?: boolean) => MARKS[`../assets/markers/mk_${name}${done ? "_done" : ""}.webp`];
 const MARK_OF: Record<string, string> = {
   chests: "chest", skulltulas: "token", "heart-pieces": "heart_piece", "heart-containers": "heart",
-  stone: "stone", grotto: "grotto", cow: "cow", owl: "perch", scarecrow: "scarecrow", frog: "frog", beehive: "beehive",
+  stone: "stone", grotto: "grotto", cow: "cow", owl: "owl", scarecrow: "scarecrow", frog: "frog", beehive: "beehive",
 };
 function Painted({ kind, done }: { kind: string; done?: boolean }) {
   const pic = MARK_OF[kind] && (mark(MARK_OF[kind], done) ?? mark(MARK_OF[kind]));

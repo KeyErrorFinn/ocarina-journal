@@ -398,16 +398,19 @@ function AreaMap(props: {
     : null;
   const openOn = (k: number) => all.some((e) => e.pos && e.have < e.of && floorOf(place!, e.pos[1]) === k);
 
-  const layer = (
+  const layer = (view?: View) => (
     <>
       {usePicture && img && <img className="pz-img" src={img.url} alt="" draggable={false} />}
       {exits.map((x, i) => {
         const q = proj(x.x, x.z);
         const ang = (Math.atan2(q.top - 50, (q.left - 50) / aspect) * 180) / Math.PI + 90;
+        // (the exit's name slides along so it stays on screen, as on the world map)
+        const half = (prettyArea(x.to).length * 5.6 + 14) / 2, at = view ? (q.left / 100) * view.px : 0;
+        const shift = view ? Math.max(0, view.x0 * view.px + 4 - (at - half)) - Math.max(0, at + half - (view.x1 * view.px - 4)) : 0;
         return (
           <button key={i} className="exit" style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => onGo(x.to)} aria-label={`To ${prettyArea(x.to)}`}>
             <span className="chev" style={{ transform: `rotate(${ang}deg)` }}><Chevron /></span>
-            <small>{prettyArea(x.to)}</small>
+            <small style={shift ? { transform: `translateX(${shift}px)` } : undefined}>{prettyArea(x.to)}</small>
           </button>
         );
       })}
@@ -438,14 +441,14 @@ function AreaMap(props: {
     <div className="mapwrap">
       {usePicture ? (
         img ? (
-          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{layer}</PanZoom>
+          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{(_z, view) => layer(view)}</PanZoom>
         ) : (
           <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>Reading the map from your game files…</p>
         )
       ) : (
         <>
           <Paper seed={area} />
-          <div style={{ position: "absolute", inset: 0 }}>{layer}</div>
+          <div style={{ position: "absolute", inset: 0 }}>{layer()}</div>
         </>
       )}
       {top}

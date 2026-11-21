@@ -19,7 +19,16 @@ type Level = (typeof LEVELS)[number];
  *  game's world map; a second line of `q` is a quoted description. */
 type Quest = Q & { place?: string };
 
-const Icon = ({ k }: { k: string }) => (
+/** Level pictures painted for this app (src/assets/quiz); the drawn ones are the fallback. */
+const PICS = import.meta.glob<string>("../assets/quiz/*.webp", { eager: true, import: "default" });
+const PIC_OF: Record<string, string> = { egg: "egg", bird: "cucco", chick: "cojiro" };
+
+const Icon = ({ k }: { k: string }) => {
+  const pic = PIC_OF[k] && PICS[`../assets/quiz/${PIC_OF[k]}.webp`];
+  return pic ? <img src={pic} alt="" width={48} height={48} style={{ width: "3em", height: "3em", objectFit: "contain" }} /> : <DrawnIcon k={k} />;
+};
+
+const DrawnIcon = ({ k }: { k: string }) => (
   <svg viewBox="0 0 40 40" width="2.6em" height="2.6em" aria-hidden>
     {k === "egg" && <ellipse cx="20" cy="22" rx="10" ry="13" fill="#e9c48a" stroke="#7a5230" strokeWidth="2" />}
     {k === "bird" && (<g stroke="#7a5230" strokeWidth="2"><ellipse cx="20" cy="24" rx="12" ry="10" fill="#f6efe0" /><circle cx="26" cy="13" r="6" fill="#f6efe0" /><path d="M24 7l2-4 3 4z" fill="#d65a4f" /><path d="M31 13l5 2-5 2z" fill="#e8a33d" /></g>)}
