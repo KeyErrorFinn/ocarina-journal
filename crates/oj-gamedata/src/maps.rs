@@ -287,6 +287,11 @@ fn decode_named(files: &GameFiles, rel: &str, name: Option<&str>) -> Result<Imag
     decode(&d, t)
 }
 
+/// Pictures served as JPEG (see `map_file`).
+pub fn is_painting(name: &str) -> bool {
+    name == "world" || name.starts_with("tapestry/")
+}
+
 fn safe(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
 }
@@ -308,7 +313,8 @@ fn over(base: &mut Image, top: &Image, fade: f32) {
     }
 }
 
-/// A map picture by its index name: `world`, `field/<texture>` or `floor/<dungeon>/<floor>`. Returns RGBA.
+/// A map picture by its index name: `world`, `field/<texture>`, `floor/<dungeon>/<floor>`, or a picture of the
+/// Threads of Time tapestry, `tapestry/<base|shadow|woven>`. Returns RGBA.
 /// Names are checked to be plain identifiers, so this only ever reads the game's own map files.
 pub fn map_image(files: &GameFiles, name: &str) -> Result<Image, Error> {
     let parts: Vec<&str> = name.split('/').collect();
@@ -327,6 +333,7 @@ pub fn map_image(files: &GameFiles, name: &str) -> Result<Image, Error> {
                 Err(_) => Ok(top),
             }
         }
+        ["tapestry", layer] => crate::tapestry::tapestry_image(files, layer),
         _ => Err(Error::Game(format!("unknown map picture {name:?}"))),
     }
 }
@@ -351,14 +358,15 @@ impl Image {
     }
 }
 
-/// A map picture as file bytes and its MIME type: the world map as a half-size JPEG over parchment (it is a full
-/// painting, and a PNG of it is over 30 MB), every other one as PNG (they need their transparency).
+/// A map picture as file bytes and its MIME type: the world map (half size) and the tapestry as JPEG over parchment
+/// (they are full paintings, and a PNG of the world map is over 30 MB), every other one as PNG (they need their
+/// transparency).
 pub fn map_file(files: &GameFiles, name: &str) -> Result<(Vec<u8>, &'static str), Error> {
     let img = map_image(files, name)?;
-    if name != "world" {
+    if !is_painting(name) {
         return Ok((img.png()?, "image/png"));
     }
-    let mut img = img.half();
+    let mut img = if name == "world" { img.half() } else { img };
     for px in img.rgba.chunks_exact_mut(4) {
         let a = px[3] as u32;
         for (c, bg) in px[..3].iter_mut().zip([227u32, 204, 148]) {

@@ -262,7 +262,18 @@ async fn get_map_index(app: AppHandle) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || map_source(&app).map(|(_, _, i)| i)).await.map_err(|e| e.to_string())?
 }
 
-/// One map picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`) as JPEG (world) or PNG bytes.
+/// The Threads of Time tapestry's sections, from the same game folder as the maps.
+#[tauri::command]
+async fn get_tapestry(app: AppHandle) -> Result<oj_gamedata::tapestry::Tapestry, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_, files, _) = map_source(&app)?;
+        oj_gamedata::tapestry::tapestry_index(&files).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// One picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`, `tapestry/<layer>`) as JPEG or PNG bytes.
 #[tauri::command]
 async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Response, String> {
     let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
@@ -270,7 +281,7 @@ async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Respo
         let build = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let file = data_dir()
             .map(|d| d.join("maps").join(build.replace(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '-', "_")))
-            .map(|d| d.join(format!("{}.{}", name.replace('/', "~"), if name == "world" { "jpg" } else { "png" })));
+            .map(|d| d.join(format!("{}.{}", name.replace('/', "~"), if oj_gamedata::maps::is_painting(&name) { "jpg" } else { "png" })));
         if let Some(bytes) = file.as_ref().and_then(|f| std::fs::read(f).ok()) {
             return Ok(bytes);
         }
@@ -394,7 +405,7 @@ pub fn run() {
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
-        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 

@@ -46,7 +46,7 @@ function Paper({ seed, world }: { seed: string; world?: boolean }) {
 /** A picture that can be dragged and zoomed (mouse wheel, double click or two fingers). At zoom 1 it fits the view's
  *  width, or with `cover` fills the whole view (a number: at most that many widths); `focus` (0..1 of the picture) is centred whenever `focusKey` changes.
  *  `children` may be a function of the zoom, to show more detail closer in. */
-function PanZoom({ aspect, cover, focus, focusKey, children }: {
+export function PanZoom({ aspect, cover, focus, focusKey, children }: {
   aspect: number; cover?: boolean | number; focus?: { x: number; y: number } | null; focusKey?: string; children: ReactNode | ((zoom: number) => ReactNode);
 }) {
   const view = useRef<HTMLDivElement>(null);

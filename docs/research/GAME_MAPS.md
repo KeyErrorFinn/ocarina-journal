@@ -67,9 +67,38 @@ falls on that picture. The game itself probably uses the location shapes in `Wor
 - Places with no map picture (Gerudo Training Ground, Inside Ganon's Castle) use the app's own paper.
 - The pane-to-place pairing (`Pa_Village_00` = Kakariko Village, and so on) is matched by name, by us.
 
+## The Threads of Time tapestry
+
+**Date:** 2026-11-21. **Code:** `crates/oj-gamedata/src/tapestry.rs`, `app/src/screens/Tapestry.tsx`.
+
+The Tapestry screen shows the tapestry from the game's Threads of Time menu, built the same way the game builds it.
+
+| What | File (RomFS) | Notes |
+|---|---|---|
+| Empty cloth | `Tex/Cloth_TapestryChallengeMenu_Base_Alb.bntx.zs` | 1536×3072 ASTC. Drawn by the main model `Obj_TapestryChallengeMenu`. [V] |
+| Every section as a silhouette | `Tex/Cloth_TapestryChallengeMenu_Alb.bntx.zs` | Used by the section models `<Section>`. [V] |
+| Every section woven | `Tex/Cloth_TapestryChallengeMenu_Complete_Alb.bntx.zs` | Used by `<Section>_Complete`, and by `Obj_TapestryChallengeMenu_Static` on the whole cloth. [V] |
+| Section outlines | `Model/Obj_TapestryChallengeMenu.<Section>[_Complete].bfres.zs` | 21 sections. Each model's texture coordinates (`_u0`) outline the section on the pictures. The silhouette and woven outlines of 11 sections differ: the woven Door of Time adds the Master Sword, and the woven All Sage leaves it out. [V] |
+| Section names | `Component/ModelInfo/Tapestry_ChallengeMenu` in `Pack/Actor/Tapestry_ChallengeMenu.pack.zs` | Sub-models of the tapestry actor. They are the Threads of Time quests in `RSDB/Challenge` (`Meet_DekuTree`, `SageOfWater`, `SubEvent_GetScarecrow`...), whose step the save keeps in `Step_<Section>`. [V] |
+
+- **BFRES:** version 10 for Switch 2, read only as far as the meshes. The offsets are listed in `tapestry.rs`. They
+  were found by locating the vertex data (40 vertices of 28 bytes for `Meet_DekuTree`) and checked on every section
+  model: all indices are in range, and every outline falls on its picture (e.g. `Meet_DekuTree` is the sleeping Link
+  with Navi at the top left). [V]
+- **Composition:** the app draws the empty cloth, then each section from the silhouette or woven picture, clipped to
+  that state's outline. Silhouettes go first, so a woven section that overlaps one stays on top (our choice; the
+  game's draw order is not read). [I] With every section woven, the result matches the full woven picture by eye. [V]
+- **When a section is woven:** when its quest is complete (the same test as the Story and Side quests lists). [I]
+  The game decides this in code (`ExecuteUpdateTapestry`), which is not read.
+- **Silhouette or empty:** the app shows a silhouette once the quest has started (its step is past `Ready`), and
+  otherwise leaves the panel empty, like the game's "???" for quests not reached. [I] That the game has both an
+  empty cloth and a silhouette layer suggests it makes this distinction, but when it does has not been seen.
+- **`GameClear`** (the band at the bottom, with no silhouette) is woven when `Defeat_Ganon` is complete. [I]
+- Cutscene replay from a section (the Zelda Notes "+") is not done; see `FEATURE_PARITY_MATRIX.md`.
+
 ## Legal note
 
-The pictures are Nintendo's artwork. The app only decodes them from the player's own installed copy, on the player's
+The map and tapestry pictures are Nintendo's artwork. The app only decodes them from the player's own installed copy, on the player's
 PC, for display. This is the same way it already reads names from the game's text files. Nothing is redistributed,
 and the setting can turn them off. Whether this display in a third-party app is acceptable has not been reviewed
 by counsel (see `RISKS_AND_LIMITATIONS.md`).

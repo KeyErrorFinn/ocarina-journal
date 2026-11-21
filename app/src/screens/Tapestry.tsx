@@ -1,15 +1,129 @@
-import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
 import { Header } from "../components/chrome";
-import { cat, type Report } from "../report";
+import { cat, type RepEntry, type Report } from "../report";
+import { useMapImage } from "../maps";
+import { PanZoom } from "./MapScreen";
 
-/** Story order for the tapestry (the report lists steps alphabetically). Unlisted steps are appended. */
+/** The game's own tapestry, read by the backend from the player's game folder (crates/oj-gamedata/src/tapestry.rs). */
+/** `path`: the woven outline; `shadow`: the silhouette's, which can differ (null: the game has no silhouette). */
+interface Section { name: string; path: string; shadow: string | null; bounds: [number, number, number, number] }
+interface TapestryIndex { width: number; height: number; sections: Section[] }
+
+type Look = "woven" | "shadow" | "empty";
+
+let indexPromise: Promise<TapestryIndex | null> | null = null;
+
+function useTapestry(): TapestryIndex | null | undefined {
+  const [t, setT] = useState<TapestryIndex | null | undefined>(undefined);
+  useEffect(() => {
+    indexPromise ??= invoke<TapestryIndex>("get_tapestry").catch(() => {
+      indexPromise = null;
+      return null;
+    });
+    let live = true;
+    indexPromise.then((i) => live && setT(i));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return t;
+}
+
+/** The quest behind a section, from any category of the report (story or side quests). */
+function questOf(r: Report | null, name: string): RepEntry | undefined {
+  for (const c of r?.categories ?? []) {
+    const e = c.entries.find((e) => e.id === `${c.id}/${name}`);
+    if (e) return e;
+  }
+  return undefined;
+}
+
+/** How a section looks for this save. Woven once its quest is complete; a silhouette once it has started (its step is
+ *  past `Ready`). Which state the game shows as a silhouette is our reading, not checked against the game [I].
+ *  `GameClear` (the bottom band) is woven once Ganon is defeated [I]. */
+function lookOf(r: Report | null, s: Section): Look {
+  const q = questOf(r, s.name === "GameClear" ? "Defeat_Ganon" : s.name);
+  if (!q) return "empty";
+  if (q.have) return "woven";
+  return s.shadow && q.note && q.note !== "Ready" && q.note !== "None" ? "shadow" : "empty";
+}
+
+const nice = (name: string, r: Report | null) =>
+  name === "GameClear" ? "The End" : questOf(r, name)?.label ?? name.replace(/^SubEvent_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+
+export function Tapestry({ report, onHome }: { report: Report | null; onHome: () => void }) {
+  const idx = useTapestry();
+  const base = useMapImage(idx ? "tapestry/base" : null);
+  const shadow = useMapImage(idx ? "tapestry/shadow" : null);
+  const woven = useMapImage(idx ? "tapestry/woven" : null);
+  const [sel, setSel] = useState<string | null>(null);
+
+  if (idx === null) return <Drawn report={report} onHome={onHome} />;
+
+  const looks = new Map(idx?.sections.map((s) => [s.name, lookOf(report, s)]) ?? []);
+  const done = [...looks.values()].filter((l) => l === "woven").length;
+  const picked = idx?.sections.find((s) => s.name === sel);
+  const q = picked && questOf(report, picked.name === "GameClear" ? "Defeat_Ganon" : picked.name);
+  const look = picked ? looks.get(picked.name) : undefined;
+
+  return (
+    <>
+      <Header
+        title="Tapestry"
+        onLeft={onHome}
+        help="The Threads of Time tapestry from your own game files. A section is woven when the save says its quest is complete, and shows as a silhouette while the quest is under way. Tap a section to see which quest it is."
+      />
+      <div className="tap">
+        {idx && base && shadow && woven ? (
+          <PanZoom aspect={idx.height / idx.width} cover={0.9} focus={{ x: 0.5, y: 0 }} focusKey="top">
+            <svg viewBox={`0 0 ${idx.width} ${idx.height}`} className="pz-img" style={{ pointerEvents: "auto" }}>
+              <defs>
+                {idx.sections.map((s) => <clipPath key={s.name} id={`tap-${s.name}`}><path d={looks.get(s.name) === "shadow" ? s.shadow! : s.path} /></clipPath>)}
+              </defs>
+              <image href={base.url} width={idx.width} height={idx.height} />
+              {/* Silhouettes first, so a woven section overlapping one (the Master Sword over All Sage) stays on top. */}
+              {(["shadow", "woven"] as const).map((l) =>
+                idx.sections.filter((s) => looks.get(s.name) === l).map((s) => (
+                  <image key={s.name} href={(l === "woven" ? woven : shadow).url} width={idx.width} height={idx.height} clipPath={`url(#tap-${s.name})`} />
+                )),
+              )}
+              {idx.sections.map((s) => (
+                <path
+                  key={s.name}
+                  d={s.path}
+                  className={`tap-hit ${sel === s.name ? "on" : ""}`}
+                  onClick={() => setSel(sel === s.name ? null : s.name)}
+                />
+              ))}
+            </svg>
+          </PanZoom>
+        ) : (
+          <p className="empty">Weaving the tapestry from your game files…</p>
+        )}
+        {idx && <div className="tap-count">{done}/{idx.sections.length} woven</div>}
+        {picked && (
+          <div className="tap-cap" onClick={() => setSel(null)}>
+            <b>{look === "empty" ? "???" : nice(picked.name, report)}</b>
+            <span>
+              {look === "woven" ? "Woven" : look === "shadow" ? `Under way${q?.note ? ` · ${q.note}` : ""}` : "Not reached yet"}
+            </span>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Story order for the drawn tapestry (the report lists steps alphabetically). Unlisted steps are appended. */
 const ORDER = [
   "Meet Deku Tree", "Goto Hyrule Castle", "Get Stone Of Forest", "Get Stone Of Fire", "Get Stone Of Water", "Door Of Time",
   "Sage Of Forest", "Sage Of Fire", "Sage Of Water", "Sage Of Shadow", "Sage Of Spirit", "Sage Of Light", "All Sage",
   "Escape From Crumbling Ganon Castle", "Defeat Ganon",
 ];
 
-export function Tapestry({ report, onHome }: { report: Report | null; onHome: () => void }) {
+/** The app's own drawn tapestry, used when the game's files cannot be read. */
+function Drawn({ report, onHome }: { report: Report | null; onHome: () => void }) {
   const [z, setZ] = useState(1);
   const steps = cat(report, "story")?.entries ?? [];
   const rank = (l: string) => (ORDER.indexOf(l) === -1 ? 99 : ORDER.indexOf(l));
@@ -19,7 +133,7 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
   const rows = Math.ceil(list.length / cols);
   return (
     <>
-      <Header title="Tapestry" onLeft={onHome} help="Your story steps as woven panels. A panel fills with colour when the save says that step is done. The artwork is drawn for this app." />
+      <Header title="Tapestry" onLeft={onHome} help="Your story steps as woven panels. A panel fills with colour when the save says that step is done. The artwork is drawn for this app, because the game's own tapestry could not be read from your game folder." />
       <div className="scroll grain">
         <div className="rowline" style={{ margin: ".8em 1.2em 0" }}>
           <span className="small muted">{done}/{list.length} woven</span>

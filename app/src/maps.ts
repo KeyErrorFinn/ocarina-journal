@@ -54,7 +54,7 @@ export function useMapImage(name: string | null | undefined): { url: string; w: 
     let p = urls.get(name);
     if (!p) {
       p = invoke<ArrayBuffer>("get_map_image", { name }).then((buf) =>
-        URL.createObjectURL(new Blob([buf], { type: name === "world" ? "image/jpeg" : "image/png" })),
+        URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })),
       );
       p.catch(() => urls.delete(name));
       urls.set(name, p);

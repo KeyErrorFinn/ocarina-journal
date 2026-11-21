@@ -19,3 +19,20 @@ fn reads_the_game_maps() {
     assert_eq!((img.width, img.height), (2000, 1440));
     assert!(oj_gamedata::maps::map_image(&files, "field/../x").is_err());
 }
+
+#[test]
+fn reads_the_game_tapestry() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
+    let t = oj_gamedata::tapestry::tapestry_index(&files).unwrap();
+    assert_eq!((t.width, t.height), (1536, 3072));
+    assert_eq!(t.sections.len(), 21);
+    let deku = t.sections.iter().find(|s| s.name == "Meet_DekuTree").unwrap();
+    assert!(deku.shadow.is_some());
+    // the sleeping Link and Navi at the top left of the Deku Tree (texture coordinates 0.24..0.49, 0.06..0.14)
+    assert_eq!(deku.bounds, [367, 188, 380, 255]);
+    assert!(t.sections.iter().find(|s| s.name == "GameClear").unwrap().shadow.is_none());
+    let img = oj_gamedata::maps::map_image(&files, "tapestry/woven").unwrap();
+    assert_eq!((img.width, img.height), (1536, 3072));
+    assert!(oj_gamedata::maps::map_image(&files, "tapestry/other").is_err());
+}

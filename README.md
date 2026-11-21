@@ -27,7 +27,8 @@ The app is a phone-shaped window with twelve tiles:
 | **My Journey** | Medals and totals |
 | **Slot Compare** | Your save slots side by side |
 | **History** | Past days, kept on your PC (a day runs 05:00 to 04:59) |
-| **Photo Album**, **Tapestry** | Frames, titles and a woven view of your story |
+| **Tapestry** | The game's own Threads of Time tapestry (read from your game folder), each section woven, in silhouette or empty to match your save's quests |
+| **Photo Album** | Frames and titles for your screenshots |
 | **Ocarina** | A playable ocarina with the game's songs |
 | **Quiz** | A small memory quiz |
 | **amiibo** | Shown as unavailable: a PC has no NFC reader |
@@ -39,7 +40,7 @@ It has three modes:
   turn the bridge on (after showing you exactly what it would change and asking first).
 - **Offline** – the game isn't running. The app reads your save files.
 
-The names, categories, totals and map pictures come from your own installed game files and saves, read by the app
+The names, categories, totals, map pictures and tapestry come from your own installed game files and saves, read by the app
 itself on your PC (see `docs/research/GAME_MAPS.md`). Nothing from the game is in this repository, and nothing is
 uploaded anywhere.
 
@@ -110,6 +111,9 @@ Honesty about what hasn't been confirmed is part of this project. Open items:
   recorded rematch has been checked yet.
 - **Map details**: the Water Temple's water level and dungeon room states aren't read yet; the map shows the first
   of each (see `docs/research/GAME_MAPS.md`).
+- **Tapestry states**: when the game shows a section as a silhouette rather than empty is our reading (once its
+  quest has started), and the bottom band is assumed to appear when Ganon is defeated. Neither has been checked
+  against the game (see `docs/research/GAME_MAPS.md`).
 - **Daily stat counters** (grass cut, jumps, and similar): no matching save flags were found, so Today's
   Journal doesn't show them.
 - **Launcher behaviour**: starting `longshot.exe` directly needs `--user <your Longshot data folder>` to use your
