@@ -111,6 +111,30 @@ draws white letters with a warm glow over the shadow, at half size, in English (
 has defeated. [V] The arena behind it is painted for this app. The game has no 2D pictures of the bosses: they are
 3D models only.
 
+## Game text, landmarks and flags used by other pages (2026-11-21)
+
+Read from the player's own files, like everything above; nothing is copied into the repository.
+
+- **Place names, item and enemy descriptions** [V]: `LocationMsg/Location.msbt` (map id → name, 36 places),
+  `ActorMsg/PouchContent.msbt` (`<Item>_Name`, `<Item>_Caption`) and `ActorMsg/Enemy.msbt` (`Enemy_<X>_Name`,
+  `Enemy_<X>_Caption_00`). `crates/oj-gamedata/src/lore.rs`; used for place names everywhere and for quiz questions.
+- **Hall of Fallen Foes trials** [V]: `EventFlowMsg/SubEvent_AllBossBattle.msbt` names them: `Talk_12` Trial of the
+  Spiritual Stones (three child-era foes), `Talk_15` Trial of the Five Sages (five adult-era foes), `Talk_18` Trial of
+  the Hero of Time (all ten). Which best-time record is which (`_01`, `_02`, unnumbered) is our reading [I].
+- **The Hall opens** [V]: the bool flag `DreamWorld_Open`, named in the owl scene's event `Dm_HrlField_0080`. The app
+  locks its Hall of Foes tile until it is set.
+- **Landmarks for Rumor Hunt** [V]: field maps place `Obj_GossipStone_*`, `LookAttentionActor_HidingHoleEntrance`
+  (grotto entrances), `Animal_Cow*`, `Npc_Kaepora*`, `Npc_Pierre_CallOcarina`, `Animal_Frog_*`, `Obj_Plant_MagicBean*`
+  and `Obj_Kokiri_Beehive_*`: 146 places after merging the child and adult maps (`crates/oj-gamedata/src/rumors.rs`).
+  The original app's own 100 rumours (photos and wording) are not in the game files [V: no such text in `Mals`].
+- **Rupees sent to ZELDA NOTES Co.** [U]: shops in the game offer the transfer (`EventFlowMsg/Npc_*_Shop_*`,
+  `Shop_43`–`Shop_51`), but no banked-rupee counter was found. A local census of every string in the RomFS named 4,624
+  of the 26,654 game-data flags; none of the named ones is a bank. Rumor Hunt hints are therefore free.
+- **Stat counters** [U]: per-enemy defeat counts exist (`DefeatedEnemyNum.<Enemy>`), but no named flag counts grass
+  cut, rolls, targeting or items used. Today's Journal leaves those out.
+- **Screenshots** [V]: Longshot has no player screenshot folder (its capture switches are developer tools), so the
+  Photo Album offers the newest files in `Pictures\Screenshots` and `Videos\Captures`, read-only.
+
 ## Legal note
 
 The map and tapestry pictures are Nintendo's artwork. The app only decodes them from the player's own installed copy, on the player's
