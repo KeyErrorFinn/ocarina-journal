@@ -4,6 +4,12 @@ import * as Ic from "../components/icons";
 import { ForestBg } from "../components/art";
 import { Sheet, Sync } from "../components/chrome";
 import { friendlyMap, TILES, type LiveState } from "../model";
+import tileFrame from "../assets/tiles/frame.png";
+
+/** Tile pictures drawn for this app (`assets/tiles/<tile id>.webp`), shown inside the shared gold frame. Tiles
+ *  without one keep their line icon. */
+const ART = import.meta.glob<string>("../assets/tiles/*.webp", { eager: true, import: "default" });
+const artFor = (id: string) => ART[`../assets/tiles/${id}.webp`];
 
 const GLYPHS: Record<string, () => ReactNode> = {
   GMap: Ic.GMap, GScroll: Ic.GScroll, GMedal: Ic.GMedal, GSkull: Ic.GSkull, GTapestry: Ic.GTapestry, GCamera: Ic.GCamera,
@@ -124,7 +130,14 @@ export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: st
           return (
             <button key={t.id} className={`ttile ${t.locked ? "lock" : ""}`} onClick={() => go(t.id)}>
               {t.id === "today" && hasNew && <i className="dot" />}
-              <span className={`frame ${t.dark ? "dark" : ""}`}><G /></span>
+              {artFor(t.id) ? (
+                <span className="frame art">
+                  <img className="art-in" src={artFor(t.id)} alt="" draggable={false} />
+                  <img className="art-fr" src={tileFrame} alt="" draggable={false} />
+                </span>
+              ) : (
+                <span className={`frame ${t.dark ? "dark" : ""}`}><G /></span>
+              )}
               <span className="c">{t.title}</span>
             </button>
           );
