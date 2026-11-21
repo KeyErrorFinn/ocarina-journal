@@ -9,6 +9,8 @@ export interface RepEntry {
   note: string | null;
   /** Times defeated (enemies and bosses). */
   count?: number;
+  /** A quest's current step as the game names it internally ("Ready", "Step01_01"); `note` has its objective. */
+  step?: string;
 }
 export interface RepCategory {
   id: string;

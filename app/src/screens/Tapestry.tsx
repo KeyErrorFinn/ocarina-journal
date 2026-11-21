@@ -46,7 +46,7 @@ function lookOf(r: Report | null, s: Section): Look {
   const q = questOf(r, s.name === "GameClear" ? "Defeat_Ganon" : s.name);
   if (!q) return "empty";
   if (q.have) return "woven";
-  return s.shadow && q.note && q.note !== "Ready" && q.note !== "None" ? "shadow" : "empty";
+  return s.shadow && q.step && q.step !== "Ready" && q.step !== "None" ? "shadow" : "empty";
 }
 
 const nice = (name: string, r: Report | null) =>
@@ -106,7 +106,7 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
           <div className="tap-cap" onClick={() => setSel(null)}>
             <b>{look === "empty" ? "???" : nice(picked.name, report)}</b>
             <span>
-              {look === "woven" ? "Woven" : look === "shadow" ? `Under way${q?.note ? ` · ${q.note}` : ""}` : "Not reached yet"}
+              {look === "woven" ? "Woven" : look === "shadow" ? (q?.note ?? "Under way") : "Not reached yet"}
             </span>
           </div>
         )}
@@ -115,19 +115,19 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
   );
 }
 
-/** Story order for the drawn tapestry (the report lists steps alphabetically). Unlisted steps are appended. */
+/** Story order for the drawn tapestry (the report lists quests alphabetically). Unlisted quests are appended. */
 const ORDER = [
-  "Meet Deku Tree", "Goto Hyrule Castle", "Get Stone Of Forest", "Get Stone Of Fire", "Get Stone Of Water", "Door Of Time",
-  "Sage Of Forest", "Sage Of Fire", "Sage Of Water", "Sage Of Shadow", "Sage Of Spirit", "Sage Of Light", "All Sage",
-  "Escape From Crumbling Ganon Castle", "Defeat Ganon",
-];
+  "Meet_DekuTree", "Goto_HyruleCastle", "Get_StoneOfForest", "Get_StoneOfFire", "Get_StoneOfWater", "DoorOfTime",
+  "SageOfForest", "SageOfFire", "SageOfWater", "SageOfShadow", "SageOfSpirit", "SageOfLight", "AllSage",
+  "EscapeFromCrumblingGanonCastle", "Defeat_Ganon",
+].map((n) => `story/${n}`);
 
 /** The app's own drawn tapestry, used when the game's files cannot be read. */
 function Drawn({ report, onHome }: { report: Report | null; onHome: () => void }) {
   const [z, setZ] = useState(1);
   const steps = cat(report, "story")?.entries ?? [];
   const rank = (l: string) => (ORDER.indexOf(l) === -1 ? 99 : ORDER.indexOf(l));
-  const list = [...steps].sort((a, b) => rank(a.label) - rank(b.label));
+  const list = [...steps].sort((a, b) => rank(a.id) - rank(b.id));
   const done = list.filter((s) => s.have).length;
   const cols = 3;
   const rows = Math.ceil(list.length / cols);

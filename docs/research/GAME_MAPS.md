@@ -94,6 +94,12 @@ The Tapestry screen shows the tapestry from the game's Threads of Time menu, bui
   otherwise leaves the panel empty, like the game's "???" for quests not reached. [I] That the game has both an
   empty cloth and a silhouette layer suggests it makes this distinction, but when it does has not been seen.
 - **`GameClear`** (the band at the bottom, with no silhouette) is woven when `Defeat_Ganon` is complete. [I]
+- **Quest names and objectives** come from the game's Threads of Time text, `ChallengeMsg/Info_<Quest>.msbt` in the
+  `Mals` archive: `Name` is the title ("Awakening the Five Sages"), `<Step>` the story so far and
+  `<Step>_NextAction` the objective ("Cross the Mirage Desert."). An objective ending in a colon is completed from
+  `<Step>_NextActionContent_NN` where those exist (the five temples for All Sage); a count the game fills in on
+  screen (apprentices remaining) is left out. [V] The step names themselves (`Step01_01`) are internal values of
+  the save's `Step_<Quest>` flag; the report keeps them as `step` for the tapestry's logic.
 - Cutscene replay from a section (the Zelda Notes "+") is not done; see `FEATURE_PARITY_MATRIX.md`.
 
 ## Legal note

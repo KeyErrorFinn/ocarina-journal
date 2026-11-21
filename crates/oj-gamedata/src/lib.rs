@@ -92,27 +92,34 @@ impl GameData {
     }
 }
 
-struct Names(HashMap<String, String>);
+struct Names {
+    text: HashMap<String, String>,
+    /// The Threads of Time text of each quest (`ChallengeMsg/Info_<Quest>`): `Name`, and per step its story text
+    /// (`<Step>`) and objective (`<Step>_NextAction`).
+    quests: HashMap<String, HashMap<String, String>>,
+}
 
 impl Names {
     fn load(files: &GameFiles) -> Self {
-        let mut text = HashMap::new();
+        let (mut text, mut quests) = (HashMap::new(), HashMap::new());
         for lang in ["USen", "EUen"] {
             if let Ok(rel) = files.versioned("Mals", &format!("{lang}.Product."), ".sarc.zs") {
                 if let Ok(members) = files.sarc(&rel) {
                     for (name, data) in members {
                         if name == "ActorMsg/PouchContent.msbt" || name == "ActorMsg/Enemy.msbt" {
                             text.extend(msbt(&data));
+                        } else if let Some(q) = name.strip_prefix("ChallengeMsg/Info_").and_then(|n| n.strip_suffix(".msbt")) {
+                            quests.insert(q.to_string(), msbt(&data));
                         }
                     }
                 }
                 break;
             }
         }
-        Names(text)
+        Names { text, quests }
     }
     fn text(&self, id: &str) -> Option<&str> {
-        self.0.get(&format!("{id}_Name")).map(String::as_str).filter(|s| !s.is_empty())
+        self.text.get(&format!("{id}_Name")).map(String::as_str).filter(|s| !s.is_empty())
     }
     fn of(&self, id: &str) -> String {
         self.text(id).map(String::from).unwrap_or_else(|| humanize(id))
@@ -186,7 +193,8 @@ enum Kind {
     Flag(Option<u32>),
     Key(i128),
     Count(u32),
-    Step(u32, HashSet<u32>, Vec<String>),
+    /// A quest's step flag, the values that count as done, and each value with the game's objective for it.
+    Step(u32, HashSet<u32>, Vec<(String, Option<String>)>),
     Hearts { flag: u32, of: u32 },
     Rupees { flag: u32, bags: Bags },
     Item { get: u32, stock: Option<u32>, group: Option<String>, fixed: Option<i64>, counted: bool, bags: Bags },
@@ -243,9 +251,15 @@ impl Entry {
         }
         if let Kind::Step(h, _, values) = &self.kind {
             let w = sav.get(*h).filter(|_| gd.flags.contains_key(h))?;
-            return Some(values.iter().find(|v| flag_hash(v) == w).cloned().unwrap_or_else(|| format!("{w:#x}")));
+            return Some(values.iter().find(|(v, _)| flag_hash(v) == w).map(|(v, t)| t.clone().unwrap_or_else(|| v.clone())).unwrap_or_else(|| format!("{w:#x}")));
         }
         self.note.clone()
+    }
+    /// A quest's current step, as the game names it internally (`Ready`, `Step01_01`, `Complete`).
+    fn step(&self, gd: &GameData, sav: &Save) -> Option<String> {
+        let Kind::Step(h, _, values) = &self.kind else { return None };
+        let w = sav.get(*h).filter(|_| gd.flags.contains_key(h))?;
+        Some(values.iter().find(|(v, _)| flag_hash(v) == w).map(|(v, _)| v.clone()).unwrap_or_else(|| format!("{w:#x}")))
     }
     fn size(&self, gd: &GameData, sav: &Save) -> u32 {
         match &self.kind {
@@ -332,7 +346,7 @@ impl Game {
         let mut cats: BTreeMap<&str, Vec<Entry>> = BTreeMap::new();
         items(&files, &data, &names, &mut cats);
         placed(&files, &data, &names, &place, &mut cats);
-        quests(&files, &data, &mut cats);
+        quests(&files, &data, &names, &mut cats);
         let catalogue: Vec<Category> = TITLES
             .iter()
             .filter_map(|(id, title)| {
@@ -620,7 +634,26 @@ fn py_int(v: Option<&Val>) -> String {
     v.and_then(Val::int).map(|i| i.to_string()).unwrap_or_default()
 }
 
-fn quests(files: &GameFiles, gd: &GameData, out: &mut BTreeMap<&str, Vec<Entry>>) {
+/// The game's objective for a quest step: `<Step>_NextAction`, on one line. A list the game fills in on screen
+/// ("Awaken the sages in the following locations:") is completed from `..._NextActionContent_NN` where the game
+/// has one, else the unfinished line is left out.
+fn objective(text: &HashMap<String, String>, step: &str) -> Option<String> {
+    let t = text.get(&format!("{step}_NextAction")).filter(|t| !t.trim().is_empty())?;
+    let mut lines: Vec<&str> = t.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    if lines.last().is_some_and(|l| l.ends_with(':')) {
+        let base = step.split('_').next().unwrap_or(step);
+        let items: Vec<&str> = (0..20).map_while(|i| text.get(&format!("{base}_NextActionContent_{i:02}")).map(String::as_str)).collect();
+        if !items.is_empty() {
+            return Some(format!("{} {}", lines.join(" "), items.join(", ")));
+        }
+        if lines.len() > 1 {
+            lines.pop();
+        }
+    }
+    Some(lines.join(" "))
+}
+
+fn quests(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&str, Vec<Entry>>) {
     let Ok(rows) = rows(files, "Challenge") else { return };
     let (main, sub) = (flag_hash("Main") as i128, flag_hash("Sub") as i128);
     for row in rows.as_arr() {
@@ -639,7 +672,11 @@ fn quests(files: &GameFiles, gd: &GameData, out: &mut BTreeMap<&str, Vec<Entry>>
         let final_ = row.get("Steps").and_then(|s| s.as_arr().last()).and_then(|s| s.get("Name")).and_then(Val::as_str).unwrap_or("").to_string();
         let done: HashSet<u32> = values.iter().filter(|v| *v == "Complete" || **v == final_).map(|v| flag_hash(v)).collect();
         let stripped = ["SubEvent_", "Minigame_", "MiniGame_"].iter().find_map(|p| name.strip_prefix(p)).unwrap_or(name);
-        out.entry(kind).or_default().push(Entry { area: String::new(), ident: name.to_string(), label: humanize(stripped), note: None, kind: Kind::Step(flag, done, values.clone()) });
+        // the game's own title and objectives where it has them (the Threads of Time quests)
+        let text = names.quests.get(name);
+        let label = text.and_then(|t| t.get("Name")).filter(|n| !n.trim().is_empty()).cloned().unwrap_or_else(|| humanize(stripped));
+        let values = values.iter().map(|v| (v.clone(), text.and_then(|t| objective(t, v)))).collect();
+        out.entry(kind).or_default().push(Entry { area: String::new(), ident: name.to_string(), label, note: None, kind: Kind::Step(flag, done, values) });
     }
     for k in ["story", "side-quests", "mini-games"] {
         if let Some(l) = out.get_mut(k) {
@@ -660,6 +697,9 @@ pub struct RepEntry {
     /// How many times it was defeated (enemies and bosses only): the game's `DefeatedEnemyNum` counter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<u32>,
+    /// A quest's current step as the game names it internally (`note` has the game's objective for it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -762,7 +802,7 @@ impl Game {
         let sav = &saves[&pick].0;
         let categories = self.catalogue.iter().map(|c| {
             let entries: Vec<RepEntry> = c.entries.iter().filter_map(|e| {
-                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav), count: e.count(&self.data, sav) })
+                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav), count: e.count(&self.data, sav), step: e.step(&self.data, sav) })
             }).collect();
             RepCategory { id: c.id.into(), title: c.title.into(), counted: c.counted, have: entries.iter().map(|e| e.have).sum(), of: entries.iter().map(|e| e.of).sum(), entries }
         }).collect();
@@ -771,5 +811,29 @@ impl Game {
             RepHall { id: h.id.clone(), label: h.label.clone(), recorded: w(h.have).is_some_and(|v| v != 0), best_frames: w(h.best).map(f32::from_bits), other: w(h.other).map(f32::from_bits) }
         }).collect();
         Ok(Report { hall, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quest_objectives_read_as_one_line() {
+        let t: HashMap<String, String> = [
+            ("Step01_01_NextAction", "Awaken the sages in the following locations:"),
+            ("Step01_NextActionContent_00", "Deep forest"),
+            ("Step01_NextActionContent_01", "High mountain"),
+            ("Step01_NextAction", "Rescue the captive apprentices.\nCaptive apprentices remaining:"),
+            ("Step03_NextAction", "Cross the Mirage Desert."),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        assert_eq!(objective(&t, "Step01_01").as_deref(), Some("Awaken the sages in the following locations: Deep forest, High mountain"));
+        assert_eq!(objective(&t, "Step03").as_deref(), Some("Cross the Mirage Desert."));
+        assert_eq!(objective(&t, "Ready"), None);
+        let no_list: HashMap<String, String> = [("Step01_NextAction".to_string(), "Rescue the captive apprentices.\nCaptive apprentices remaining:".to_string())].into();
+        assert_eq!(objective(&no_list, "Step01").as_deref(), Some("Rescue the captive apprentices."));
     }
 }
