@@ -9,6 +9,7 @@
 pub mod files;
 pub mod maps;
 pub mod tapestry;
+pub mod lore;
 pub mod tex;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -108,6 +109,9 @@ impl Names {
                     for (name, data) in members {
                         if name == "ActorMsg/PouchContent.msbt" || name == "ActorMsg/Enemy.msbt" {
                             text.extend(msbt(&data));
+                        } else if name == "EventFlowMsg/SubEvent_AllBossBattle.msbt" {
+                            // the Hall of Fallen Foes gauntlets' names (`Talk_12`, `Talk_15`, `Talk_18`)
+                            text.extend(msbt(&data).into_iter().map(|(k, v)| (format!("AllBossBattle/{k}"), v)));
                         } else if let Some(q) = name.strip_prefix("ChallengeMsg/Info_").and_then(|n| n.strip_suffix(".msbt")) {
                             quests.insert(q.to_string(), msbt(&data));
                         }
@@ -316,14 +320,16 @@ fn hall_slots(gd: &GameData, names: &Names, cats: &[Category]) -> Vec<HallSlot> 
         let other = members.iter().find(|(k, _)| **k != m_have && **k != m_best).map(|(_, v)| *v).unwrap_or(0);
         out.push(HallSlot { id: gy.clone(), label: names.of(&gy), have: *have, best: *best, other });
     }
-    // the three boss-rush trials
-    for (best, have, label) in [
-        ("DreamWorld_BossRushBestTime", "DreamBossStage_HaveRecordedTime_BossRush", "Boss rush (full)"),
-        ("DreamWorld_BossrushBestTime_01", "DreamBossStage_HaveRecordedTime_BossRush_01", "Boss rush 1"),
-        ("DreamWorld_BossrushBestTime_02", "DreamBossStage_HaveRecordedTime_BossRush_02", "Boss rush 2"),
+    // The three gauntlets, named by the game's own text. Which save record is which trial is our reading [I]: `_01`
+    // the child-era trial (three foes), `_02` the adult-era one (five), the unnumbered one all ten.
+    for (best, have, msg, fallback) in [
+        ("DreamWorld_BossrushBestTime_01", "DreamBossStage_HaveRecordedTime_BossRush_01", "Talk_12", "Trial of three child-era foes"),
+        ("DreamWorld_BossrushBestTime_02", "DreamBossStage_HaveRecordedTime_BossRush_02", "Talk_15", "Trial of five adult-era foes"),
+        ("DreamWorld_BossRushBestTime", "DreamBossStage_HaveRecordedTime_BossRush", "Talk_18", "Trial of all ten foes"),
     ] {
         if let (Some(b), Some(h)) = (gd.find(best), gd.find(have)) {
-            out.push(HallSlot { id: format!("trial/{best}"), label: label.into(), have: h, best: b, other: 0 });
+            let label = names.text.get(&format!("AllBossBattle/{msg}")).filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| fallback.into());
+            out.push(HallSlot { id: format!("trial/{best}"), label, have: h, best: b, other: 0 });
         }
     }
     out
