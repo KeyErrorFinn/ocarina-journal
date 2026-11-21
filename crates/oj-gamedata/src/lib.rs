@@ -11,6 +11,7 @@ pub mod maps;
 pub mod tapestry;
 pub mod lore;
 pub mod rumors;
+pub mod sound;
 pub mod tex;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -752,8 +753,9 @@ pub struct Report {
     pub slots: Vec<RepSlot>,
     pub categories: Vec<RepCategory>,
     pub hall: Vec<RepHall>,
-    /// Whether the Hall of Fallen Foes is open in this save (`DreamWorld_Open`, set when the owl tells Link about
-    /// it, in the event `Dm_HrlField_0080`). None: the game has no such flag.
+    /// Whether the Hall of Fallen Foes is open in this save. `DreamWorld_Open` alone is not enough: saves that have been
+    /// in the Hall still hold 0 there [V], so having talked to the Hall's keeper (`HavePlayedEvent.Npc_Dream_FirstTalk`)
+    /// or holding any Hall record also counts. None: the game has none of these flags.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hall_open: Option<bool>,
 }
@@ -817,11 +819,15 @@ impl Game {
             }).collect();
             RepCategory { id: c.id.into(), title: c.title.into(), counted: c.counted, have: entries.iter().map(|e| e.have).sum(), of: entries.iter().map(|e| e.of).sum(), entries }
         }).collect();
-        let hall = self.hall.iter().map(|h| {
+        let hall: Vec<RepHall> = self.hall.iter().map(|h| {
             let w = |f: u32| sav.get(f).filter(|_| self.data.flags.contains_key(&f));
             RepHall { id: h.id.clone(), label: h.label.clone(), recorded: w(h.have).is_some_and(|v| v != 0), best_frames: w(h.best).map(f32::from_bits), other: w(h.other).map(f32::from_bits) }
         }).collect();
-        let hall_open = self.data.find("DreamWorld_Open").map(|h| sav.get(h).is_some_and(|v| v != 0));
+        // (`HavePlayedEvent.*` are members of a struct, so they are not in the flag table; the save keys them by the
+        // hash of the whole name.)
+        let set = |name: &str| sav.get(flag_hash(name)).map(|v| v != 0);
+        let signs = [set("DreamWorld_Open"), set("HavePlayedEvent.Npc_Dream_FirstTalk"), Some(hall.iter().any(|h| h.recorded))];
+        let hall_open = signs[..2].iter().any(Option::is_some).then(|| signs.iter().any(|s| *s == Some(true)));
         Ok(Report { hall, hall_open, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
     }
 }

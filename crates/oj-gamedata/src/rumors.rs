@@ -34,7 +34,8 @@ fn kind_of(gyaml: &str) -> Option<&'static str> {
         g if g.starts_with("Npc_Kaepora") => "owl",
         "Npc_Pierre_CallOcarina" => "scarecrow",
         g if g.starts_with("Animal_Frog_") => "frog",
-        g if g.starts_with("Obj_Plant_MagicBean") => "bean",
+        // Not soft soil: `Obj_Plant_MagicBean*` are the grown plant's leaves (73 of them, several per spot), so there is
+        // no single actor that marks a soft-soil patch [V: DeathMountainCrater has two leaves 64 m apart].
         g if g.starts_with("Obj_Kokiri_Beehive_") => "beehive",
         _ => return None,
     };
