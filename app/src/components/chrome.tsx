@@ -60,14 +60,15 @@ export function Sync({ on }: { on: boolean }) {
   );
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: readonly T[]; value: T; onChange: (t: T) => void }) {
+/** Tabs; with `icons`, each tab shows its picture above the name (no ornaments), as the original's Play Ocarina does. */
+export function Tabs<T extends string>({ tabs, value, onChange, icons }: { tabs: readonly T[]; value: T; onChange: (t: T) => void; icons?: Partial<Record<T, string>> }) {
   return (
-    <div className="tabs" role="tablist">
+    <div className={`tabs ${icons ? "icons" : ""}`} role="tablist">
       {tabs.map((t) => (
         <button key={t} role="tab" aria-selected={t === value} className={`tab ${t === value ? "on" : ""}`} onClick={() => onChange(t)}>
-          {t === value && <span className="orn">❖</span>}
+          {icons?.[t] ? <img className="tab-ic" src={icons[t]} alt="" /> : t === value && <span className="orn">❖</span>}
           {t}
-          {t === value && <span className="orn">❖</span>}
+          {!icons?.[t] && t === value && <span className="orn">❖</span>}
         </button>
       ))}
     </div>
