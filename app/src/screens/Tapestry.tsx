@@ -62,7 +62,9 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
   if (idx === null) return <Drawn report={report} onHome={onHome} />;
 
   const looks = new Map(idx?.sections.map((s) => [s.name, lookOf(report, s)]) ?? []);
-  const done = [...looks.values()].filter((l) => l === "woven").length;
+  // Count quests only: the bottom band (GameClear) is the ending, not a quest of its own.
+  const quests = idx?.sections.filter((s) => s.name !== "GameClear") ?? [];
+  const done = quests.filter((s) => looks.get(s.name) === "woven").length;
   const picked = idx?.sections.find((s) => s.name === sel);
   const q = picked && questOf(report, picked.name === "GameClear" ? "Defeat_Ganon" : picked.name);
   const look = picked ? looks.get(picked.name) : undefined;
@@ -101,7 +103,7 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
         ) : (
           <p className="empty">Weaving the tapestry from your game files…</p>
         )}
-        {idx && <div className="tap-count">{done}/{idx.sections.length} woven</div>}
+        {idx && <div className="tap-count">{done}/{quests.length} woven</div>}
         {picked && (
           <div className="tap-cap" onClick={() => setSel(null)}>
             <b>{look === "empty" ? "???" : nice(picked.name, report)}</b>
