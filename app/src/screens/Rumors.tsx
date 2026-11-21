@@ -67,7 +67,7 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
           <div className="gq-points">+{k.points}<small>P</small></div>
           <div className="shot gq-snap">{cardArt(r.kind) ? <img src={cardArt(r.kind)} alt="" /> : <SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={2} box={2 / 3} />}</div>
           <p className="gq-said">It is said that {k.said} {place(r.area)}...</p>
-          <details className="gq-help" open={!!helped[r.id]} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setHelped({ ...helped, [r.id]: true })}>
+          <details className="gq-help" key={r.id} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setHelped({ ...helped, [r.id]: true })}>
             <summary>If you can't find it...</summary>
             <div className="shot gq-map"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={1.4} marker box={1} /></div>
             <p className="small muted">The pin marks the spot on the {era(r)} map of {place(r.area)}.{r.eras.length === 1 ? ` It is only there as ${r.eras[0]} Link.` : ""}</p>

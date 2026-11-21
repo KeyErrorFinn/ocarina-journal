@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Header, Seg, Sheet, Tabs } from "../components/chrome";
-import { NOTE_BUTTON, NOTE_NAME, NOTES, SONG_IDS, SONGS, type Note } from "../data/content";
+import { NOTE_BUTTON, NOTE_NAME, NOTES, SONG_IDS, SONG_RHYTHM, SONGS, type Note } from "../data/content";
 import { decodeScore, encodeScore, qrPath, scanScore } from "../data/scorecode";
 import { useOwned } from "../data/rewards";
 import { playNote, playRecording, preload, startNote, type Held, type Voice } from "../data/sound";
@@ -18,7 +18,7 @@ const KEYS: Record<string, Note> = {
 /** Pictures drawn for this app (src/assets/ocarina): ocarinas, song emblems and tab icons. Missing ones fall back. */
 const ART = import.meta.glob<string>("../assets/ocarina/*.webp", { eager: true, import: "default" });
 const art = (name: string): string | undefined => ART[`../assets/ocarina/${name}.webp`];
-const TAB_ICONS = { Play: art("tab_play"), "Game Scores": art("tab_scores"), "Original Scores": art("tab_original") };
+const TAB_ICONS = { Play: art("tab_ocarina") ?? art("tab_play"), "Game Scores": art("tab_scores"), "Original Scores": art("tab_original") };
 const SONG_ART: Record<string, string> = {
   "Zelda's Lullaby": "song_lullaby", "Epona's Song": "song_epona", "Saria's Song": "song_saria", "Sun's Song": "song_sun",
   "Song of Time": "song_time", "Song of Storms": "song_storms", "Minuet of the Forest": "song_minuet", "Bolero of Fire": "song_bolero",
@@ -264,11 +264,17 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
     return () => { window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku); };
   }, [down, up]);
 
-  /** Plays the song's notes with the game's note sounds, lighting each on the staff. */
+  /** Plays the song's notes with the game's note sounds and the song's own rhythm, lighting each on the staff. */
   const demo = () => {
     stopAll(); setGuided(false);
-    seq.forEach((n, i) => timers.current.push(window.setTimeout(() => { play(n, 520); setDemoAt(i); }, i * BEAT)));
-    timers.current.push(window.setTimeout(() => setDemoAt(-1), seq.length * BEAT + 300));
+    const r = song ? SONG_RHYTHM[song] : undefined;
+    let t = 0;
+    seq.forEach((n, i) => {
+      const len = r ? r.beats[i] * r.beat : BEAT;
+      timers.current.push(window.setTimeout(() => { play(n, len - 40); setDemoAt(i); }, t));
+      t += len;
+    });
+    timers.current.push(window.setTimeout(() => setDemoAt(-1), t + 200));
   };
   /** Plays the game's own recording of the whole song. */
   const full = async () => {

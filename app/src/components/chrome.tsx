@@ -26,7 +26,12 @@ export function Header({
         <div className="sub">{sub}</div>
         <h1>
           {title}
-          {help && <button className="help" onClick={() => setOpen(true)} aria-label="Help">?</button>}
+          {help && (
+            <button className="help" onClick={() => setOpen(true)} aria-label="Help">
+              {/* (drawn, so the mark sits in the middle of the ring whatever the font) */}
+              <svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.8" opacity=".75" /><path d="M9.2 9.3a2.9 2.9 0 1 1 4.3 2.5c-.9.5-1.5 1.1-1.5 2.1v.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="17.4" r="1.25" fill="currentColor" /></svg>
+            </button>
+          )}
         </h1>
         <svg className="torn" viewBox="0 0 360 20" preserveAspectRatio="none" aria-hidden>
           <path d={TORN} fill="#0f0b08" />

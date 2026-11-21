@@ -117,7 +117,7 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       <div style={{ position: "relative", zIndex: 2, padding: ".3em 1.2em 0" }}>
         <div style={{ fontSize: ".78em", color: "#cfe0c0", textShadow: "0 1px 2px #000" }}>{status}</div>
         {life != null && max != null && (
-          <div style={{ marginTop: ".5em", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1em" }}>
+          <div style={{ margin: ".5em 0 1em", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1em" }}>
             <Hearts life={life} max={max} />
             <span className="num" style={{ display: "flex", gap: ".35em", alignItems: "center", fontSize: "1.2em" }}><Ic.Rupee /> {rupees ?? "–"}</span>
           </div>
@@ -157,7 +157,7 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
           <div style={{ padding: "0 1.2em", lineHeight: 1.6, fontSize: ".9em" }}>
             <p><b>Mode:</b> {s.mode === "live" ? "Live (bridge connected)" : s.mode === "bridge_off" ? "Game running, bridge off" : "Game not running"}</p>
             {s.version && <p className="muted small">{s.version}</p>}
-            <p className="muted small">Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}</p>
+            <p className="muted small" style={{ overflowWrap: "anywhere" }}>Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}</p>
             <p className="muted small">Game folder: {s.game_dir ?? "not detected (found when the game runs, or set OJ_GAME)"}</p>
             <p className="small" style={{ color: reportError ? "var(--amber)" : "var(--teal)" }}>
               Names and positions: {reportError ? `unavailable (${reportError})` : "read from your game folder"}

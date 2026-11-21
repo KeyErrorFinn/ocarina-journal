@@ -47,8 +47,11 @@ function Paper({ seed, world }: { seed: string; world?: boolean }) {
 /** A picture that can be dragged and zoomed (mouse wheel, double click or two fingers). At zoom 1 it fits the view's
  *  width, or with `cover` fills the whole view (a number: at most that many widths); `focus` (0..1 of the picture) is centred whenever `focusKey` changes.
  *  `children` may be a function of the zoom, to show more detail closer in. */
+/** The part of the picture on screen, as fractions of its width and height, and its width in pixels. */
+export interface View { x0: number; x1: number; y0: number; y1: number; px: number }
+
 export function PanZoom({ aspect, cover, focus, focusKey, children }: {
-  aspect: number; cover?: boolean | number; focus?: { x: number; y: number } | null; focusKey?: string; children: ReactNode | ((zoom: number) => ReactNode);
+  aspect: number; cover?: boolean | number; focus?: { x: number; y: number } | null; focusKey?: string; children: ReactNode | ((zoom: number, view: View) => ReactNode);
 }) {
   const view = useRef<HTMLDivElement>(null);
   const [vw, setVw] = useState(400), [vh, setVh] = useState(800);
@@ -120,7 +123,7 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
       onPointerCancel={(e) => { drag.current.pts.delete(e.pointerId); }}
       onClickCapture={(e) => { if (drag.current.moved > 4) { e.stopPropagation(); e.preventDefault(); } }}
     >
-      <div className="pz-in" style={{ width: cw, height: ch, transform: `translate(${t.x}px, ${t.y}px)` }}>{typeof children === "function" ? children(z) : children}</div>
+      <div className="pz-in" style={{ width: cw, height: ch, transform: `translate(${t.x}px, ${t.y}px)` }}>{typeof children === "function" ? children(z, { x0: -t.x / cw, x1: (vw - t.x) / cw, y0: -t.y / ch, y1: (vh - t.y) / ch, px: cw }) : children}</div>
     </div>
   );
 }
@@ -294,14 +297,19 @@ function WorldMap({ index, rows, linkPlace, showLink, onPick }: {
   const here = linkPlace ? at(linkPlace) : null;
   return (
     <PanZoom aspect={img.h / img.w} cover focus={here ? { x: here.left / 100, y: here.top / 100 } : { x: 0.55, y: 0.5 }} focusKey={linkPlace ?? "centre"}>
-      {(zoom) => (
+      {(zoom, view) => (
         <>
           <img className="pz-img" src={img.url} alt="" draggable={false} />
           {Object.keys(labels).map((id) => {
-            const q = at(id)!, r = byArea.get(id), done = r && r.have >= r.of;
+            const p = at(id)!, r = byArea.get(id), done = r && r.have >= r.of;
+            // A place on screen whose name would run off its edge slides in, so the name is never cut off (its
+            // half-width estimated from its length). Places further off screen stay where they are.
+            const half = (prettyArea(id).length * 7.6 + 26) / 2 / view.px * 100;
+            const seen = p.left >= view.x0 * 100 - half && p.left <= view.x1 * 100 + half;
+            const q = { left: seen ? Math.min(Math.max(p.left, view.x0 * 100 + half), view.x1 * 100 - half) : p.left, top: p.top };
             // (dungeons sit close to their areas: a small badge until zoomed in, then their name too)
             if (index.places[id]?.dungeon && zoom < 1.6) {
-              return <button key={id} className={`dun-dot ${done ? "done" : ""}`} style={{ left: `${q.left}%`, top: `${q.top}%` }} onClick={() => onPick(id)} aria-label={prettyArea(id)} title={prettyArea(id)} />;
+              return <button key={id} className={`dun-dot ${done ? "done" : ""}`} style={{ left: `${p.left}%`, top: `${p.top}%` }} onClick={() => onPick(id)} aria-label={prettyArea(id)} title={prettyArea(id)} />;
             }
             return (
               <button key={id} className={`banner ${index.places[id]?.dungeon ? "dun" : ""} ${done ? "done" : ""}`} style={{ left: `${q.left}%`, top: `${q.top}%` }} onClick={() => onPick(id)}>
@@ -383,6 +391,11 @@ function AreaMap(props: {
   const link = here && game?.pos && onFloor(game.pos[1]) && (!usePicture || place!.dungeon || !linkEra || linkEra === era) ? proj(game.pos[0], game.pos[2]) : null;
   const exits = usePicture && !place!.dungeon ? place![era]?.exits ?? [] : [];
   const pct2 = (v: number) => `${v}%`;
+  // Without Link to follow, open on the middle of what is drawn (the area's pictures have wide empty margins).
+  const drawn = [...all.filter((e) => e.pos && onFloor(e.pos[1])).map((e) => proj(e.pos![0], e.pos![2])), ...exits.map((x) => proj(x.x, x.z))];
+  const centre = drawn.length
+    ? { x: (Math.min(...drawn.map((d) => d.left)) + Math.max(...drawn.map((d) => d.left))) / 200, y: (Math.min(...drawn.map((d) => d.top)) + Math.max(...drawn.map((d) => d.top))) / 200 }
+    : null;
   const openOn = (k: number) => all.some((e) => e.pos && e.have < e.of && floorOf(place!, e.pos[1]) === k);
 
   const layer = (
@@ -425,7 +438,7 @@ function AreaMap(props: {
     <div className="mapwrap">
       {usePicture ? (
         img ? (
-          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : null} focusKey={`${area}:${era}:${floor}:${!!link}`}>{layer}</PanZoom>
+          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{layer}</PanZoom>
         ) : (
           <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>Reading the map from your game files…</p>
         )
@@ -497,8 +510,7 @@ function AreaMap(props: {
               <h3 style={{ textAlign: "center" }}>Where</h3>
               <div className="rowline small"><span>Area</span><span>{prettyArea(selected.area)}</span></div>
               {selected.pos && place?.dungeon && <div className="rowline small"><span>Floor</span><span>{floors[floorOf(place, selected.pos[1])]?.name}</span></div>}
-              {selected.pos && <div className="rowline small"><span>Position</span><span>{selected.pos.map((n) => Math.round(n)).join(", ")}</span></div>}
-              {selected.note && <div className="rowline small"><span>Note</span><span>{selected.note}</span></div>}
+              {selected.note && !/^room -?\d+ at /.test(selected.note) && <div className="rowline small"><span>Note</span><span>{selected.note}</span></div>}
             </div>
           </div>
         </section>
