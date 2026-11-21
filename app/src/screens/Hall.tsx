@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Header, RefreshBtn, Tabs } from "../components/chrome";
-import { Crest, Ribbon } from "../components/art";
+import { Crest } from "../components/art";
+import { Rosette } from "../components/medals";
 import { cat, hallTime, prettyArea, type RepEntry, type RepHall, type Report } from "../report";
 import type { Entry } from "../model";
 import { useMapImage } from "../maps";
@@ -74,10 +75,10 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   }
 
   const Row = (e: RepEntry & { boss: boolean }) => (
-    <button key={e.id} className={`listcard ${e.have ? "" : "locked"}`} onClick={() => setOpen(e)}>
-      <span className="pic"><Crest name={e.label} /></span>
+    <button key={e.id} className={`listcard foe ${e.have ? "" : "locked"}`} onClick={() => setOpen(e)}>
+      <Rosette tier={e.have ? (e.boss ? 3 : 1) : 0} />
       <span className="mid">{e.have ? e.label : "???"}<div className="time">{hallTime(recordOf(e)) ?? (e.have ? (e.count ? `Defeated ×${e.count}` : "Defeated") : "Not yet")}</div></span>
-      <Ribbon tier={e.have ? (e.boss ? 3 : 1) : 0} />
+      <span className="chev" aria-hidden>›</span>
     </button>
   );
 
