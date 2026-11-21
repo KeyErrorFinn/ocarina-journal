@@ -401,3 +401,28 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .icon-btn.fav { font-size: 1.4em; color: #f1e8d6; }
 .icon-btn.fav.on { color: #f6d36b; }
 .share-card { width: 100%; max-width: 18em; display: block; margin: 0 auto; filter: drop-shadow(0 6px 12px #000a); }
+
+/* ---------- Photo Album: milestones, screenshots, editor ---------- */
+.ph-strip { display: flex; gap: .7em; overflow-x: auto; padding: 0 1em .8em; scrollbar-width: none; }
+.ph-stone { flex: none; width: 62%; }
+.ph-stone .shot { background-size: cover; background-position: center; display: grid; place-items: center; }
+.ph-medal { width: 26%; display: block; }
+.ph-n { position: absolute; right: .6em; bottom: .4em; font: 700 1.5em var(--display); color: #f6d36b; text-shadow: 0 2px 4px #000; }
+.ph-cap { flex: none; width: 46%; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+.ph-cap .shot { background-size: cover; background-position: center; }
+.ph-cap small { color: var(--muted); }
+.ph-edit { position: relative; background: #000; touch-action: none; user-select: none; }
+.ph-edit > img:first-child { width: 100%; display: block; }
+.ph-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ph-sticker { position: absolute; transform: translate(-50%, -50%); cursor: grab; }
+.ph-sticker.on { outline: 2px dashed #f6d36b; outline-offset: 2px; }
+.ph-title { position: absolute; left: 0; right: 0; top: 86%; transform: translateY(-75%); text-align: center; font: 800 1.3em var(--body); color: #fff7e6; -webkit-text-stroke: 1px #1c140c; text-shadow: 0 2px 3px #000; pointer-events: none; }
+.ph-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6em; padding: .9em 1em; }
+.ph-pick.stickers { grid-template-columns: repeat(4, 1fr); }
+.ph-pick button { display: flex; flex-direction: column; align-items: center; gap: .25em; padding: .4em; background: #1a120b; border: 2px solid #4a3a28; border-radius: 4px; color: inherit; }
+.ph-pick button.on { border-color: var(--gold); }
+.ph-pick button:disabled { opacity: .35; }
+.ph-pick img { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #5a5a5a; }
+.ph-pick.stickers img { aspect-ratio: 1; background: none; }
+.ph-pick .glyph { aspect-ratio: 16 / 9; width: 100%; display: grid; place-items: center; font-size: 1.6em; color: var(--muted); }
+.ph-pick small { font-size: .72em; }

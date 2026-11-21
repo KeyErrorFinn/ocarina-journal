@@ -283,6 +283,51 @@ async fn get_lore(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Where Windows keeps the player's own screenshots: Win+PrtScn (`Pictures\\Screenshots`, also under OneDrive) and
+/// Game Bar captures (`Videos\\Captures`). Longshot itself has no screenshot folder for players.
+fn capture_dirs() -> Vec<std::path::PathBuf> {
+    let Some(home) = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from) else { return vec![] };
+    [home.join("Pictures").join("Screenshots"), home.join("OneDrive").join("Pictures").join("Screenshots"), home.join("Videos").join("Captures")]
+        .into_iter()
+        .filter(|d| d.is_dir())
+        .collect()
+}
+
+#[derive(Serialize)]
+struct Capture {
+    path: String,
+    modified_ms: u64,
+}
+
+/// The newest screenshots in those folders (last 30 days, at most 24), for the Photo Album to offer. Read-only.
+#[tauri::command]
+fn recent_captures() -> Vec<Capture> {
+    let cutoff = SystemTime::now() - Duration::from_secs(30 * 86_400);
+    let mut out: Vec<Capture> = capture_dirs()
+        .iter()
+        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
+        .filter(|e| matches!(e.path().extension().and_then(|x| x.to_str()).map(str::to_ascii_lowercase).as_deref(), Some("png" | "jpg" | "jpeg")))
+        .filter_map(|e| {
+            let t = e.metadata().ok()?.modified().ok()?;
+            (t >= cutoff).then(|| Capture { path: e.path().to_string_lossy().into_owned(), modified_ms: t.duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0) })
+        })
+        .collect();
+    out.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    out.truncate(24);
+    out
+}
+
+/// One of those screenshots' bytes. Only files directly inside the screenshot folders can be read.
+#[tauri::command]
+fn read_capture(path: String) -> Result<tauri::ipc::Response, String> {
+    let p = std::path::PathBuf::from(&path);
+    let inside = p.parent().is_some_and(|parent| capture_dirs().iter().any(|d| d == parent));
+    if !inside {
+        return Err("not a screenshot folder file".into());
+    }
+    std::fs::read(&p).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn get_rumors(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -425,7 +470,7 @@ pub fn run() {
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
-        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, recent_captures, read_capture, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 
