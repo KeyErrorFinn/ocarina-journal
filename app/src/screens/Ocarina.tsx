@@ -6,7 +6,6 @@ import { cat, type Report } from "../report";
 
 const TABS = ["Play", "Game Scores", "Original Scores"] as const;
 const POS: Record<Note, [number, number]> = { U: [30, 36], L: [50, 28], R: [70, 36], D: [40, 68], A: [62, 70] };
-const ROW: Record<Note, number> = { U: 0, L: 1, R: 2, D: 3, A: 4 };
 const KEYS: Record<string, Note> = { a: "A", ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R" };
 
 interface Take { id: string; name: string; at: number; notes: { n: Note; dt: number }[] }
@@ -41,15 +40,43 @@ function Pad({ lit, onNote }: { lit: Note | null; onNote: (n: Note) => void }) {
   );
 }
 
-function Staff({ notes, at }: { notes: Note[]; at: number }) {
+const ROLL: Note[] = ["U", "L", "R", "D", "A"]; // highest pitch at the top
+const PX = 0.09; // pixels per millisecond
+
+/** A score as a note grid: one row per note, time running to the right, with an optional playhead. */
+function Roll({ notes, head = null, done = 0 }: { notes: { n: Note; t: number }[]; head?: number | null; done?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const end = (notes.at(-1)?.t ?? 0) + 900;
+  useEffect(() => {
+    const el = ref.current;
+    if (el && head !== null) el.scrollLeft = Math.max(0, 20 + head * PX - el.clientWidth / 2);
+  }, [head]);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && head === null) el.scrollLeft = el.scrollWidth; // follow a live recording
+  }, [notes.length, head]);
   return (
-    <div className="staff">
-      {notes.map((n, i) => (
-        <span key={i} className={`n ${i < at ? "hit" : ""}`} style={{ left: `${10 + (80 * i) / Math.max(1, notes.length - 1)}%`, top: `${12 + ROW[n] * 19}%` }}>{NOTE_LABEL[n]}</span>
-      ))}
+    <div className="roll">
+      <div className="roll-keys">{ROLL.map((n) => <span key={n}>{NOTE_LABEL[n]}</span>)}</div>
+      <div className="roll-grid" ref={ref}>
+        <div style={{ width: 40 + end * PX, minWidth: "100%", height: "100%", position: "relative" }}>
+          {notes.map((x, i) => {
+            const len = Math.min(600, (notes[i + 1]?.t ?? x.t + 600) - x.t);
+            return (
+              <span key={i} className={`roll-n ${i < done ? "hit" : ""}`} style={{ left: 20 + x.t * PX, top: `${ROLL.indexOf(x.n) * 20}%`, width: Math.max(18, len * PX - 4) }}>
+                {NOTE_LABEL[x.n]}
+              </span>
+            );
+          })}
+          {head !== null && <i className="roll-head" style={{ left: 20 + head * PX }} />}
+        </div>
+      </div>
     </div>
   );
 }
+
+/** A take's notes at their times from the start. */
+const timed = (notes: Take["notes"]) => { let t = 0; return notes.map((x) => ({ n: x.n, t: (t += x.dt) })); };
 
 export function Ocarina({ report, onHome, start }: { report: Report | null; onHome: () => void; start?: string | null }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Play");
@@ -64,8 +91,17 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
   const [at, setAt] = useState(0);
   const [msg, setMsg] = useState("");
   const [code, setCode] = useState("");
+  const [open, setOpen] = useState<Take | null>(null);
+  const [head, setHead] = useState<number | null>(null);
   const timers = useRef<number[]>([]);
-  const stopAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  const raf = useRef(0);
+  const stopAll = () => { timers.current.forEach(clearTimeout); timers.current = []; cancelAnimationFrame(raf.current); setHead(null); };
+  /** Moves the playhead across `len` milliseconds. */
+  const runHead = (len: number) => {
+    const t0 = performance.now();
+    const step = () => { const t = performance.now() - t0; if (t > len) return setHead(null); setHead(t); raf.current = requestAnimationFrame(step); };
+    raf.current = requestAnimationFrame(step);
+  };
   useEffect(() => stopAll, []);
 
   const known = new Set((cat(report, "songs")?.entries ?? []).filter((e) => e.have).map((e) => e.label));
@@ -87,13 +123,41 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
     stopAll(); setGuided(false);
     seq.forEach((n, i) => timers.current.push(window.setTimeout(() => { tone(n); setLit(n); setAt(i + 1); setTimeout(() => setLit(null), 300); }, i * 650)));
     timers.current.push(window.setTimeout(() => setAt(0), seq.length * 650 + 300));
+    runHead(seq.length * 650);
   };
 
   const stopRec = () => {
     if (rec && rec.length) setNaming(rec.map((x, i) => ({ n: x.n, dt: i ? Math.round(x.t - rec[i - 1].t) : 0 })));
     setRec(null);
   };
-  const playTake = (t: Take) => { stopAll(); let acc = 0; t.notes.forEach((x) => { acc += x.dt; timers.current.push(window.setTimeout(() => { tone(x.n); setLit(x.n); setTimeout(() => setLit(null), 160); }, acc)); }); };
+  const playTake = (t: Take) => {
+    stopAll();
+    const notes = timed(t.notes);
+    notes.forEach((x) => timers.current.push(window.setTimeout(() => { tone(x.n); setLit(x.n); setTimeout(() => setLit(null), 160); }, x.t)));
+    runHead((notes.at(-1)?.t ?? 0) + 400);
+  };
+  const share = (t: Take) => { navigator.clipboard?.writeText(btoa(JSON.stringify({ name: t.name, notes: t.notes }))); setMsg("Share code copied"); setTimeout(() => setMsg(""), 1600); };
+
+  // ---------- one of the player's own scores ----------
+  if (open) {
+    return (
+      <>
+        <Header title={open.name} left="back" onLeft={() => { stopAll(); setOpen(null); }} sub="Original Scores" />
+        <div className="scroll grain">
+          <Pad lit={lit} onNote={(n) => { tone(n); setLit(n); setTimeout(() => setLit(null), 160); }} />
+          <div className="transport">
+            <button className="tp" aria-label="Back to the start" onClick={stopAll}>⏮</button>
+            <button className="tp big" aria-label="Play" onClick={() => playTake(open)}>▶</button>
+            <button className="pillbtn" onClick={() => share(open)}>Share code</button>
+          </div>
+          <Roll notes={timed(open.notes)} head={head} />
+          <p className="note">{open.notes.length} notes, recorded {new Date(open.at).toLocaleDateString()}.</p>
+          <button className="btn ghost block" onClick={() => { stopAll(); setTakes(takes.filter((x) => x.id !== open.id)); setOpen(null); }}>Delete this score</button>
+        </div>
+        {msg && <div className="toast">{msg}</div>}
+      </>
+    );
+  }
 
   // ---------- song detail ----------
   if (song) {
@@ -102,12 +166,13 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
         <Header title={song} left="back" onLeft={() => { stopAll(); setSong(null); setGuided(false); setAt(0); }} sub="Game Scores" />
         <div className="scroll grain">
           <Pad lit={lit} onNote={press} />
-          <div style={{ display: "flex", gap: "1em", justifyContent: "center", alignItems: "center" }}>
-            <button className="btn" onClick={demo}>▶ Demo</button>
+          <div className="transport">
+            <button className="tp" aria-label="Back to the start" onClick={() => { stopAll(); setAt(0); }}>⏮</button>
+            <button className="tp big" aria-label="Play a demo" onClick={demo}>▶</button>
             <button className={`pillbtn`} style={guided ? { borderColor: "var(--gold)" } : undefined} onClick={() => { stopAll(); setGuided(!guided); setAt(0); }}>♪ Guided Play</button>
           </div>
           <div style={{ margin: "1em" }}><Seg items={["Play only the beginning", "Play the full version"] as const} value={mode} onChange={(m) => { setMode(m); setAt(0); }} /></div>
-          <Staff notes={seq} at={at} />
+          <Roll notes={seq.map((n, i) => ({ n, t: i * 650 }))} head={head} done={at} />
           <p className="note">{guided ? "Play the notes in order (tap, or use the A key and arrow keys)." : "Press Demo to hear it, or Guided Play to follow along."}</p>
         </div>
         {msg && <div className="toast">{msg}</div>}
@@ -126,6 +191,7 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
             <div style={{ textAlign: "center", margin: ".6em 0" }}>
               {rec ? <button className="btn" onClick={stopRec}>■ Stop ({rec.length})</button> : <button className="btn ghost" onClick={() => setRec([])}>● Record Performance</button>}
             </div>
+            {rec && <Roll notes={rec.map((x) => ({ n: x.n, t: x.t - rec[0].t }))} />}
             <p className="note">Notes: A, ▲ ▼ ◀ ▶ (keyboard: A and the arrow keys).</p>
           </>
         )}
@@ -150,10 +216,10 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
             {takes.length === 0 && <p className="empty">No recordings yet. Record one on the Play tab.</p>}
             {takes.map((t) => (
               <div key={t.id} className="card" style={{ margin: ".8em 1em" }}>
-                <div className="rowline"><b>{t.name}</b><span className="small muted">{t.notes.length} notes</span></div>
+                <button className="rowline" style={{ width: "100%", background: "none", border: 0, padding: 0, color: "inherit" }} onClick={() => setOpen(t)}><b>{t.name}</b><span className="small muted">{t.notes.length} notes ›</span></button>
                 <div style={{ display: "flex", gap: ".6em", marginTop: ".5em", flexWrap: "wrap" }}>
                   <button className="pillbtn" onClick={() => playTake(t)}>▶ Play</button>
-                  <button className="pillbtn" onClick={() => { navigator.clipboard?.writeText(btoa(JSON.stringify({ name: t.name, notes: t.notes }))); setMsg("Share code copied"); setTimeout(() => setMsg(""), 1600); }}>Share code</button>
+                  <button className="pillbtn" onClick={() => share(t)}>Share code</button>
                   <button className="pillbtn" onClick={() => setTakes(takes.filter((x) => x.id !== t.id))}>Delete</button>
                 </div>
               </div>
