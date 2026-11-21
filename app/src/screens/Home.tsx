@@ -41,13 +41,16 @@ export function BridgeActions({ s }: { s: LiveState }) {
   const added = preview ? preview.after.split(/\r?\n/).filter((l) => !preview.before.split(/\r?\n/).includes(l) && l) : [];
   return (
     <>
-      <div style={{ padding: "0 1em .8em", position: "relative", zIndex: 2 }}>
-        <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>
-          Turn on the bridge for every launch…
-        </button>
-        {s.mode === "offline" && (
-          <button className="btn ghost block" style={{ margin: ".6em 0 0", width: "100%" }} onClick={() => { setMsg(null); setSheet("launch"); }}>Start Longshot with the bridge once…</button>
-        )}
+      <div className="bridge-card">
+        <span className="bridge-badge" aria-hidden><Sync on={false} /></span>
+        <div className="bridge-text">
+          <b>{s.mode === "bridge_off" ? "Game running without the bridge" : "Live bridge is off"}</b>
+          <span>{s.mode === "bridge_off" ? "Turn it on, then restart Longshot to follow Link live." : "Turn it on once to follow Link live on every launch."}</span>
+        </div>
+        <div className="bridge-btns">
+          <button className="bridge-btn" onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>Turn on…</button>
+          {s.mode === "offline" && <button className="bridge-btn ghost" onClick={() => { setMsg(null); setSheet("launch"); }}>Start game once…</button>}
+        </div>
       </div>
       {sheet === "enable" && (
         <Sheet title="Turn on the bridge" onClose={() => setSheet(null)}>

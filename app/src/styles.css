@@ -435,3 +435,18 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .icon-btn.fav.on { color: #f6d36b; }
 .share-card { width: 100%; max-width: 18em; display: block; margin: 0 auto; filter: drop-shadow(0 6px 12px #000a); }
 
+/* ---------- the bridge card (Home, Today's Journal): a leather panel in the tiles' gold frame ---------- */
+.bridge-card { position: relative; z-index: 2; margin: 0 1em .9em; display: grid; grid-template-columns: auto 1fr; gap: .55em .8em; align-items: center; padding: .75em .85em .8em; background: radial-gradient(120% 140% at 0% 0%, #3a2a1a, #1a120b 70%); border: 2px solid #b78d45; border-radius: 6px; box-shadow: 0 0 0 1px #3a2713, inset 0 0 0 3px #120c07, inset 0 0 0 4px #5a4224, 0 4px 10px rgba(0,0,0,.5); }
+.bridge-card::before, .bridge-card::after { content: ""; position: absolute; top: 5px; width: 9px; height: 9px; border-top: 2px solid var(--ochre); opacity: .8; }
+.bridge-card::before { left: 5px; border-left: 2px solid var(--ochre); }
+.bridge-card::after { right: 5px; border-right: 2px solid var(--ochre); }
+.bridge-badge { width: 2.6em; height: 2.6em; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, #4a3520, #1d140c); border: 2px solid var(--ochre); box-shadow: 0 0 0 1px #120c07, 0 2px 4px #0009; color: #cdb99c; }
+.bridge-badge .sync { display: grid; place-items: center; }
+.bridge-badge svg { width: 1.55em; height: 1em; }
+.bridge-text { display: grid; gap: .1em; min-width: 0; }
+.bridge-text b { font: 700 .92em var(--display); letter-spacing: .03em; color: var(--ochre); }
+.bridge-text span { font-size: .76em; color: #cdb99c; line-height: 1.35; }
+.bridge-btns { grid-column: 1 / -1; display: flex; gap: .55em; }
+.bridge-btn { flex: 1; padding: .55em .6em; border-radius: 3px; font: 800 .82em var(--body); color: #fff; background: linear-gradient(180deg, #9a7740, #6d5129); border: 1px solid #d9b25f; box-shadow: 0 2px 0 #3d2b14, inset 0 1px 0 #ffffff26; }
+.bridge-btn.ghost { color: #e9dcc0; background: #120d09; border-color: #6a5028; box-shadow: none; }
+.bridge-btn:active { transform: translateY(1px); box-shadow: none; }
