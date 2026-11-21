@@ -173,7 +173,7 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
           </div>
           <div style={{ margin: "1em" }}><Seg items={["Play only the beginning", "Play the full version"] as const} value={mode} onChange={(m) => { setMode(m); setAt(0); }} /></div>
           <Roll notes={seq.map((n, i) => ({ n, t: i * 650 }))} head={head} done={at} />
-          <p className="note">{guided ? "Play the notes in order (tap, or use the A key and arrow keys)." : "Press Demo to hear it, or Guided Play to follow along."}</p>
+          <p className="note">{guided ? "Play the notes in order (tap, or use the A key and arrow keys)." : "Press ▶ to hear it, or Guided Play to follow along."}</p>
         </div>
         {msg && <div className="toast">{msg}</div>}
       </>
