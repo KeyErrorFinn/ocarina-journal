@@ -1,6 +1,15 @@
 import { useState } from "react";
-import { Header, RefreshBtn, Tabs } from "../components/chrome";
+import { Bar, Header, RefreshBtn, Tabs } from "../components/chrome";
 import { clock, describe, friendlyMap, mins, type Entry, type Journal, type Mode } from "../model";
+import { useMapImage, useMapIndex, type MapIndex } from "../maps";
+import { MEDALS } from "../data/content";
+import { cat, totalKills, type Report } from "../report";
+import { tiersReached } from "./Journey";
+
+/** Paintings for key moments, drawn for this app (src/assets/scenes). Missing ones fall back to a drawn sky. */
+const SCENES = import.meta.glob<string>("../assets/scenes/*.webp", { eager: true, import: "default" });
+const scene = (k: string) => SCENES[`../assets/scenes/${k}.webp`];
+const ZOOM = 3;
 
 const TABS = ["Timeline", "Data"] as const;
 const DAY_START_HOUR = 5; // the original app's day runs 05:00 to 04:59; ours does the same by design choice
@@ -15,23 +24,63 @@ export function dayStart(t: number): number {
 const fmtDay = (t: number) => new Date(t).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 const fmtStamp = (t: number) => new Date(t).toLocaleString([], { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-/** An original illustration for an entry (the original app uses game screenshots; capturing needs a write-capable command). */
-function Scene({ e }: { e: Entry }) {
-  const hue = e.type === "died" ? 0 : e.type.startsWith("battle") ? 8 : e.type.startsWith("rupees") ? 140 : e.type === "area_entered" ? 100 : 40;
+/** The game's world map, from the player's own files, zoomed in on where `place` is drawn. */
+function MapCrop({ idx, place }: { idx: MapIndex; place: string }) {
+  const img = useMapImage(idx.world.image);
+  const l = idx.world.labels[place];
+  if (!img || !l) return null;
+  const ar = img.h / img.w;
+  const hx = 0.5 / ZOOM, hy = 9 / 16 / 2 / (ZOOM * ar); // half the visible part, as a fraction of the picture
+  const x = Math.min(1 - hx, Math.max(hx, 0.5 + l[0] / idx.world.width));
+  const y = Math.min(1 - hy, Math.max(hy, 0.5 - l[1] / idx.world.height));
+  return <img className="crop" src={img.url} alt="" style={{ width: `${ZOOM * 100}%`, left: `calc(50% - ${x * ZOOM * 100}%)`, top: `calc(50% - ${y * ZOOM * ar * 100}cqw)` }} />;
+}
+
+/** A picture for a key entry: the map where an area was entered, else a painting (the original app uses game
+ *  screenshots; capturing them needs a write-capable command). */
+function Scene({ e, idx }: { e: Entry; idx: MapIndex | null }) {
+  const place = e.type === "area_entered" ? e.entered.split("_")[0] : null;
+  const paint = scene(e.type === "max_life_up" ? "heart" : e.type === "died" ? "fell" : e.type === "age_changed" ? "age" : "day");
+  if (place && idx?.world.labels[place]) {
+    return <div className="shot"><MapCrop idx={idx} place={place} /><span className="shot-tag">{friendlyMap(place)}</span></div>;
+  }
+  if (paint) return <div className="shot"><img src={paint} alt="" /></div>;
+  const hue = e.type === "died" ? 0 : e.type === "area_entered" ? 100 : 40;
   return (
     <div className="shot" style={{ background: `linear-gradient(180deg, hsl(${hue} 35% 30%), hsl(${hue + 40} 40% 14%))` }}>
       <svg viewBox="0 0 160 90" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden>
         <path d="M0 62l30-24 26 18 30-28 34 26 40-22v62H0z" fill={`hsl(${hue} 30% 22%)`} opacity=".8" />
         <circle cx="132" cy="20" r="8" fill="#fff6d6" opacity=".8" />
       </svg>
-      {(e.type === "rupees_gained" || e.type === "rupees_spent") && (
-        <div className="coin">{e.type === "rupees_gained" ? "+" : "−"}{e.amount}</div>
-      )}
     </div>
   );
 }
 
-export function Today({ onHome, journal, mode }: { onHome: () => void; journal: Journal; mode: Mode }) {
+/** Medals closest to their next tier, from the save. */
+function InReach({ report }: { report: Report | null }) {
+  if (!report) return null;
+  const list = MEDALS.map((m) => {
+    const v = m.cat === "kills" ? totalKills(report) : cat(report, m.cat)?.have ?? 0;
+    const next = m.tiers[tiersReached(v, m.tiers)];
+    return { m, v, next };
+  }).filter((x) => x.next !== undefined).sort((a, b) => b.v / b.next! - a.v / a.next!).slice(0, 4);
+  if (!list.length) return null;
+  return (
+    <div className="card">
+      <h3>Medals in reach</h3>
+      {list.map(({ m, v, next }) => (
+        <div key={m.id} className="reach">
+          <div className="rowline"><b>{m.name}</b><span className="big" style={{ fontSize: "1.3em" }}>{v}</span></div>
+          <div className="rowline small muted"><span>Remaining to next tier:</span><span>{next! - v}</span></div>
+          <Bar value={v / next!} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Today({ onHome, journal, mode, report }: { onHome: () => void; journal: Journal; mode: Mode; report: Report | null }) {
+  const idx = useMapIndex();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Timeline");
   const now = Date.now();
   const from = dayStart(now);
@@ -44,7 +93,7 @@ export function Today({ onHome, journal, mode }: { onHome: () => void; journal: 
   return (
     <>
       <Header title="Today's Journal" onLeft={onHome} right={<RefreshBtn />}
-        help="A timeline and totals of what the app saw while it was open. The day runs from 05:00 to 04:59, like the original. Game screenshots are not captured; the pictures are drawn by the app." />
+        help="A timeline and totals of what the app saw while it was open. The day runs from 05:00 to 04:59, like the original. Game screenshots are not captured: entering an area shows that spot on your game's world map, and other moments use paintings made for this app." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div className="scroll grain">
         <h2 className="h2">Records for {fmtDay(from)}</h2>
@@ -63,7 +112,7 @@ export function Today({ onHome, journal, mode }: { onHome: () => void; journal: 
                   <i className="node" />
                   <div className="t">{clock(e.wall_ms)}{e.area ? ` · ${friendlyMap(e.area)}` : ""}</div>
                   <div className="title">{d.title}{d.detail ? ` · ${d.detail}` : ""}</div>
-                  {d.key && <Scene e={e} />}
+                  {d.key && <Scene e={e} idx={idx} />}
                 </div>
               );
             })}
@@ -84,6 +133,7 @@ export function Today({ onHome, journal, mode }: { onHome: () => void; journal: 
               <Stat label="Times Link fell" value={t.deaths} />
               <Stat label="Distance walked (units)" value={Math.round(t.distance_units)} plus />
             </div>
+            <InReach report={report} />
             <p className="note">
               Data is gathered live while the app is open. Data collected between {fmtStamp(from)} and {fmtStamp(to)}.
               Enemy kills, grass cut and jumps are counted by the game but are not in the live feed.
