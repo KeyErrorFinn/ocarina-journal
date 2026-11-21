@@ -51,16 +51,15 @@ h1, h2, h3, p { margin: 0; }
 .grain.rumor-bg { background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px), url(./assets/bg/rumors.webp); background-size: 3px 3px, cover; background-position: 0 0, center top; }
 
 /* ---------- Header band ---------- */
+/* Leather band with a torn edge, drawn for this app; below the tear it is transparent over the page. */
 .band { position: relative; flex: none; padding: .7em 1em 2.1em; color: var(--text);
-  background: linear-gradient(180deg, #4d3420 0%, #5d4128 55%, #6a4a2d 100%); }
-.band::after { content: ""; position: absolute; inset: 0; opacity: .25; mix-blend-mode: overlay; pointer-events: none;
-  background-image: repeating-linear-gradient(95deg, rgba(0,0,0,.35) 0 2px, transparent 2px 7px); }
+  background: url(./assets/bg/band.webp) center bottom / cover no-repeat; }
 .band .tools { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; min-height: 2.4em; }
 .band .tools .l, .band .tools .r { display: flex; align-items: center; gap: .15em; }
 .band .sub { position: relative; z-index: 1; font-size: .72em; color: #e7d3b0; opacity: .85; margin-top: .3em; }
 .band h1 { position: relative; z-index: 1; font: 800 1.9em var(--body); letter-spacing: .005em; margin-top: .05em; display: flex; align-items: center; gap: .35em; }
 .band h1 .help { display: inline-grid; place-items: center; width: 1.05em; height: 1.05em; border: 1.5px solid rgba(255,255,255,.7); border-radius: 50%; font-size: .5em; font-weight: 700; background: none; color: inherit; }
-.band .torn { position: absolute; left: 0; bottom: -1px; width: 100%; height: 1.5em; z-index: 2; }
+.band .torn { display: none; }
 .icon-btn { background: none; border: 0; width: 2.4em; height: 2.4em; display: grid; place-items: center; border-radius: 50%; }
 .icon-btn:hover { background: rgba(255,255,255,.1); }
 .icon-btn svg { width: 1.5em; height: 1.5em; }
