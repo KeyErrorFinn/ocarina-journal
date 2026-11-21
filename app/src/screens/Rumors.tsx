@@ -9,6 +9,10 @@ import type { Game } from "../model";
 const TABS = ["Quests", "Rewards"] as const;
 const SORTS = ["By area", "Nearest", "Found"] as const;
 
+/** The reveal picture, drawn for this app (src/assets/bg/rumor_found.webp); absent until it is added. */
+const FOUND_ART = Object.values(import.meta.glob<string>("../assets/bg/rumor_found.webp", { eager: true, import: "default" }))[0];
+const points = (kind: string) => (kind === "heart-containers" ? 100 : kind === "skulltulas" ? 50 : 20);
+
 const WHAT: Record<string, string> = {
   chests: "a treasure chest", skulltulas: "a Gold Skulltula", "heart-pieces": "a Piece of Heart", "heart-containers": "a Heart Container",
 };
@@ -17,6 +21,7 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
   const [tab, setTab] = useState<(typeof TABS)[number]>("Quests");
   const [sort, setSort] = useState<(typeof SORTS)[number]>("By area");
   const [shown, setShown] = useLocal<Record<string, number>>("rumors.hints", {});
+  const [cheered, setCheered] = useLocal<Record<string, 1>>("rumors.cheered", {});
 
   const items = useMemo(() => {
     const out: { id: string; kind: (typeof MAP_KINDS)[number]; area: string; found: boolean; pos: [number, number, number] | null }[] = [];
@@ -24,6 +29,8 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
     return out;
   }, [report]);
   const found = items.filter((i) => i.found).length;
+  // A rumour the player asked a hint for and has since found gets a reveal, once.
+  const fresh = items.find((i) => i.found && shown[i.id] && !cheered[i.id]);
   const songs = cat(report, "songs")?.entries ?? [];
 
   let list = [...items];
@@ -60,7 +67,7 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
                         {i.found ? "Found" : lvl === 0 ? "Hint hidden" : `It is said ${WHAT[i.kind]} lies in ${prettyArea(i.area)}.`}
                       </div>
                     </div>
-                    {i.found ? <b className="num">✓</b> : <span className="num">+{i.kind === "heart-containers" ? 100 : i.kind === "skulltulas" ? 50 : 20}</span>}
+                    {i.found ? <b className="num">✓</b> : <span className="num">+{points(i.kind)}</span>}
                   </div>
                   {!i.found && lvl >= 1 && i.pos && lvl === 2 && (
                     <div className="small" style={{ marginTop: ".6em" }}>Exact spot: {i.pos.map((v) => Math.round(v)).join(", ")}</div>
@@ -79,7 +86,7 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
           </>
         ) : (
           <>
-            <p className="note" style={{ marginBottom: 0 }}>Songs you know are playable on the Ocarina screen. Rumor points: <b className="num">{items.filter((i) => i.found).reduce((a, i) => a + (i.kind === "heart-containers" ? 100 : i.kind === "skulltulas" ? 50 : 20), 0)}</b> (this app's own scale).</p>
+            <p className="note" style={{ marginBottom: 0 }}>Songs you know are playable on the Ocarina screen. Rumor points: <b className="num">{items.filter((i) => i.found).reduce((a, i) => a + points(i.kind), 0)}</b> (this app's own scale).</p>
             <div className="pgrid" style={{ gridTemplateColumns: "1fr 1fr 1fr", paddingTop: "1em" }}>
               {songs.map((s) => (
                 <button key={s.id} className="card" style={{ margin: 0, padding: ".9em .4em", textAlign: "center", opacity: s.have ? 1 : 0.45 }} disabled={!s.have || !SONGS[s.label]} onClick={() => openSong(s.label)}>
@@ -92,6 +99,16 @@ export function Rumors({ report, game, onHome, openSong }: { report: Report | nu
           </>
         )}
       </div>
+      {fresh && (
+        <div className="reveal">
+          <button className="reveal-x" aria-label="Close" onClick={() => setCheered({ ...cheered, [fresh.id]: 1 })}>✕</button>
+          <div className="reveal-k">Rumor solved</div>
+          <div className="reveal-p">+{points(fresh.kind)}<small>P</small></div>
+          {FOUND_ART ? <img className="reveal-img" src={FOUND_ART} alt="" /> : <span className="reveal-mark"><Marker kind={fresh.kind} done /></span>}
+          <p>It was said {WHAT[fresh.kind]} lay in {prettyArea(fresh.area)}, and you found it.</p>
+          <button className="reveal-btn" onClick={() => setCheered({ ...cheered, [fresh.id]: 1 })}>Found!</button>
+        </div>
+      )}
     </>
   );
 }
