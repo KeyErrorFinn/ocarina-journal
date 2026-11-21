@@ -752,6 +752,10 @@ pub struct Report {
     pub slots: Vec<RepSlot>,
     pub categories: Vec<RepCategory>,
     pub hall: Vec<RepHall>,
+    /// Whether the Hall of Fallen Foes is open in this save (`DreamWorld_Open`, set when the owl tells Link about
+    /// it, in the event `Dm_HrlField_0080`). None: the game has no such flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hall_open: Option<bool>,
 }
 
 impl Game {
@@ -817,7 +821,8 @@ impl Game {
             let w = |f: u32| sav.get(f).filter(|_| self.data.flags.contains_key(&f));
             RepHall { id: h.id.clone(), label: h.label.clone(), recorded: w(h.have).is_some_and(|v| v != 0), best_frames: w(h.best).map(f32::from_bits), other: w(h.other).map(f32::from_bits) }
         }).collect();
-        Ok(Report { hall, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
+        let hall_open = self.data.find("DreamWorld_Open").map(|h| sav.get(h).is_some_and(|v| v != 0));
+        Ok(Report { hall, hall_open, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
     }
 }
 

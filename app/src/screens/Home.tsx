@@ -87,8 +87,9 @@ function Actions({ s }: { s: LiveState }) {
   );
 }
 
-export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: string) => void; hasNew: boolean; reportError: string | null }) {
+export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: (id: string) => void; fresh: string[]; locked: Record<string, string>; reportError: string | null }) {
   const [menu, setMenu] = useState(false);
+  const [why, setWhy] = useState<string | null>(null);
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
   const life = live ? s.game!.life : slot?.life ?? null;
@@ -129,8 +130,9 @@ export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: st
         {TILES.map((t) => {
           const G = GLYPHS[t.icon];
           return (
-            <button key={t.id} className={`ttile ${t.locked ? "lock" : ""}`} onClick={() => go(t.id)}>
-              {t.id === "today" && hasNew && <i className="dot" />}
+            <button key={t.id} className={`ttile ${t.locked || locked[t.id] ? "lock" : ""}`} onClick={() => (locked[t.id] ? setWhy(locked[t.id]) : go(t.id))}>
+              {fresh.includes(t.id) && !locked[t.id] && <i className="dot" />}
+              {locked[t.id] && <i className="padlock" aria-label="Locked">🔒</i>}
               {artFor(t.id) ? (
                 <span className="frame art">
                   <img className="art-in" src={artFor(t.id)} alt="" draggable={false} />
@@ -145,6 +147,11 @@ export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: st
         })}
       </div>
 
+      {why && (
+        <Sheet title="Not open yet" onClose={() => setWhy(null)}>
+          <p style={{ padding: "0 1.2em 1.2em", lineHeight: 1.6 }}>{why} Your save says it isn't yet.</p>
+        </Sheet>
+      )}
       {menu && (
         <Sheet title="Ocarina Journal" onClose={() => setMenu(false)}>
           <div style={{ padding: "0 1.2em", lineHeight: 1.6, fontSize: ".9em" }}>

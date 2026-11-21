@@ -57,6 +57,8 @@ export interface Report {
   slots: RepSlot[];
   categories: RepCategory[];
   hall?: RepHall[];
+  /** Whether the Hall of Fallen Foes is open in the save (the game's DreamWorld_Open flag). */
+  hall_open?: boolean;
 }
 export interface ReportFile {
   modified_ms: number;

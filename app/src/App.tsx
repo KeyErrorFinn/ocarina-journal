@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { EMPTY, TILES, type LiveState } from "./model";
-import { setPlaceNames, type ReportFile } from "./report";
+import { cat, setPlaceNames, type Report, type ReportFile } from "./report";
+import { useLocal } from "./store";
 import { useLore } from "./lore";
 import { Home } from "./screens/Home";
 import { Today } from "./screens/Today";
@@ -26,7 +27,7 @@ export function App() {
   const [rep, setRep] = useState<ReportFile | null>(null);
   // `#today`, `#map:KokiriForest`, `#ocarina:Saria's Song` open a screen directly (handy for review).
   const [route, setRoute] = useState<string>(() => decodeURIComponent(location.hash.slice(1)) || "home");
-  const [seen, setSeen] = useState(false);
+  const [seen, setSeen] = useLocal<Record<string, string>>("home.seen", {});
   const [repErr, setRepErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,10 +60,19 @@ export function App() {
   const game = s.game;
   const slotRupees = (s.mode === "live" && game?.rupees != null ? game.rupees : report?.slots.find((x) => x.slot === report.slot)?.rupees ?? s.saves[0]?.rupees) ?? null;
 
+  // "New" dots, as in the original: a tile shows one when what it reads has changed since the player last opened it.
+  const sigs = tileSignatures(report, s.journal.entries.length);
+  const fresh = Object.keys(sigs).filter((t) => seen[t] !== undefined && seen[t] !== sigs[t]);
+  useEffect(() => {
+    const first = Object.keys(sigs).filter((t) => seen[t] === undefined);
+    if (first.length) setSeen({ ...seen, ...Object.fromEntries(first.map((t) => [t, sigs[t]])) });
+  });
+  const locked: Record<string, string> = report?.hall_open === false ? { foes: "Opens once the owl has told Link about the Hall of Fallen Foes." } : {};
+
   let body;
   switch (id) {
     case "home":
-      body = <Home s={s} reportError={repErr} hasNew={!seen && s.journal.entries.length > 0} go={(t) => { if (t === "today") setSeen(true); setRoute(t); }} />;
+      body = <Home s={s} reportError={repErr} fresh={fresh} locked={locked} go={(t) => { if (sigs[t] !== undefined) setSeen({ ...seen, [t]: sigs[t] }); setRoute(t); }} />;
       break;
     case "map":
       body = <MapScreen report={report} game={game} connected={s.connected} onHome={home} start={arg} />;
@@ -109,4 +119,17 @@ export function App() {
       <div className="phone">{body}</div>
     </div>
   );
+}
+
+/** What each tile shows, boiled down to a string; a change lights the tile's "new" dot. */
+function tileSignatures(r: Report | null, entries: number): Record<string, string> {
+  const have = (id: string) => cat(r, id)?.have ?? 0;
+  const out: Record<string, string> = { today: String(entries) };
+  if (!r) return out;
+  out.map = ["chests", "skulltulas", "heart-pieces", "heart-containers"].map(have).join(",");
+  out.foes = `${have("enemies")},${have("bosses")},${(r.hall ?? []).filter((h) => h.recorded).length}`;
+  out.journey = ["skulltulas", "enemies", "chests", "hearts", "heart-pieces", "songs", "bosses", "story"].map(have).join(",");
+  out.tapestry = String(have("story") + have("side-quests"));
+  out.ocarina = String(have("songs"));
+  return out;
 }

@@ -139,6 +139,7 @@ h1, h2, h3, p { margin: 0; }
 .ttile span.c { font-size: .76em; font-weight: 800; text-align: center; line-height: 1.15; text-shadow: 0 1px 2px #000; }
 .ttile .dot { position: absolute; top: -.35em; right: -.25em; width: 1.05em; height: 1.05em; border-radius: 50%; background: #f5c33b; border: 2px solid #3a2713; z-index: 2; }
 .ttile.lock { opacity: .55; }
+.ttile .padlock { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); z-index: 2; font-size: 1.6em; font-style: normal; filter: drop-shadow(0 2px 3px #000); }
 
 /* ---------- Timeline ---------- */
 .timeline { margin: .6em 1em 1em 1.3em; padding-left: 2.2em; position: relative; }
