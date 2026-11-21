@@ -184,6 +184,10 @@ h1, h2, h3, p { margin: 0; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
 .link { position: absolute; z-index: 5; width: 1.8em; height: 1.8em; transform: translate(-50%, -50%); }
+.wisp { position: relative; display: block; width: 100%; height: 100%; }
+.wisp img { position: absolute; inset: -35%; width: 170%; height: 170%; animation: wisp 2.4s ease-in-out infinite; }
+.wisp-dir { position: absolute; left: 50%; top: -55%; width: 0; height: 0; margin-left: -.32em; border: .32em solid transparent; border-bottom: .5em solid #e8fbff; filter: drop-shadow(0 0 3px #6fd3ff); }
+@keyframes wisp { 50% { transform: translateY(-6%) scale(1.05); filter: brightness(1.15); } }
 
 /* the game's own map pictures: a draggable, zoomable surface */
 .pz { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; background: #e3cc94; }

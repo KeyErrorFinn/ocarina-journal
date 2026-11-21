@@ -59,9 +59,14 @@ export function LandIcon({ kind, done }: { kind: import("../landmarks").LandKind
 }
 
 /** The Link arrow on maps. */
-export const LinkArrow = () => (
-  <svg viewBox="0 0 24 24"><path d="M12 2l8 20-8-5-8 5z" fill="#c0392b" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
-);
+// A glowing wisp drawn for this app marks Link (the original uses a fairy); the notch points where he faces.
+const WISP = Object.values(import.meta.glob<string>("../assets/ocarina/wisp.webp", { eager: true, import: "default" }))[0];
+export const LinkArrow = () =>
+  WISP ? (
+    <span className="wisp"><i className="wisp-dir" /><img src={WISP} alt="" /></span>
+  ) : (
+    <svg viewBox="0 0 24 24"><path d="M12 2l8 20-8-5-8 5z" fill="#c0392b" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+  );
 
 /** A medal ribbon for a tier. */
 export function Ribbon({ tier }: { tier: number }) {

@@ -43,7 +43,7 @@ function tone(n: Note, o: Ocarina = OCARINAS[0]) {
 }
 
 /** Where the five holes sit on the painted ocarinas (percent of the picture), and on the drawn fallback. */
-const HOLES: Record<Note, [number, number]> = { U: [27, 38], L: [43, 30], R: [59, 34], D: [36, 62], A: [53, 64] };
+const HOLES: Record<Note, [number, number]> = { U: [24, 36], L: [38, 30], R: [52, 36], D: [31, 66], A: [45, 66] };
 const POS: Record<Note, [number, number]> = { U: [30, 36], L: [50, 28], R: [70, 36], D: [40, 68], A: [62, 70] };
 
 /** The ocarina with its five holes to play. Uses the chosen ocarina's painting when it is in the app. */
