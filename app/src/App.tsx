@@ -70,7 +70,7 @@ export function App() {
       body = <Hall report={report} entries={s.journal.entries} onHome={home} />;
       break;
     case "today":
-      body = <Today onHome={home} journal={s.journal} mode={s.mode} report={report} />;
+      body = <Today onHome={home} journal={s.journal} mode={s.mode} report={report} history={s.history} />;
       break;
     case "journey":
       body = <Journey report={report} rupees={slotRupees} onHome={home} onCompare={() => setRoute("compare")} />;

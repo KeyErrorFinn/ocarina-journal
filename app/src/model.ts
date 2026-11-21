@@ -34,6 +34,8 @@ export type Entry = { wall_ms: number; game_t: number; area: string | null } & E
 export interface Totals {
   play_secs: number;
   by_area: Record<string, number>;
+  /** Time by Link's age ("child", "adult"), then area; missing on days saved before it existed. */
+  by_age_area?: Record<string, Record<string, number>>;
   distance_units: number;
   rupees_gained: number;
   rupees_spent: number;

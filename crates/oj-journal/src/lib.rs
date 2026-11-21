@@ -51,6 +51,9 @@ pub struct Entry {
 pub struct Totals {
     pub play_secs: f64,
     pub by_area: BTreeMap<String, f64>,
+    /// The same time split by Link's age (`child`, `adult`), then area. Older saved days lack it.
+    #[serde(default)]
+    pub by_age_area: BTreeMap<String, BTreeMap<String, f64>>,
     /// Horizontal distance walked, in game units (the real-world scale is unknown).
     pub distance_units: f64,
     pub rupees_gained: i64,
@@ -149,6 +152,9 @@ impl Journal {
                 self.totals.play_secs += dt;
                 if let Some(a) = &self.area {
                     *self.totals.by_area.entry(a.clone()).or_default() += dt;
+                    if let Some(age) = &g.age {
+                        *self.totals.by_age_area.entry(age.clone()).or_default().entry(a.clone()).or_default() += dt;
+                    }
                 }
                 if let (Some(p), Some(q)) = (prev.pos, g.pos) {
                     let step = ((q[0] - p[0]).powi(2) + (q[2] - p[2]).powi(2)).sqrt();
@@ -301,6 +307,22 @@ mod tests {
 
     fn kinds(j: &Journal) -> Vec<Kind> {
         j.snapshot().entries.into_iter().rev().map(|e| e.kind).collect()
+    }
+
+    #[test]
+    fn time_is_split_by_age() {
+        let mut j = Journal::new();
+        let mut s = g(0.0);
+        s.age = Some("child".into());
+        j.push_sample(1, &s);
+        s.t = 2.0;
+        j.push_sample(2, &s);
+        s.t = 3.0;
+        s.age = Some("adult".into());
+        j.push_sample(3, &s);
+        let t = j.snapshot().totals;
+        assert_eq!(t.by_age_area["child"]["HyruleField_Adult"], 2.0);
+        assert_eq!(t.by_age_area["adult"]["HyruleField_Adult"], 1.0);
     }
 
     #[test]

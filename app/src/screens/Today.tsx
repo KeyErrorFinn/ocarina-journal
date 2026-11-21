@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Bar, Header, RefreshBtn, Tabs } from "../components/chrome";
-import { clock, describe, friendlyMap, mins, type Entry, type Journal, type Mode } from "../model";
-import { useMapImage, useMapIndex, type MapIndex } from "../maps";
+import { useEffect, useState } from "react";
+import { Bar, Header, RefreshBtn, Seg, Tabs } from "../components/chrome";
+import { clock, describe, friendlyMap, type DaySummary, type Entry, type Journal, type Mode, type Totals } from "../model";
+import { useLocal } from "../store";
+import { useMapIndex, type MapIndex } from "../maps";
+import { MapCrop } from "../components/MapCrop";
 import { MEDALS } from "../data/content";
 import { cat, totalKills, type Report } from "../report";
-import { tiersReached } from "./Journey";
 
 /** Paintings for key moments, drawn for this app (src/assets/scenes). Missing ones fall back to a drawn sky. */
 const SCENES = import.meta.glob<string>("../assets/scenes/*.webp", { eager: true, import: "default" });
 const scene = (k: string) => SCENES[`../assets/scenes/${k}.webp`];
-const ZOOM = 3;
 
 const TABS = ["Timeline", "Data"] as const;
 const DAY_START_HOUR = 5; // the original app's day runs 05:00 to 04:59; ours does the same by design choice
@@ -23,18 +23,6 @@ export function dayStart(t: number): number {
 
 const fmtDay = (t: number) => new Date(t).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 const fmtStamp = (t: number) => new Date(t).toLocaleString([], { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
-
-/** The game's world map, from the player's own files, zoomed in on where `place` is drawn. */
-function MapCrop({ idx, place }: { idx: MapIndex; place: string }) {
-  const img = useMapImage(idx.world.image);
-  const l = idx.world.labels[place];
-  if (!img || !l) return null;
-  const ar = img.h / img.w;
-  const hx = 0.5 / ZOOM, hy = 9 / 16 / 2 / (ZOOM * ar); // half the visible part, as a fraction of the picture
-  const x = Math.min(1 - hx, Math.max(hx, 0.5 + l[0] / idx.world.width));
-  const y = Math.min(1 - hy, Math.max(hy, 0.5 - l[1] / idx.world.height));
-  return <img className="crop" src={img.url} alt="" style={{ width: `${ZOOM * 100}%`, left: `calc(50% - ${x * ZOOM * 100}%)`, top: `calc(50% - ${y * ZOOM * ar * 100}cqw)` }} />;
-}
 
 /** A picture for a key entry: the map where an area was entered, else a painting (the original app uses game
  *  screenshots; capturing them needs a write-capable command). */
@@ -56,30 +44,47 @@ function Scene({ e, idx }: { e: Entry; idx: MapIndex | null }) {
   );
 }
 
-/** Medals closest to their next tier, from the save. */
-function InReach({ report }: { report: Report | null }) {
-  if (!report) return null;
-  const list = MEDALS.map((m) => {
-    const v = m.cat === "kills" ? totalKills(report) : cat(report, m.cat)?.have ?? 0;
-    const next = m.tiers[tiersReached(v, m.tiers)];
-    return { m, v, next };
-  }).filter((x) => x.next !== undefined).sort((a, b) => b.v / b.next! - a.v / a.next!).slice(0, 4);
-  if (!list.length) return null;
+/** Lifetime tiers for the day's stats. These thresholds are this app's own; the original's are not public. */
+const TIERS = {
+  minutes: [60, 300, 600, 1200, 3000, 6000, 12000],
+  km: [1, 5, 10, 25, 50, 100, 250],
+  rupees: [100, 500, 1000, 2500, 5000, 10000, 25000],
+  hearts: [10, 50, 100, 250, 500, 1000],
+  falls: [1, 5, 10, 25, 50, 100],
+  battles: [10, 50, 100, 250, 500, 1000, 2500],
+};
+
+/** One stat of the day: today's change, and how far its lifetime total is from the next tier. */
+function StatCard({ label, today, unit, total, tiers, fmt = (n) => String(Math.round(n)) }: {
+  label: string; today: number; unit?: string; total: number; tiers: readonly number[]; fmt?: (n: number) => string;
+}) {
+  const n = tiers.find((t) => total < t);
+  const prev = [...tiers].reverse().find((t) => total >= t) ?? 0;
   return (
-    <div className="card">
-      <h3>Medals in reach</h3>
-      {list.map(({ m, v, next }) => (
-        <div key={m.id} className="reach">
-          <div className="rowline"><b>{m.name}</b><span className="big" style={{ fontSize: "1.3em" }}>{v}</span></div>
-          <div className="rowline small muted"><span>Remaining to next tier:</span><span>{next! - v}</span></div>
-          <Bar value={v / next!} />
-        </div>
-      ))}
+    <div className="dstat">
+      <div className="rowline"><b>{label}</b><span className="dval">{today > 0 ? "+" : ""}{fmt(today)}{unit && <small>{unit}</small>}</span></div>
+      <div className="dnext">
+        <div className="rowline small"><span>Next tier:</span><span>{n === undefined ? "All tiers reached" : `${fmt(n - total)}${unit ? ` ${unit}` : ""} left`}</span></div>
+        <Bar value={n === undefined ? 1 : (total - prev) / (n - prev)} />
+      </div>
     </div>
   );
 }
 
-export function Today({ onHome, journal, mode, report }: { onHome: () => void; journal: Journal; mode: Mode; report: Report | null }) {
+/** Today's change in a save counter: the first value the app read from the save today is the baseline. */
+function useSaveDelta(key: string, value: number | null, day: number): number {
+  const [base, setBase] = useLocal<{ day: number; v: number } | null>(`today.base.${key}`, null);
+  const fresh = !base || base.day !== day;
+  useEffect(() => {
+    if (value !== null && fresh) setBase({ day, v: value });
+  }, [value, fresh, day, setBase]);
+  return value === null || fresh ? 0 : Math.max(0, value - base!.v);
+}
+
+const sumAll = (days: DaySummary[], today: Totals, f: (t: Totals) => number) => days.reduce((a, d) => a + f(d.totals), f(today));
+const km = (units: number) => units / 1000; // map positions are in metres (see maps.rs), so one unit is a metre [I]
+
+export function Today({ onHome, journal, mode, report, history }: { onHome: () => void; journal: Journal; mode: Mode; report: Report | null; history: DaySummary[] }) {
   const idx = useMapIndex();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Timeline");
   const now = Date.now();
@@ -87,7 +92,14 @@ export function Today({ onHome, journal, mode, report }: { onHome: () => void; j
   const to = from + 86_400_000 - 60_000;
   const entries = journal.entries.filter((e) => e.wall_ms >= from);
   const t = journal.totals;
-  const areas = Object.entries(t.by_area).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const [age, setAge] = useState<"Child" | "Adult">("Child");
+  const byAge = t.by_age_area?.[age.toLowerCase()];
+  const areas = Object.entries(t.by_age_area ? byAge ?? {} : t.by_area).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const kills = useSaveDelta("kills", report ? totalKills(report) : null, from);
+  const chests = useSaveDelta("chests", report ? cat(report, "chests")?.have ?? 0 : null, from);
+  const killTiers = MEDALS.find((m) => m.id === "kills")!.tiers, chestTiers = MEDALS.find((m) => m.id === "chests")!.tiers;
+  const life = (f: (t: Totals) => number) => sumAll(history, t, f);
+  const updated = journal.entries[0]?.wall_ms ?? (t.play_secs > 0 ? now : null);
   const empty = entries.length === 0 && t.play_secs < 1;
 
   return (
@@ -119,37 +131,30 @@ export function Today({ onHome, journal, mode, report }: { onHome: () => void; j
           </div>
         ) : (
           <>
-            <p className="small muted" style={{ margin: "0 1.2em .4em" }}>Last updated just now</p>
-            <div className="card">
-              <div className="rowline"><h3>Time played</h3><span className="big" style={{ fontSize: "1.6em" }}>{mins(t.play_secs)}</span></div>
-              {areas.length > 0 && <div className="muted small">Time by area</div>}
-              {areas.map(([a, s]) => <div key={a} className="rowline small"><span>{friendlyMap(a)}</span><span>{mins(s)}</span></div>)}
-              <Stat label="Areas visited" value={t.areas_visited.length} />
-              <Stat label="Rupees gained" value={t.rupees_gained} plus />
-              <Stat label="Rupees spent" value={t.rupees_spent} />
-              <Stat label="Hearts of damage taken" value={t.damage_quarters / 4} />
-              <Stat label="Battles" value={t.battles} plus />
-              <Stat label="Cutscenes and pickups" value={t.scenes} plus />
-              <Stat label="Times Link fell" value={t.deaths} />
-              <Stat label="Distance walked (units)" value={Math.round(t.distance_units)} plus />
+            <p className="small muted" style={{ margin: "-.6em 1.2em .6em" }}>Last updated: {updated ? fmtStamp(updated) : "not yet"}</p>
+            <div className="card dcard">
+              <StatCard label="Play Time" today={t.play_secs / 60} unit="minutes" total={life((x) => x.play_secs / 60)} tiers={TIERS.minutes} />
+              <div className="small muted" style={{ margin: ".9em 0 .4em" }}>Time Spent by Area</div>
+              {t.by_age_area && <Seg items={["Child", "Adult"] as const} value={age} onChange={setAge} />}
+              {areas.length === 0 && <p className="small muted">{t.by_age_area ? `No time as ${age.toLowerCase()} Link today.` : "No time recorded yet."}</p>}
+              {areas.map(([a, sec]) => <div key={a} className="rowline small" style={{ marginTop: ".35em" }}><span>{friendlyMap(a)}</span><span>+{Math.round(sec / 60)} minutes</span></div>)}
+              {report && <StatCard label="Enemies Defeated" today={kills} total={totalKills(report)} tiers={killTiers} />}
+              {report && <StatCard label="Treasure Chests Opened" today={chests} total={cat(report, "chests")?.have ?? 0} tiers={chestTiers} />}
+              <StatCard label="Battles" today={t.battles} total={life((x) => x.battles)} tiers={TIERS.battles} />
+              <StatCard label="Game Over Count" today={t.deaths} total={life((x) => x.deaths)} tiers={TIERS.falls} />
+              <StatCard label="Hearts Lost" today={t.damage_quarters / 4} total={life((x) => x.damage_quarters / 4)} tiers={TIERS.hearts} fmt={(n) => String(Math.round(n * 4) / 4)} />
+              <StatCard label="Rupees Earned" today={t.rupees_gained} total={life((x) => x.rupees_gained)} tiers={TIERS.rupees} />
+              <StatCard label="Rupees Spent" today={t.rupees_spent} total={life((x) => x.rupees_spent)} tiers={TIERS.rupees} />
+              <StatCard label="Distance Traveled" today={km(t.distance_units)} unit="km" total={life((x) => km(x.distance_units))} tiers={TIERS.km} fmt={(n) => n.toFixed(1)} />
             </div>
-            <InReach report={report} />
             <p className="note">
-              Data is gathered live while the app is open. Data collected between {fmtStamp(from)} and {fmtStamp(to)}.
-              Enemy kills, grass cut and jumps are counted by the game but are not in the live feed.
+              Data is gathered live while the app is open, between {fmtStamp(from)} and {fmtStamp(to)}. Enemies and chests
+              count from the first time the app read your save today. Tiers and lifetime totals are this app's own, from
+              the days it has recorded. Grass cut, rolls and items used have no known source in the game's data yet.
             </p>
           </>
         )}
       </div>
     </>
-  );
-}
-
-function Stat({ label, value, plus }: { label: string; value: number; plus?: boolean }) {
-  return (
-    <div className="rowline sep" style={{ marginTop: ".5em", paddingTop: ".7em" }}>
-      <b>{label}</b>
-      <span className="big" style={{ fontSize: "1.5em" }}>{plus && value > 0 ? "+" : ""}{value}</span>
-    </div>
   );
 }
