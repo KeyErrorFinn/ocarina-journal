@@ -79,8 +79,13 @@ export const totalKills = (r: Report | null): number =>
 
 export const cat = (r: Report | null, id: string): RepCategory | undefined => r?.categories.find((c) => c.id === id);
 
-/** "InsideTheDekuTree" -> "Inside The Deku Tree". */
+/** The game's own place names (LocationMsg, read from the player's files), once loaded; see setPlaceNames. */
+let gameNames: Record<string, string> = {};
+export const setPlaceNames = (names: Record<string, string>) => { gameNames = names; };
+
+/** A place's name: the game's own when known, else "InsideTheDekuTree" -> "Inside The Deku Tree". */
 export function prettyArea(id: string): string {
+  if (gameNames[id]) return gameNames[id];
   const fixed: Record<string, string> = { HountedWasteland: "Haunted Wasteland", LostWood: "Lost Woods", GanonCastle: "Ganon's Castle", InsideGanonCastle: "Inside Ganon's Castle" };
   return fixed[id] ?? id.replace(/([a-z])([A-Z])/g, "$1 $2");
 }

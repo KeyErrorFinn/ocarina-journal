@@ -6,7 +6,7 @@ import { WORLD } from "../data/content";
 import type { Game } from "../model";
 import { useLocal } from "../store";
 import {
-  areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type MapKind, type Report,
+  areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report,
 } from "../report";
 import { floorOf, placeOfLive, project, regroup, useMapImage, useMapIndex, type MapIndex, type MapPlace } from "../maps";
 
@@ -250,6 +250,17 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   );
 }
 
+/** What is found of each kind in an area, as the original's banners show it: an icon and "found/all". */
+function Counts({ kinds }: { kinds: AreaRow["kinds"] }) {
+  return (
+    <span className="counts">
+      {MAP_KINDS.filter((k) => kinds[k]).map((k) => (
+        <i key={k} className={kinds[k]![0] >= kinds[k]![1] ? "full" : ""}><Marker kind={k} />{kinds[k]![0]}/{kinds[k]![1]}</i>
+      ))}
+    </span>
+  );
+}
+
 /** The game's world map with each place's name where the game puts it. */
 function WorldMap({ index, rows, linkPlace, showLink, onPick }: {
   index: MapIndex | null; rows: ReturnType<typeof areaRows>; linkPlace: string | null; showLink: boolean; onPick: (a: string) => void;
@@ -290,6 +301,7 @@ function WorldMap({ index, rows, linkPlace, showLink, onPick }: {
             }
             return (
               <button key={id} className={`banner ${index.places[id]?.dungeon ? "dun" : ""} ${done ? "done" : ""}`} style={{ left: `${q.left}%`, top: `${q.top}%` }} onClick={() => onPick(id)}>
+                {r && zoom >= 1.4 && <Counts kinds={r.kinds} />}
                 {prettyArea(id)}
                 {r && <small>{pct(r.have, r.of)}%</small>}
               </button>
@@ -431,6 +443,7 @@ function AreaMap(props: {
         <button className="pill-era" onClick={() => pickEra(linkEra)}>Switch map to Link's current era ›</button>
       )}
       {!selected && <button className="pill-map" onClick={() => setSheet("completion")}><Chevron /> Area Completion {pct(row.have, row.of)}%</button>}
+      {!selected && <div className="corner-counts"><Counts kinds={row.kinds} /></div>}
 
       {selected && (
         <section className="sheet" style={{ background: "#14100c" }}>

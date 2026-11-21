@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { EMPTY, TILES, type LiveState } from "./model";
-import type { ReportFile } from "./report";
+import { setPlaceNames, type ReportFile } from "./report";
+import { useLore } from "./lore";
 import { Home } from "./screens/Home";
 import { Today } from "./screens/Today";
 import { Journey } from "./screens/Journey";
@@ -18,6 +19,9 @@ import { Quiz } from "./screens/Quiz";
 import { History } from "./screens/History";
 
 export function App() {
+  // Place names everywhere follow the game's own text once it has been read from the game folder.
+  const lore = useLore();
+  if (lore) setPlaceNames(lore.places);
   const [s, setS] = useState<LiveState>(EMPTY);
   const [rep, setRep] = useState<ReportFile | null>(null);
   // `#today`, `#map:KokiriForest`, `#ocarina:Saria's Song` open a screen directly (handy for review).
