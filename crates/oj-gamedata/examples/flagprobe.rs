@@ -5,9 +5,10 @@ fn main() {
     let a: Vec<String> = std::env::args().collect();
     let names: std::collections::BTreeMap<String, Vec<(String, String)>> = serde_json::from_slice(&std::fs::read(&a[1]).unwrap()).unwrap();
     let dir = a.get(3).map(std::path::PathBuf::from).unwrap_or_else(|| oj_savefile::default_save_dir().unwrap());
-    for e in std::fs::read_dir(&dir).unwrap().flatten() {
-        let Ok(s) = Save::read(&e.path().join("progress.sav")) else { continue };
-        println!("== {}", e.path().display());
+    let files: Vec<std::path::PathBuf> = if dir.is_file() { vec![dir.clone()] } else { std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.path().join("progress.sav")).collect() };
+    for f in files {
+        let Ok(s) = Save::read(&f) else { continue };
+        println!("== {} ({} flags)", f.display(), s.flag_count());
         for (h, n) in &names {
             let n = &n[0].0;
             if !n.to_lowercase().contains(&a[2].to_lowercase()) { continue }
