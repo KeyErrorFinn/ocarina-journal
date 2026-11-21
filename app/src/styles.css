@@ -179,6 +179,7 @@ h1, h2, h3, p { margin: 0; }
 .cap { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: linear-gradient(180deg,#e9c76a,#c89e3d); border: 1.5px solid #6b4a14; color: #3d2a0c; font: 800 .8em var(--body); padding: .25em .9em; box-shadow: 0 2px 3px #0005; white-space: nowrap; }
 .cap small { display: block; font-size: .72em; font-weight: 700; opacity: .75; text-align: center; }
 .mk { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 2em; height: 2em; background: none; border: 0; padding: 0; }
+.mk.land { width: 1.7em; height: 1.7em; z-index: 3; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
 .link { position: absolute; z-index: 5; width: 1.8em; height: 1.8em; transform: translate(-50%, -50%); }

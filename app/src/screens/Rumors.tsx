@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Bar, Header, RefreshBtn, Tabs } from "../components/chrome";
 import { SpotCrop } from "../components/MapCrop";
 import { useLocal } from "../store";
@@ -8,56 +7,18 @@ import { useMapIndex } from "../maps";
 import { useLore } from "../lore";
 import { REWARDS, rewardArt, useOwned } from "../data/rewards";
 import type { Game } from "../model";
-
-/** A landmark from the player's game maps (crates/oj-gamedata/src/rumors.rs). */
-interface Rumor { id: string; kind: Kind; area: string; pos: [number, number, number]; eras: ("child" | "adult")[] }
-type Kind = "stone" | "grotto" | "cow" | "owl" | "scarecrow" | "frog" | "bean" | "beehive";
+import { distance, LANDMARK, useLandmarks, type Landmark } from "../landmarks";
 
 const TABS = ["Quests", "Rewards"] as const;
 const SORTS = ["Number", "Nearest", "Not found", "Found"] as const;
 const NEAR = 10; // metres: close enough to count as found
 const WARM = 30; // metres: "nearby"
 const PAGE = 24; // cards drawn at a time: each is a crop of a large map picture
-
-/** Each kind's name, points and rumour line. The wording is this app's own. */
-const KINDS: Record<Kind, { name: string; points: number; said: string }> = {
-  stone: { name: "Gossip Stone", points: 30, said: "a stone that hears every secret stands somewhere in" },
-  grotto: { name: "Hidden Grotto", points: 40, said: "a hidden hollow opens beneath the ground of" },
-  cow: { name: "Cow", points: 20, said: "a cow waits patiently for a song in" },
-  owl: { name: "Owl's Perch", points: 20, said: "a wise old owl likes to rest in" },
-  scarecrow: { name: "Scarecrow's Spot", points: 30, said: "a scarecrow will remember your tune in" },
-  frog: { name: "Singing Frog", points: 30, said: "a frog sings along to anything played in" },
-  bean: { name: "Soft Soil", points: 20, said: "soft soil is waiting for a seed in" },
-  beehive: { name: "Beehive", points: 20, said: "bees have made a hidden home in" },
-};
-
-let rumorPromise: Promise<Rumor[] | null> | null = null;
-function useRumors(): Rumor[] | null | undefined {
-  const [r, setR] = useState<Rumor[] | null | undefined>(undefined);
-  useEffect(() => {
-    rumorPromise ??= invoke<Rumor[]>("get_rumors").catch(() => {
-      rumorPromise = null;
-      return null;
-    });
-    let live = true;
-    rumorPromise.then((x) => live && setR(x));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return r;
-}
-
-/** The live game's area ("KakarikoVillage_Adult_Alternative" -> "KakarikoVillage"). */
-const areaOf = (map: string | null | undefined) => map?.replace(/_Alternative$/, "").replace(/_(Child|Adult)$/, "") ?? null;
-/** Horizontal distance from Link to a rumour, when he is in its area. */
-function distance(game: Game | null, r: Rumor): number | null {
-  if (!game?.pos || areaOf(game.map) !== r.area) return null;
-  return Math.hypot(game.pos[0] - r.pos[0], game.pos[2] - r.pos[2]);
-}
+const KINDS = LANDMARK;
+type Rumor = Landmark;
 
 export function Rumors({ game, onHome }: { report: Report | null; game: Game | null; onHome: () => void; openSong?: (s: string) => void }) {
-  const rumors = useRumors();
+  const rumors = useLandmarks();
   const idx = useMapIndex();
   const lore = useLore();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Quests");

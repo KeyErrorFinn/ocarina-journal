@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Back, Chevron, Close, Filter, Gear, Locate } from "../components/icons";
-import { LinkArrow, Marker } from "../components/art";
+import { LandIcon, LinkArrow, Marker } from "../components/art";
+import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
 import { Seg, Sheet, Sync, Toggle } from "../components/chrome";
 import { WORLD } from "../data/content";
 import type { Game } from "../model";
@@ -8,7 +9,7 @@ import { useLocal } from "../store";
 import {
   areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report,
 } from "../report";
-import { floorOf, placeOfLive, project, regroup, useMapImage, useMapIndex, type MapIndex, type MapPlace } from "../maps";
+import { floorOf, placeAt, placeOfLive, project, regroup, useMapImage, useMapIndex, type MapIndex, type MapPlace } from "../maps";
 
 type Era = "child" | "adult";
 
@@ -134,6 +135,8 @@ interface Props {
 
 type Prefs = {
   kinds: Record<MapKind, boolean>;
+  /** Rumor Hunt landmarks shown on area maps. */
+  marks: Record<LandKind, boolean>;
   incompleteOnly: boolean;
   contents: boolean;
   showLink: boolean;
@@ -144,6 +147,7 @@ type Prefs = {
 
 const MAP_DEFAULTS: Prefs = {
   kinds: { chests: true, skulltulas: true, "heart-pieces": true, "heart-containers": true },
+  marks: { stone: true, grotto: true, bean: true, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
   incompleteOnly: false, contents: true, showLink: true, gamePictures: true, follow: true, era: "child",
 };
 
@@ -333,6 +337,10 @@ function AreaMap(props: {
   onGo: (a: string | null) => void;
 }) {
   const { area, place, report, rows, game, linkPlace, linkEra, prefs, setPrefs, sel, setSel, sheet, setSheet, top, settings, onGo } = props;
+  const idx = useMapIndex();
+  const landmarks = useLandmarks();
+  const [found] = useLocal<Record<string, number>>("gossip.found", {});
+  const [mark, setMark] = useState<string | null>(null);
   const here = linkPlace === area;
   const all = entriesFor(report, area);
   const row = rows.find((r) => r.area === area) ?? { area, kinds: {}, have: 0, of: 0 };
@@ -399,6 +407,14 @@ function AreaMap(props: {
           </button>
         );
       })}
+      {usePicture && !place!.dungeon && (landmarks ?? []).filter((m) => (prefs.marks ?? MAP_DEFAULTS.marks)[m.kind] && m.eras.includes(era) && placeAt(idx, m.area, m.pos[0], m.pos[2]) === area).map((m) => {
+        const q = proj(m.pos[0], m.pos[2]);
+        return (
+          <button key={m.id} className={`mk land ${m.id === mark ? "sel" : ""}`} style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => { setSel(null); setMark(m.id); }} aria-label={LANDMARK[m.kind].name}>
+            <LandIcon kind={m.kind} done={!!found[m.id]} />
+          </button>
+        );
+      })}
       {link && prefs.showLink && (
         <div className="link" style={{ left: pct2(link.left), top: pct2(link.top), transform: `translate(-50%, -50%) rotate(${180 - (game?.facing ?? 180)}deg)` }}><LinkArrow /></div>
       )}
@@ -445,6 +461,26 @@ function AreaMap(props: {
       {!selected && <button className="pill-map" onClick={() => setSheet("completion")}><Chevron /> Area Completion {pct(row.have, row.of)}%</button>}
       {!selected && <div className="corner-counts"><Counts kinds={row.kinds} /></div>}
 
+      {mark && (() => {
+        const m = landmarks?.find((x) => x.id === mark);
+        if (!m) return null;
+        return (
+          <section className="sheet" style={{ background: "#14100c" }}>
+            <div className="grab" />
+            <header>
+              <span style={{ display: "flex", gap: ".8em", alignItems: "center" }}>
+                <span style={{ width: "2.6em", height: "2.6em", display: "inline-block" }}><LandIcon kind={m.kind} /></span>
+                <b>{LANDMARK[m.kind].name}</b>
+              </span>
+              <button className="x" onClick={() => setMark(null)} aria-label="Close"><Close /></button>
+            </header>
+            <p className="small muted" style={{ padding: "0 1.2em 1.2em" }}>
+              {found[m.id] ? `Found in Rumor Hunt on ${new Date(found[m.id]).toLocaleDateString()}.` : "A Rumor Hunt place. Stand here with the bridge on and tap Found! in Rumor Hunt."}
+              {m.eras.length === 1 ? ` Only there as ${m.eras[0]} Link.` : ""}
+            </p>
+          </section>
+        );
+      })()}
       {selected && (
         <section className="sheet" style={{ background: "#14100c" }}>
           <div className="grab" />
@@ -491,6 +527,16 @@ function AreaMap(props: {
                 <Toggle on={prefs.kinds[k]} label={KIND_NAME[k]} onChange={(v) => setPrefs({ ...prefs, kinds: { ...prefs.kinds, [k]: v } })} />
               </div>
             ))}
+            <div className="small muted" style={{ margin: "1.2em 0 .4em" }}>Landmarks (Rumor Hunt places)</div>
+            {LAND_KINDS.map((k) => {
+              const marks = prefs.marks ?? MAP_DEFAULTS.marks;
+              return (
+                <div key={k} className="rowline" style={{ padding: ".55em 0" }}>
+                  <span style={{ display: "flex", gap: ".7em", alignItems: "center" }}><span style={{ width: "1.8em", height: "1.8em", display: "inline-block" }}><LandIcon kind={k} /></span>{LANDMARK[k].plural}</span>
+                  <Toggle on={marks[k]} label={LANDMARK[k].plural} onChange={(v) => setPrefs({ ...prefs, marks: { ...marks, [k]: v } })} />
+                </div>
+              );
+            })}
           </div>
         </Sheet>
       )}
