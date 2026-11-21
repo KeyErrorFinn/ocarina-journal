@@ -60,6 +60,8 @@ h1, h2, h3, p { margin: 0; }
 .band h1 { position: relative; z-index: 1; font: 800 1.9em var(--body); letter-spacing: .005em; margin-top: .05em; display: flex; align-items: center; gap: .35em; }
 .band h1 .help { display: inline-grid; place-items: center; width: 1.05em; height: 1.05em; border: 1.5px solid rgba(255,255,255,.7); border-radius: 50%; font-size: .5em; font-weight: 700; background: none; color: inherit; }
 .band .torn { display: none; }
+/* A filigree flourish drawn for this app over the band's torn edge, as in the original's headers. */
+.band::after { content: ""; position: absolute; right: .4em; bottom: -.55em; width: 9.6em; height: 3em; z-index: 2; pointer-events: none; background: url(./assets/bg/swirl.webp) right center / contain no-repeat; filter: drop-shadow(0 2px 2px #000a); }
 .icon-btn { background: none; border: 0; width: 2.4em; height: 2.4em; display: grid; place-items: center; border-radius: 50%; }
 .icon-btn:hover { background: rgba(255,255,255,.1); }
 .icon-btn svg { width: 1.5em; height: 1.5em; }
@@ -268,7 +270,7 @@ h1, h2, h3, p { margin: 0; }
 .tapestry { margin: .8em 1.1em 2em; background: #2a1a10; border: 3px solid #8a6a3a; padding: .8em; }
 .tapestry .cell { fill: #3a2a1c; stroke: #6a5028; }
 .tap { flex: 1; position: relative; overflow: hidden; background: #15110d; }
-.tap .pz { background: radial-gradient(ellipse at 50% 30%, #2e251c, #110d0a 75%); }
+.tap .pz { background: #110d0a url(./assets/bg/tapestry_wall.webp) center / cover; }
 .tap-hit { fill: transparent; cursor: pointer; }
 .tap-hit:hover { fill: #fff3d01a; }
 .tap-hit.on { fill: #ffe6a033; }

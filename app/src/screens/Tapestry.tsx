@@ -4,6 +4,11 @@ import { Header } from "../components/chrome";
 import { cat, type RepEntry, type Report } from "../report";
 import { useMapImage } from "../maps";
 import { PanZoom } from "./MapScreen";
+import frame from "../assets/bg/tapestry_frame.webp";
+
+/** The hanging frame drawn for this app (1152×2304) and the hole the cloth fills, as fractions of it. */
+const HOLE = { left: 96 / 1152, top: 160 / 2304, width: 960 / 1152, height: 1984 / 2304 };
+const pct = (f: number) => `${f * 100}%`;
 
 /** The game's own tapestry, read by the backend from the player's game folder (crates/oj-gamedata/src/tapestry.rs). */
 /** `path`: the woven outline; `shadow`: the silhouette's, which can differ (null: the game has no silhouette). */
@@ -78,8 +83,9 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
       />
       <div className="tap">
         {idx && base && shadow && woven ? (
-          <PanZoom aspect={idx.height / idx.width} cover={0.9} focus={{ x: 0.5, y: 0 }} focusKey="top">
-            <svg viewBox={`0 0 ${idx.width} ${idx.height}`} className="pz-img" style={{ pointerEvents: "auto" }}>
+          <PanZoom aspect={2304 / 1152} cover={0.9} focus={{ x: 0.5, y: 0 }} focusKey="top">
+            <svg viewBox={`0 0 ${idx.width} ${idx.height}`} preserveAspectRatio="none" className="pz-img"
+              style={{ pointerEvents: "auto", left: pct(HOLE.left), top: pct(HOLE.top), width: pct(HOLE.width), height: pct(HOLE.height) }}>
               <defs>
                 {idx.sections.map((s) => <clipPath key={s.name} id={`tap-${s.name}`}><path d={looks.get(s.name) === "shadow" ? s.shadow! : s.path} /></clipPath>)}
               </defs>
@@ -99,6 +105,7 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
                 />
               ))}
             </svg>
+            <img className="pz-img" src={frame} alt="" draggable={false} />
           </PanZoom>
         ) : (
           <p className="empty">Weaving the tapestry from your game files…</p>
