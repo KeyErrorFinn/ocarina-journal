@@ -40,3 +40,13 @@ fn reads_the_game_tapestry() {
     assert!(card.rgba.chunks_exact(4).any(|p| p == [255, 255, 255, 255]));
     assert!(oj_gamedata::maps::map_image(&files, "bossname/Nobody").is_err());
 }
+
+#[test]
+fn reads_the_game_lore() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
+    let l = oj_gamedata::lore::lore(&files).unwrap();
+    assert_eq!(l.places.get("KokiriForest").map(String::as_str), Some("Kokiri Forest"));
+    assert!(l.items.len() > 50 && l.enemies.len() > 40, "{} items, {} enemies", l.items.len(), l.enemies.len());
+    assert!(l.enemies.iter().any(|(n, c)| n == "Armos" && c.contains("statues")));
+}

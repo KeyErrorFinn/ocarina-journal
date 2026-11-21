@@ -2,13 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "../components/chrome";
 import { QUIZ, type Q } from "../data/content";
 import { useLocal } from "../store";
+import { useLore, type Lore } from "../lore";
+import { useMapIndex, type MapIndex } from "../maps";
+import { MapCrop } from "../components/MapCrop";
+import { Rosette } from "../components/medals";
 
+// Question counts as in the original (Egg 20, Cucco 30); the Cojiro Challenge's length is our guess [U].
 const LEVELS = [
-  { id: "egg", name: "Egg Level", count: 10, secs: 15, icon: "egg" },
-  { id: "cucco", name: "Cucco Level", count: 20, secs: 15, icon: "bird" },
-  { id: "cojiro", name: "Cojiro Challenge", count: 20, secs: 8, icon: "chick" },
+  { id: "egg", name: "Egg Level", count: 20, secs: 15, icon: "egg" },
+  { id: "cucco", name: "Cucco Level", count: 30, secs: 15, icon: "bird" },
+  { id: "cojiro", name: "Cojiro Challenge", count: 30, secs: 10, icon: "chick" },
 ] as const;
 type Level = (typeof LEVELS)[number];
+
+/** A question: written for this app, or made from the player's game text and maps. `place` shows that spot on the
+ *  game's world map; a second line of `q` is a quoted description. */
+type Quest = Q & { place?: string };
 
 const Icon = ({ k }: { k: string }) => (
   <svg viewBox="0 0 40 40" width="2.6em" height="2.6em" aria-hidden>
@@ -20,11 +29,50 @@ const Icon = ({ k }: { k: string }) => (
 );
 
 const shuffle = <T,>(a: T[]) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
-function build(level: Level): (Q & { order: number[] })[] {
-  return shuffle(QUIZ).slice(0, level.count).map((q) => ({ ...q, order: shuffle([0, 1, 2, 3]) }));
+const pick = <T,>(a: T[], n: number, not: T) => shuffle(a.filter((x) => x !== not)).slice(0, n);
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Hides a name (and each of its longer words) in a description, so the description does not give the answer away. */
+function mask(text: string, name: string): string {
+  const words = name.split(/\s+/).filter((w) => w.length >= 4).map((w) => esc(w.replace(/s$/, "")));
+  return words.reduce((t, w) => t.replace(new RegExp(`\\b${w}(e?s)?\\b`, "gi"), "???"), text);
 }
 
+/** Questions made from the player's own game: item and enemy descriptions, and places on the world map. */
+function generated(lore: Lore | null, idx: MapIndex | null): Quest[] {
+  if (!lore) return [];
+  const out: Quest[] = [];
+  const from = (list: [string, string][], ask: string) => {
+    const names = [...new Set(list.map(([n]) => n))];
+    for (const [n, cap] of list) {
+      const text = mask(cap, n);
+      if (text.length < 40 || text.length > 230) continue;
+      out.push({ q: `${ask}\n“${text}”`, a: [n, ...pick(names, 3, n)] as Quest["a"], ok: 0 });
+    }
+  };
+  from(lore.items, "Which item is this?");
+  from(lore.enemies, "Which enemy is this?");
+  if (idx) {
+    const ids = Object.keys(idx.world.labels).filter((id) => lore.places[id] && !idx.places[id]?.dungeon);
+    const names = ids.map((id) => lore.places[id]);
+    for (const id of ids) out.push({ q: "Which map location is this?", place: id, a: [lore.places[id], ...pick(names, 3, lore.places[id])] as Quest["a"], ok: 0 });
+  }
+  return out;
+}
+
+function build(level: Level, extra: Quest[]): (Quest & { order: number[] })[] {
+  // The Egg Level leans on the written questions; the harder levels draw mostly from the game's own text.
+  const pool: Quest[] = level.id === "egg" ? [...QUIZ, ...shuffle(extra).slice(0, 40)] : [...shuffle(QUIZ).slice(0, 8), ...extra];
+  return shuffle(pool).slice(0, level.count).map((q) => ({ ...q, order: shuffle([0, 1, 2, 3]) }));
+}
+
+/** Medal tier (0 none .. 3 gold) for a best streak: a quarter, half or three quarters of the level. */
+const tierOf = (n: number, count: number) => (n >= count * 0.75 ? 3 : n >= count * 0.5 ? 2 : n >= count * 0.25 ? 1 : 0);
+
 export function Quiz({ onHome }: { onHome: () => void }) {
+  const lore = useLore();
+  const idx = useMapIndex();
+  const extra = useMemo(() => generated(lore, idx), [lore, idx]);
   const [best, setBest] = useLocal<Record<string, number>>("quiz.best", {});
   const [lvl, setLvl] = useState<Level | null>(null);
   const [qs, setQs] = useState<ReturnType<typeof build>>([]);
@@ -36,8 +84,8 @@ export function Quiz({ onHome }: { onHome: () => void }) {
   const [streak, setStreak] = useState(0);
   const tick = useRef<number | undefined>(undefined);
 
-  const unlocked = (l: Level) => l.id !== "cojiro" || (best.cucco ?? 0) >= 20;
-  const start = (l: Level) => { setLvl(l); setQs(build(l)); setI(0); setStreak(0); setPicked(null); setCount(3); setPhase("ready"); };
+  const unlocked = (l: Level) => l.id !== "cojiro" || (best.cucco ?? 0) >= LEVELS[1].count;
+  const start = (l: Level) => { setLvl(l); setQs(build(l, extra)); setI(0); setStreak(0); setPicked(null); setCount(3); setPhase("ready"); };
 
   useEffect(() => {
     if (phase !== "ready" || !lvl) return;
@@ -76,16 +124,19 @@ export function Quiz({ onHome }: { onHome: () => void }) {
   if (!lvl) {
     return (
       <>
-        <Header title="Quiz" onLeft={onHome} help="Answer until you miss. Your longest streak per level is saved on this PC. The questions are written for this app." />
+        <Header title="Quiz" onLeft={onHome}
+          help="Answer until you miss. Your longest streak per level is saved on this PC, with a medal at a quarter, half and three quarters of the level. Some questions are written for this app; the rest are made from your game's own item and enemy descriptions and its world map." />
         <div className="scroll grain">
           {LEVELS.map((l) => (
             <button key={l.id} className={`levelcard ${unlocked(l) ? "" : "locked"}`} disabled={!unlocked(l)} onClick={() => start(l)}>
               <div className="lv"><div style={{ font: "800 1.1em var(--body)" }}>{l.name}</div>
-                <div className="small muted">{unlocked(l) ? `Highest number of consecutive correct answers` : "Reach 20/20 on Cucco Level to unlock"}</div></div>
+                <div className="small muted">{unlocked(l) ? "Highest number of consecutive correct answers" : `Reach ${LEVELS[1].count}/${LEVELS[1].count} on Cucco Level to unlock`}</div></div>
               <span className="num" style={{ fontSize: "1.3em" }}>{best[l.id] ?? 0}/{l.count}</span>
+              {unlocked(l) && tierOf(best[l.id] ?? 0, l.count) > 0 && <span className="qmedal"><Rosette tier={tierOf(best[l.id] ?? 0, l.count)} /></span>}
               <Icon k={unlocked(l) ? l.icon : "lock"} />
             </button>
           ))}
+          <p className="note">{extra.length ? `${QUIZ.length + extra.length} questions, ${extra.length} of them from your game's files.` : `${QUIZ.length} written questions. More are made from your game's files once its folder is found.`}</p>
         </div>
       </>
     );
@@ -100,6 +151,7 @@ export function Quiz({ onHome }: { onHome: () => void }) {
     );
   }
   if (phase === "end") {
+    const tier = tierOf(Math.max(best[lvl.id] ?? 0, streak), lvl.count);
     return (
       <>
         <Header title={lvl.name} left="back" onLeft={() => setLvl(null)} sub="Result" />
@@ -107,6 +159,7 @@ export function Quiz({ onHome }: { onHome: () => void }) {
           <p className="muted" style={{ marginTop: "2em" }}>Consecutive correct answers</p>
           <div className="big" style={{ fontSize: "4.4em" }}>{streak}</div>
           <p className="small muted">Record: {Math.max(best[lvl.id] ?? 0, streak)}/{lvl.count}</p>
+          {tier > 0 && <div className="qmedal" style={{ width: "4.4em", height: "5.2em", margin: ".6em auto" }}><Rosette tier={tier} /></div>}
           <button className="btn block" onClick={() => start(lvl)}>Try again</button>
           <button className="btn ghost block" onClick={() => setLvl(null)}>Return to Quiz Selection</button>
         </div>
@@ -114,17 +167,18 @@ export function Quiz({ onHome }: { onHome: () => void }) {
     );
   }
   const q2 = q!;
+  const [ask, quote] = q2.q.split("\n");
   return (
     <>
-      <div className="band" style={{ padding: ".9em 1.1em", background: "#3b2a1a", display: "flex", justifyContent: "space-between" }}>
-        <b>Question {i + 1}</b><span className="muted">{lvl.name}</span>
-      </div>
+      <div className="qhead"><span>Question <b>{i + 1}</b></span><span className="muted small">{lvl.name}</span></div>
       <div className="scroll" style={{ background: "#0f0b08" }}>
-        <p style={{ font: "800 1.4em var(--body)", padding: "1.4em 1.2em .6em", lineHeight: 1.3, minHeight: "6em" }}>{q2.q}</p>
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 1.2em" }}>
-          <div className="ring" style={{ ["--p" as string]: ringP }}><span>{Math.max(0, left)}</span></div>
+        <div className="qcard">
+          {q2.place && idx && <div className="shot"><MapCrop idx={idx} place={q2.place} zoom={4} /></div>}
+          <p className="qtext">{ask}</p>
+          {quote && <p className="qquote">{quote}</p>}
+          <div className="ring qring" style={{ ["--p" as string]: ringP }}><span>{Math.max(0, left)}</span></div>
         </div>
-        <div className="qgrid">
+        <div className="qlist">
           {q2.order.map((src, k) => {
             const isOk = src === q2.ok;
             const shown = phase === "result";
