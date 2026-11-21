@@ -3,6 +3,8 @@
 @import "@fontsource/nunito-sans/400.css";
 @import "@fontsource/nunito-sans/700.css";
 @import "@fontsource/nunito-sans/800.css";
+/* Pictures are never dragged out of the app (a drag would also swallow the click that started it). */
+img { -webkit-user-drag: none; user-select: none; }
 
 /* Original design system: a dark adventurer's journal with parchment maps, bark headers and gold numerals. */
 :root {
@@ -145,6 +147,7 @@ h1, h2, h3, p { margin: 0; }
 .shot { display: block; width: 100%; border: 1px solid #3b2d1e; background: #0b0807; aspect-ratio: 16 / 9; position: relative; overflow: hidden; }
 .shot { container-type: inline-size; }
 .shot > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.shot > img { pointer-events: none; }
 .shot > img.crop { inset: auto; height: auto; max-width: none; }
 .shot-tag { position: absolute; left: .6em; bottom: .6em; padding: .25em .7em; background: #1a120bd8; border: 1px solid #8a6a3a; font-size: .75em; font-weight: 800; }
 .dcard { padding-bottom: 1.2em; }
@@ -312,3 +315,38 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .reveal p { font-weight: 800; max-width: 22em; }
 .reveal-btn { margin-top: 1em; min-width: 11em; padding: .8em 2em; border-radius: 99em; border: 2px solid #ffd79a; background: linear-gradient(180deg, #4a240a, #2a1405); color: #fff; font-weight: 800; font-size: 1.05em; box-shadow: 0 0 0 3px #b8641a, 0 6px 16px #0006; }
 @keyframes reveal-in { from { opacity: 0; transform: scale(.97); } }
+
+/* ---------- Rumor Hunt (gossip quests) ---------- */
+.gq-sort { background: #1a120b; color: var(--text); border: 1px solid #6a5028; border-radius: 99px; padding: .3em .8em; font: 700 .8em var(--body); }
+.gq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7em; padding: .7em 1em 1em; }
+.gq-card { content-visibility: auto; contain-intrinsic-size: auto 10em; position: relative; padding: 0; border: 2px solid #6a5028; background: #1a120b; box-shadow: inset 0 0 0 2px #120c07; overflow: hidden; }
+.gq-card .shot { aspect-ratio: 4 / 3; border: 0; }
+.gq-card .shot::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #000b); }
+.gq-p { position: absolute; left: 0; right: 0; bottom: .35em; text-align: center; font: 700 1.35em var(--display); color: #8fe07a; text-shadow: 0 2px 4px #000; }
+.gq-p small { font-size: .7em; margin-left: .05em; }
+.gq-card.done { filter: saturate(.4) brightness(.75); }
+.gq-card.done .gq-p { color: #f1e8d6; font-size: 1em; }
+.gq-bank { flex-direction: column; align-items: stretch; gap: .25em; padding: .7em 1.2em .8em; }
+.gq-bank .num small { font-size: .65em; margin-left: .1em; }
+.gq-detail { text-align: center; padding: 0 1.1em 2em; }
+.gq-points { font: 700 2.2em var(--display); color: #8fe07a; margin: .5em 0 .4em; }
+.gq-points small { font-size: .65em; }
+.gq-snap { border: 2px solid #6a5028; aspect-ratio: 3 / 2; -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 60%, transparent 100%); mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 60%, transparent 100%); }
+.gq-said { font-weight: 800; line-height: 1.45; text-align: left; margin: 1em .2em; }
+.gq-help { text-align: left; margin: 0 .2em; }
+.gq-help summary { cursor: pointer; color: #cdb99c; font-weight: 700; padding: .4em 0; }
+.gq-help .shot { margin: .5em 0; }
+.gq-status { margin: 1.2em 0 .6em; color: #cdb99c; font-weight: 700; }
+.gq-status.warm { color: #8fe07a; }
+.gq-found:disabled { opacity: .45; }
+.gq-manual { display: block; margin: 1em auto 0; font-size: .8em; }
+.gq-rewards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8em .6em; padding: 1em; }
+.gq-reward { background: none; border: 0; padding: 0; color: inherit; text-align: center; }
+.gq-reward .pic { display: grid; place-items: center; aspect-ratio: 1; background: radial-gradient(circle at 50% 40%, #5b4528, #2e2214 75%); border: 2px solid #8a6a3a; overflow: hidden; }
+.gq-reward .pic img { width: 86%; height: 86%; object-fit: contain; }
+.gq-reward .glyph { font-size: 2.2em; color: #d9b25f; }
+.gq-reward .cost { display: inline-block; margin-top: -1em; position: relative; padding: .15em .7em; background: #2a1c10; border: 1px solid #d9b25f; border-radius: 3px; font: 700 .85em var(--display); color: #f6d36b; }
+.gq-reward .nm { display: block; font-size: .72em; font-weight: 700; margin-top: .3em; }
+.gq-reward:disabled:not(.own) { opacity: .55; }
+.gq-reward.own .cost { color: #8fe07a; border-color: #8fe07a; }
+.crop-pin { position: absolute; width: 1.1em; height: 1.1em; margin: -1.1em 0 0 -.55em; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e0453a; border: 2px solid #fff; box-shadow: 0 2px 4px #000a; }

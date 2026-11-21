@@ -50,3 +50,14 @@ fn reads_the_game_lore() {
     assert!(l.items.len() > 50 && l.enemies.len() > 40, "{} items, {} enemies", l.items.len(), l.enemies.len());
     assert!(l.enemies.iter().any(|(n, c)| n == "Armos" && c.contains("statues")));
 }
+
+#[test]
+fn finds_landmarks_for_rumours() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
+    let r = oj_gamedata::rumors::rumors(&files).unwrap();
+    let count = |k: &str| r.iter().filter(|x| x.kind == k).count();
+    eprintln!("{} rumours: {:?}", r.len(), ["stone", "grotto", "cow", "owl", "scarecrow", "frog", "bean", "beehive"].map(|k| (k, count(k))));
+    assert!(count("stone") >= 10 && count("grotto") >= 10);
+    assert!(r.iter().all(|x| !x.eras.is_empty()));
+}

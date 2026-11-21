@@ -283,6 +283,16 @@ async fn get_lore(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn get_rumors(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_, files, _) = map_source(&app)?;
+        oj_gamedata::rumors::rumors(&files).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// One picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`, `tapestry/<layer>`) as JPEG or PNG bytes.
 #[tauri::command]
 async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Response, String> {
@@ -415,7 +425,7 @@ pub fn run() {
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
-        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 

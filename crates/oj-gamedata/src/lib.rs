@@ -10,6 +10,7 @@ pub mod files;
 pub mod maps;
 pub mod tapestry;
 pub mod lore;
+pub mod rumors;
 pub mod tex;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};

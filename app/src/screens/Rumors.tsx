@@ -1,112 +1,179 @@
-import { useMemo, useState } from "react";
-import { Header, RefreshBtn, Seg, Tabs } from "../components/chrome";
-import { Marker } from "../components/art";
-import { SONGS } from "../data/content";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useState } from "react";
+import { Bar, Header, RefreshBtn, Tabs } from "../components/chrome";
+import { SpotCrop } from "../components/MapCrop";
 import { useLocal } from "../store";
-import { cat, coords, KIND_NAME, MAP_KINDS, prettyArea, type Report } from "../report";
+import { prettyArea, type Report } from "../report";
+import { useMapIndex } from "../maps";
+import { useLore } from "../lore";
+import { REWARDS, rewardArt, useOwned } from "../data/rewards";
 import type { Game } from "../model";
 
+/** A landmark from the player's game maps (crates/oj-gamedata/src/rumors.rs). */
+interface Rumor { id: string; kind: Kind; area: string; pos: [number, number, number]; eras: ("child" | "adult")[] }
+type Kind = "stone" | "grotto" | "cow" | "owl" | "scarecrow" | "frog" | "bean" | "beehive";
+
 const TABS = ["Quests", "Rewards"] as const;
-const SORTS = ["By area", "Nearest", "Found"] as const;
+const SORTS = ["Number", "Nearest", "Not found", "Found"] as const;
+const NEAR = 10; // metres: close enough to count as found
+const WARM = 30; // metres: "nearby"
+const PAGE = 24; // cards drawn at a time: each is a crop of a large map picture
 
-/** The reveal picture, drawn for this app (src/assets/bg/rumor_found.webp); absent until it is added. */
-const FOUND_ART = Object.values(import.meta.glob<string>("../assets/bg/rumor_found.webp", { eager: true, import: "default" }))[0];
-const points = (kind: string) => (kind === "heart-containers" ? 100 : kind === "skulltulas" ? 50 : 20);
-
-const WHAT: Record<string, string> = {
-  chests: "a treasure chest", skulltulas: "a Gold Skulltula", "heart-pieces": "a Piece of Heart", "heart-containers": "a Heart Container",
+/** Each kind's name, points and rumour line. The wording is this app's own. */
+const KINDS: Record<Kind, { name: string; points: number; said: string }> = {
+  stone: { name: "Gossip Stone", points: 30, said: "a stone that hears every secret stands somewhere in" },
+  grotto: { name: "Hidden Grotto", points: 40, said: "a hidden hollow opens beneath the ground of" },
+  cow: { name: "Cow", points: 20, said: "a cow waits patiently for a song in" },
+  owl: { name: "Owl's Perch", points: 20, said: "a wise old owl likes to rest in" },
+  scarecrow: { name: "Scarecrow's Spot", points: 30, said: "a scarecrow will remember your tune in" },
+  frog: { name: "Singing Frog", points: 30, said: "a frog sings along to anything played in" },
+  bean: { name: "Soft Soil", points: 20, said: "soft soil is waiting for a seed in" },
+  beehive: { name: "Beehive", points: 20, said: "bees have made a hidden home in" },
 };
 
-export function Rumors({ report, game, onHome, openSong }: { report: Report | null; game: Game | null; onHome: () => void; openSong: (s: string) => void }) {
+let rumorPromise: Promise<Rumor[] | null> | null = null;
+function useRumors(): Rumor[] | null | undefined {
+  const [r, setR] = useState<Rumor[] | null | undefined>(undefined);
+  useEffect(() => {
+    rumorPromise ??= invoke<Rumor[]>("get_rumors").catch(() => {
+      rumorPromise = null;
+      return null;
+    });
+    let live = true;
+    rumorPromise.then((x) => live && setR(x));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return r;
+}
+
+/** The live game's area ("KakarikoVillage_Adult_Alternative" -> "KakarikoVillage"). */
+const areaOf = (map: string | null | undefined) => map?.replace(/_Alternative$/, "").replace(/_(Child|Adult)$/, "") ?? null;
+/** Horizontal distance from Link to a rumour, when he is in its area. */
+function distance(game: Game | null, r: Rumor): number | null {
+  if (!game?.pos || areaOf(game.map) !== r.area) return null;
+  return Math.hypot(game.pos[0] - r.pos[0], game.pos[2] - r.pos[2]);
+}
+
+export function Rumors({ game, onHome }: { report: Report | null; game: Game | null; onHome: () => void; openSong?: (s: string) => void }) {
+  const rumors = useRumors();
+  const idx = useMapIndex();
+  const lore = useLore();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Quests");
-  const [sort, setSort] = useState<(typeof SORTS)[number]>("By area");
-  const [shown, setShown] = useLocal<Record<string, number>>("rumors.hints", {});
-  const [cheered, setCheered] = useLocal<Record<string, 1>>("rumors.cheered", {});
+  const [sort, setSort] = useState<(typeof SORTS)[number]>("Number");
+  const [found, setFound] = useLocal<Record<string, number>>("gossip.found", {});
+  const [helped, setHelped] = useLocal<Record<string, true>>("gossip.helped", {});
+  const [owned, buy, spent] = useOwned();
+  const [open, setOpen] = useState<string | null>(null);
+  const [cheer, setCheer] = useState<Rumor | null>(null);
+  const [more, setMore] = useState(PAGE);
 
-  const items = useMemo(() => {
-    const out: { id: string; kind: (typeof MAP_KINDS)[number]; area: string; found: boolean; pos: [number, number, number] | null }[] = [];
-    for (const k of MAP_KINDS) for (const e of cat(report, k)?.entries ?? []) out.push({ id: e.id, kind: k, area: e.area, found: e.have >= e.of, pos: coords(e) });
-    return out;
-  }, [report]);
-  const found = items.filter((i) => i.found).length;
-  // A rumour the player asked a hint for and has since found gets a reveal, once.
-  const fresh = items.find((i) => i.found && shown[i.id] && !cheered[i.id]);
-  const songs = cat(report, "songs")?.entries ?? [];
+  const list = useMemo(() => rumors ?? [], [rumors]);
+  const number = useMemo(() => new Map(list.map((r, i) => [r.id, i + 1])), [list]);
+  const points = list.filter((r) => found[r.id]).reduce((a, r) => a + KINDS[r.kind].points, 0);
+  const bank = points - spent;
+  const nextReward = 300 - (bank % 300);
+  const place = (a: string) => lore?.places[a] ?? prettyArea(a);
+  const era = (r: Rumor): "child" | "adult" => (game?.age === "adult" && r.eras.includes("adult") ? "adult" : r.eras[0] ?? "child");
 
-  let list = [...items];
-  if (sort === "Found") list = list.filter((i) => i.found);
-  else if (sort === "Nearest" && game?.pos) {
-    const [x, , z] = game.pos;
-    list = list.filter((i) => !i.found && i.pos).sort((a, b) => Math.hypot(a.pos![0] - x, a.pos![2] - z) - Math.hypot(b.pos![0] - x, b.pos![2] - z));
-  } else list = list.filter((i) => !i.found).sort((a, b) => a.area.localeCompare(b.area));
+  let shown = [...list];
+  if (sort === "Found") shown = shown.filter((r) => found[r.id]);
+  else if (sort === "Not found") shown = shown.filter((r) => !found[r.id]);
+  else if (sort === "Nearest") shown = shown.filter((r) => !found[r.id] && distance(game, r) !== null).sort((a, b) => distance(game, a)! - distance(game, b)!);
+
+  const markFound = (r: Rumor) => { setFound({ ...found, [r.id]: Date.now() }); setOpen(null); setCheer(r); };
+
+  // ---------- one rumour ----------
+  const r = list.find((x) => x.id === open);
+  if (r && idx) {
+    const k = KINDS[r.kind];
+    const d = distance(game, r);
+    const status = found[r.id] ? `Found on ${new Date(found[r.id]).toLocaleDateString()}.`
+      : !game ? "Start the game with the bridge on to search for it."
+      : d === null ? "Find the quest target in the game!"
+      : d <= NEAR ? "You're here! Tap Found!"
+      : d <= WARM ? "The quest target is nearby."
+      : "Get closer.";
+    return (
+      <>
+        <Header title={k.name} left="back" onLeft={() => setOpen(null)} sub={`Rumor ${String(number.get(r.id)).padStart(3, "0")}`} />
+        <div className="scroll grain gq-detail">
+          <div className="gq-points">+{k.points}<small>P</small></div>
+          <div className="shot gq-snap"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={4} /></div>
+          <p className="gq-said">It is said that {k.said} {place(r.area)}...</p>
+          <details className="gq-help" open={!!helped[r.id]} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setHelped({ ...helped, [r.id]: true })}>
+            <summary>If you can't find it...</summary>
+            <div className="shot"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={3} marker /></div>
+            <p className="small muted">The pin marks the spot on the {era(r)} map of {place(r.area)}.{r.eras.length === 1 ? ` It is only there as ${r.eras[0]} Link.` : ""}</p>
+          </details>
+          <p className={`gq-status ${d !== null && d <= WARM ? "warm" : ""}`}>{status}</p>
+          {!found[r.id] && (
+            <>
+              <button className="reveal-btn gq-found" disabled={d === null || d > NEAR} onClick={() => markFound(r)}>📷 Found!</button>
+              <button className="pillbtn gq-manual" onClick={() => markFound(r)}>I found it without the live game</button>
+            </>
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Header title="Rumor Hunt" onLeft={onHome} right={<RefreshBtn />}
-        help="Every chest, Gold Skulltula and Heart piece still missing in your save becomes a rumour. Reveal the area hint, then the exact spot. Points are this app's own count of what you have found." />
+        help="Rumours about places in your own game: gossip stones, hidden grottos, cows, the owl's perches and more, read from your game's maps. Go there with the bridge on and tap Found! to earn points, then spend them on rewards. The places come from the game files; the rumours, points and rewards are this app's own." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
-      <div className="scroll grain rumor-bg">
-        {!report ? (
-          <p className="empty">No save report yet, so there is nothing to hunt for.</p>
-        ) : tab === "Quests" ? (
-          <>
-            <div className="rowline" style={{ margin: ".8em 1.1em 0" }}>
-              <span className="small muted">{found}/{items.length} completed</span>
-              <div style={{ width: "62%" }}><Seg items={SORTS} value={sort} onChange={setSort} /></div>
-            </div>
-            {sort === "Nearest" && !game?.pos && <p className="empty">Nearest needs the live game. Start Longshot with the bridge on.</p>}
-            {list.slice(0, 60).map((i, n) => {
-              const lvl = shown[i.id] ?? 0;
-              return (
-                <div key={i.id} className="card" style={{ margin: ".8em 1em" }}>
-                  <div style={{ display: "flex", gap: ".8em", alignItems: "center" }}>
-                    <span style={{ width: "2.4em", height: "2.4em", flex: "none" }}><Marker kind={i.kind} done={i.found} /></span>
-                    <div style={{ flex: 1 }}>
-                      <b>Rumor #{n + 1}</b>
-                      <div className="small muted">
-                        {i.found ? "Found" : lvl === 0 ? "Hint hidden" : `It is said ${WHAT[i.kind]} lies in ${prettyArea(i.area)}.`}
-                      </div>
-                    </div>
-                    {i.found ? <b className="num">✓</b> : <span className="num">+{points(i.kind)}</span>}
-                  </div>
-                  {!i.found && lvl >= 1 && i.pos && lvl === 2 && (
-                    <div className="small" style={{ marginTop: ".6em" }}>Exact spot: {i.pos.map((v) => Math.round(v)).join(", ")}</div>
-                  )}
-                  {!i.found && (
-                    <div style={{ marginTop: ".7em", display: "flex", gap: ".6em" }}>
-                      {lvl === 0 && <button className="pillbtn" onClick={() => setShown({ ...shown, [i.id]: 1 })}>Get an area hint</button>}
-                      {lvl === 1 && <button className="pillbtn" onClick={() => setShown({ ...shown, [i.id]: 2 })}>Show exact spot</button>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {list.length > 60 && <p className="note">Showing the first 60 of {list.length}.</p>}
-            {list.length === 0 && <p className="empty">Nothing here. Try another sort.</p>}
-          </>
-        ) : (
-          <>
-            <p className="note" style={{ marginBottom: 0 }}>Songs you know are playable on the Ocarina screen. Rumor points: <b className="num">{items.filter((i) => i.found).reduce((a, i) => a + points(i.kind), 0)}</b> (this app's own scale).</p>
-            <div className="pgrid" style={{ gridTemplateColumns: "1fr 1fr 1fr", paddingTop: "1em" }}>
-              {songs.map((s) => (
-                <button key={s.id} className="card" style={{ margin: 0, padding: ".9em .4em", textAlign: "center", opacity: s.have ? 1 : 0.45 }} disabled={!s.have || !SONGS[s.label]} onClick={() => openSong(s.label)}>
-                  <div style={{ fontSize: "1.8em" }}>𝄞</div>
-                  <div className="small" style={{ fontWeight: 800 }}>{s.have ? s.label : "???"}</div>
+      <div className="scroll grain rumor-bg" style={{ paddingBottom: "5.4em" }}>
+        {rumors === undefined ? <p className="empty">Reading rumours from your game...</p>
+          : rumors === null || !idx ? <p className="empty">The rumours come from your game's maps, and the game folder could not be read.</p>
+          : tab === "Quests" ? (
+            <>
+              <div className="rowline" style={{ margin: ".9em 1.1em .2em" }}>
+                <span className="small muted">{Object.keys(found).filter((id) => number.has(id)).length}/{list.length} Completed</span>
+                <select className="gq-sort" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
+                  {SORTS.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              {sort === "Nearest" && shown.length === 0 && <p className="empty">Nearest lists rumours in the area Link is in, with the live game.</p>}
+              <div className="gq-grid">
+                {shown.slice(0, more).map((x) => (
+                  <button key={x.id} className={`gq-card ${found[x.id] ? "done" : ""}`} onClick={() => setOpen(x.id)}>
+                    <span className="shot"><SpotCrop idx={idx} area={x.area} pos={x.pos} era={era(x)} zoom={4} /></span>
+                    <span className="gq-p">{found[x.id] ? "✓ Found" : <>+{KINDS[x.kind].points}<small>P</small></>}</span>
+                  </button>
+                ))}
+              </div>
+              {shown.length > more && <button className="btn ghost block" onClick={() => setMore(more + PAGE)}>Show more ({shown.length - more} left)</button>}
+            </>
+          ) : (
+            <div className="gq-rewards">
+              {REWARDS.map((w) => (
+                <button key={w.id} className={`gq-reward ${owned[w.id] ? "own" : ""}`} disabled={!!owned[w.id] || bank < w.cost} onClick={() => buy(w.id)}>
+                  <span className="pic">{rewardArt(w.art) ? <img src={rewardArt(w.art)} alt="" /> : <span className="glyph">{w.kind === "ocarina" ? "♪" : w.kind === "frame" ? "▣" : "★"}</span>}</span>
+                  <span className="cost">{owned[w.id] ? "Owned" : <>{w.cost}<small>P</small></>}</span>
+                  <span className="nm">{w.name}</span>
                 </button>
               ))}
+              <p className="note" style={{ gridColumn: "1 / -1" }}>Ocarinas appear under Change Ocarina on the Ocarina page; frames and stickers in the Photo Album's editor.</p>
             </div>
-            <p className="note">{KIND_NAME.chests} and the rest are counted from your save, not from Nintendo's servers.</p>
-          </>
-        )}
+          )}
       </div>
-      {fresh && (
+      {rumors && (
+        <div className="pinned gq-bank">
+          <div className="rowline"><span>Gossip Points</span><span className="num" style={{ fontSize: "1.4em" }}>{bank}<small>P</small></span></div>
+          <div className="rowline small muted"><span>Reward Redemption</span><span>{nextReward}P to go</span></div>
+          <Bar value={(bank % 300) / 300} />
+        </div>
+      )}
+      {cheer && (
         <div className="reveal">
-          <button className="reveal-x" aria-label="Close" onClick={() => setCheered({ ...cheered, [fresh.id]: 1 })}>✕</button>
-          <div className="reveal-k">Rumor solved</div>
-          <div className="reveal-p">+{points(fresh.kind)}<small>P</small></div>
-          {FOUND_ART ? <img className="reveal-img" src={FOUND_ART} alt="" /> : <span className="reveal-mark"><Marker kind={fresh.kind} done /></span>}
-          <p>It was said {WHAT[fresh.kind]} lay in {prettyArea(fresh.area)}, and you found it.</p>
-          <button className="reveal-btn" onClick={() => setCheered({ ...cheered, [fresh.id]: 1 })}>Found!</button>
+          <button className="reveal-x" aria-label="Close" onClick={() => setCheer(null)}>✕</button>
+          <div className="reveal-k">Quest complete!</div>
+          <div className="reveal-p">+{KINDS[cheer.kind].points}<small>P</small></div>
+          {idx && <div className="shot reveal-img"><SpotCrop idx={idx} area={cheer.area} pos={cheer.pos} era={era(cheer)} zoom={7} /></div>}
+          <p>You found the {KINDS[cheer.kind].name.toLowerCase()} in {place(cheer.area)}.</p>
+          <button className="reveal-btn" onClick={() => setCheer(null)}>OK</button>
         </div>
       )}
     </>
