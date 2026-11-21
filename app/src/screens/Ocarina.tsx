@@ -37,10 +37,10 @@ type Ocarina = (typeof OCARINAS)[number];
 
 interface Take { id: string; name: string; at: number; notes: { n: Note; dt: number }[] }
 
-/** The six finger holes on the painted ocarinas (percent of the picture), from left to right. */
-const HOLES: [number, number][] = [[24, 40], [38, 31], [53, 31], [31, 62], [47, 60], [68, 49]];
-/** Which holes light for each note: more open holes, higher note. */
-const OPEN: Record<Note, number[]> = { A: [0], D: [0, 3], R: [0, 3, 1], L: [0, 3, 1, 4], U: [0, 1, 2, 3, 4, 5] };
+/** The six finger holes on the painted ocarinas (percent of the picture, measured on them), from left to right. */
+const HOLES: [number, number][] = [[22.2, 35.3], [30.4, 57.2], [37.5, 26.3], [47, 54.8], [53.9, 26.8], [67.5, 45.4]];
+/** Which holes light for each note: more open holes, higher note, opening from the narrow end. */
+const OPEN: Record<Note, number[]> = { A: [5], D: [5, 4], R: [5, 4, 3], L: [5, 4, 3, 2], U: [0, 1, 2, 3, 4, 5] };
 
 /** One of the remake's buttons, drawn the way the game shows them in a score: a round light key with its letter. */
 function Key({ n, small }: { n: Note; small?: boolean }) {
