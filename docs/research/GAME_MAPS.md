@@ -121,19 +121,34 @@ Read from the player's own files, like everything above; nothing is copied into 
 - **Hall of Fallen Foes trials** [V]: `EventFlowMsg/SubEvent_AllBossBattle.msbt` names them: `Talk_12` Trial of the
   Spiritual Stones (three child-era foes), `Talk_15` Trial of the Five Sages (five adult-era foes), `Talk_18` Trial of
   the Hero of Time (all ten). Which best-time record is which (`_01`, `_02`, unnumbered) is our reading [I].
-- **The Hall opens** [V]: the bool flag `DreamWorld_Open`, named in the owl scene's event `Dm_HrlField_0080`. The app
-  locks its Hall of Foes tile until it is set.
+- **The Hall opens** [V]: the bool flag `DreamWorld_Open` is named in the owl scene's event `Dm_HrlField_0080`, but saves
+  that have been in the Hall still hold 0 there [V: all six slots of a save that has talked to the Hall's keeper]. The
+  app counts the Hall as open when that flag, `HavePlayedEvent.Npc_Dream_FirstTalk` or any Hall record is set.
 - **Landmarks for Rumor Hunt** [V]: field maps place `Obj_GossipStone_*`, `LookAttentionActor_HidingHoleEntrance`
-  (grotto entrances), `Animal_Cow*`, `Npc_Kaepora*`, `Npc_Pierre_CallOcarina`, `Animal_Frog_*`, `Obj_Plant_MagicBean*`
-  and `Obj_Kokiri_Beehive_*`: 146 places after merging the child and adult maps (`crates/oj-gamedata/src/rumors.rs`).
+  (grotto entrances), `Animal_Cow*`, `Npc_Kaepora*`, `Npc_Pierre_CallOcarina`, `Animal_Frog_*` and
+  `Obj_Kokiri_Beehive_*`: 109 places after merging the child and adult maps (`crates/oj-gamedata/src/rumors.rs`).
+  Soft soil is not among them: `Obj_Plant_MagicBean*` are the grown plant's leaves (73 across the game, two 64 m apart
+  in Death Mountain Crater), and no actor marks the soil patch itself [V].
   The original app's own 100 rumours (photos and wording) are not in the game files [V: no such text in `Mals`].
 - **Rupees sent to ZELDA NOTES Co.** [U]: shops in the game offer the transfer (`EventFlowMsg/Npc_*_Shop_*`,
   `Shop_43`–`Shop_51`), but no banked-rupee counter was found. A local census of every string in the RomFS named 4,624
   of the 26,654 game-data flags; none of the named ones is a bank. Rumor Hunt hints are therefore free.
 - **Stat counters** [U]: per-enemy defeat counts exist (`DefeatedEnemyNum.<Enemy>`), but no named flag counts grass
   cut, rolls, targeting or items used. Today's Journal leaves those out.
-- **Screenshots** [V]: Longshot has no player screenshot folder (its capture switches are developer tools), so the
-  Photo Album offers the newest files in `Pictures\Screenshots` and `Videos\Captures`, read-only.
+- **Screenshots** [V]: Longshot has no player screenshot folder (its capture switches are developer tools). The app
+  shows its Photo Album tile as unavailable.
+- **Ocarina** [V]: `GameParameter/MelodyScoreBook/Default.game__ocarina__MelodyScoreBook.bgyml` lists the twelve songs
+  (`MelodyType`, hashes of `ZeldaLullaby` ... `LightPrelude`) with their notes as hashes of `D`, `F`, `A`, `B` and
+  `HighD`; the orders match the original game's songs. The notes' sounds are `Sound/Resource/Stream/Ocarina_<pitch>.bwav`
+  (DSP-ADPCM, 48 kHz, chromatic from `LowB` to `HighF`, measured at D5 F5 A5 B5 D6), with a second set `Piccolo_*` [I:
+  the smaller ocarina's], and each song's own recording `Ocarina_<song>.bwav`. `crates/oj-gamedata/src/sound.rs` decodes
+  them on request; only ocarina sounds can be asked for.
+- **Ocarina buttons** [V/I]: `LayoutMsg/SystemOption_00.msbt` (`OcarinaKeyAssign_Caption`) lists the ocarina buttons as
+  icons, normal layout `{14}{15}{0d}{28}{0a}`. Jump is `{27}` and put away `{28}` in the same file; the original
+  companion app draws A4, B4 and D5 as A, Y and X. That gives 0d = A, 28 = Y, 0a = X; reading 14 and 15 as L and R for
+  the two low notes is our inference [I].
+- **Save log**: the app compares each slot's totals when the game writes it and keeps what changed
+  (`%LOCALAPPDATA%\OcarinaJournal\save_log.json`), so Today's Journal and History work without the bridge.
 
 ## Legal note
 

@@ -21,15 +21,15 @@ The app is a phone-shaped window with twelve tiles:
 | Tile | What it shows |
 |---|---|
 | **Map** | The game's own world, area and dungeon-floor maps (read from your game folder), with the chests, Gold Skulltulas and hearts you have and haven't found, exits, floors, and Link live |
-| **Rumor Hunt** | Rumours about landmarks in your own game (gossip stones, grottos, cows, soft soil and more): go there with the bridge on and tap Found! for points, then spend them on ocarinas, frames and stickers |
+| **Rumor Hunt** | Rumours about landmarks in your own game (gossip stones, grottos, cows, frogs and more): go there with the bridge on and tap Found! for points, then spend them on ocarinas |
 | **Hall of Foes** | Enemies and bosses defeated, kill counts, Hall rematch records and the three trials, locked until the save opens the Hall |
-| **Today's Journal** | A timeline of the session (areas entered show on your game's world map) and each stat with its next tier, time split by Link's age |
+| **Today's Journal** | What each save gained today (works without the bridge, even with the app closed), plus a live timeline and stats with the bridge on |
 | **My Journey** | Medals up to Master, your picture, and what you are known for |
 | **Slot Compare** | Your save slots side by side |
-| **History** | Past days, kept on your PC (a day runs 05:00 to 04:59) |
+| **History** | Past days and what their saves gained, kept on your PC (a day runs 05:00 to 04:59) |
 | **Tapestry** | The game's own Threads of Time tapestry (read from your game folder), each section woven, in silhouette or empty to match your save's quests |
-| **Photo Album** | Milestone cards, your recent Windows screenshots to import, frames, stickers and titles |
-| **Ocarina** | A playable ocarina (several to choose), the game's songs on a pitch grid with Guided Playback, and your own scores shared as QR cards |
+| **Photo Album** | Shown as unavailable: the PC version has no photo capture for it to use |
+| **Ocarina** | Plays the game's own ocarina sounds (read from your game files) with the remake's buttons, ♭/♯ bends, songs on a staff with Guided Play and the game's own recordings, and your scores shared as QR cards |
 | **Quiz** | Egg (20) and Cucco (30) levels and the Cojiro Challenge; most questions are made from your game's own item and enemy descriptions and world map |
 | **amiibo** | Shown as unavailable: a PC has no NFC reader |
 

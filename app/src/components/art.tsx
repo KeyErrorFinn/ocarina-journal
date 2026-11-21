@@ -1,8 +1,23 @@
 import type { JSX } from "react";
 import type { MapKind } from "../report";
 
+/** Painted map markers made for this app (src/assets/markers): a medallion per kind, and a greyed "done" version with a
+ *  check. The drawn markers below are the fallback. */
+const MARKS = import.meta.glob<string>("../assets/markers/*.webp", { eager: true, import: "default" });
+const mark = (name: string, done?: boolean) => MARKS[`../assets/markers/mk_${name}${done ? "_done" : ""}.webp`];
+const MARK_OF: Record<string, string> = {
+  chests: "chest", skulltulas: "token", "heart-pieces": "heart_piece", "heart-containers": "heart",
+  stone: "stone", grotto: "grotto", cow: "cow", owl: "perch", scarecrow: "scarecrow", frog: "frog", beehive: "beehive",
+};
+function Painted({ kind, done }: { kind: string; done?: boolean }) {
+  const pic = MARK_OF[kind] && (mark(MARK_OF[kind], done) ?? mark(MARK_OF[kind]));
+  return pic ? <img className="mk-pic" src={pic} alt="" draggable={false} /> : null;
+}
+
 /** Map markers drawn for this app. */
 export function Marker({ kind, done }: { kind: MapKind; done?: boolean }) {
+  const pic = <Painted kind={kind} done={done} />;
+  if (MARK_OF[kind] && mark(MARK_OF[kind])) return pic;
   const op = done ? 0.45 : 1;
   switch (kind) {
     case "chests":
@@ -40,10 +55,10 @@ export function Marker({ kind, done }: { kind: MapKind; done?: boolean }) {
 
 /** Landmark markers drawn for this app (Rumor Hunt places on the map). */
 export function LandIcon({ kind, done }: { kind: import("../landmarks").LandKind; done?: boolean }) {
+  if (mark(MARK_OF[kind])) return <Painted kind={kind} done={done} />;
   const g: Record<string, JSX.Element> = {
     stone: <><path d="M10 27c0-9 2-17 6-19s7 6 7 19z" fill="#9aa3a8" stroke="#3a3f44" strokeWidth="1.6" /><path d="M14 18a2.5 2.5 0 103.5 2" fill="none" stroke="#3a3f44" strokeWidth="1.4" /></>,
     grotto: <><ellipse cx="16" cy="19" rx="10" ry="6" fill="#2a1d14" stroke="#c8a46a" strokeWidth="1.8" /><path d="M9 17c3-3 11-3 14 0" stroke="#5a4129" strokeWidth="1.4" fill="none" /></>,
-    bean: <><ellipse cx="16" cy="24" rx="9" ry="3.5" fill="#6b4a2a" /><path d="M16 23v-9m0 3c-4-1-6-4-6-6 3 0 5 2 6 6m0-2c3-2 6-2 7 0-2 2-5 3-7 2" stroke="#4f9a3e" strokeWidth="1.8" fill="#7cc45e" strokeLinejoin="round" /></>,
     cow: <><rect x="10" y="10" width="12" height="12" rx="3" fill="#e8d6a8" stroke="#6b4a2a" strokeWidth="1.6" /><path d="M13 22v5h6v-5" fill="#c8a46a" stroke="#6b4a2a" strokeWidth="1.4" /><circle cx="16" cy="27" r="1.6" fill="#6b4a2a" /></>,
     owl: <><path d="M5 22c6-1 16-1 22 0" stroke="#6b4a2a" strokeWidth="2.6" strokeLinecap="round" /><path d="M20 21c1-3 4-5 6-5" stroke="#4f9a3e" strokeWidth="1.8" fill="none" strokeLinecap="round" /><circle cx="12" cy="14" r="4" fill="none" stroke="#c8a46a" strokeWidth="1.6" strokeDasharray="2 2" /></>,
     scarecrow: <><path d="M16 9v18M9 14h14" stroke="#6b4a2a" strokeWidth="2.2" strokeLinecap="round" /><path d="M10 9l6-4 6 4z" fill="#d6b35a" stroke="#6b4a2a" strokeWidth="1.2" /></>,

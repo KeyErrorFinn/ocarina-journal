@@ -64,6 +64,17 @@ export interface SlotSummary {
   true_keys: number;
 }
 
+/** One save the game wrote and what it changed since that slot's previous save (made by the app from the saves). */
+export interface SaveEvent {
+  wall_ms: number;
+  slot: string;
+  map: string | null;
+  place: string | null;
+  age: "child" | "adult" | null;
+  gains: Record<string, number>;
+  rupees: number;
+}
+
 export interface DaySummary {
   date: string;
   start_ms: number;
@@ -84,6 +95,7 @@ export interface LiveState {
   saves: SlotSummary[];
   game_dir: string | null;
   history: DaySummary[];
+  save_log: SaveEvent[];
 }
 
 export const EMPTY_TOTALS: Totals = {
@@ -105,6 +117,7 @@ export const EMPTY: LiveState = {
   saves: [],
   game_dir: null,
   history: [],
+  save_log: [],
 };
 
 /** The most recently written save slot, if any. */
@@ -168,9 +181,9 @@ export const TILES: { id: string; title: string; desc: string; icon: string; dar
   { id: "journey", title: "My Journey", desc: "Medals and totals", icon: "GMedal", dark: true },
   { id: "compare", title: "Slot Compare", desc: "Your save slots side by side", icon: "GChart" },
   { id: "history", title: "History", desc: "Your days over time", icon: "GHistory", dark: true },
-  { id: "photos", title: "Photo Album", desc: "Frames and titles", icon: "GCamera" },
+  { id: "photos", title: "Photo Album", desc: "Not available", icon: "GCamera", locked: "The Photo Album is not available in Ocarina Journal. The PC version of the game has no photo capture for it to use." },
   { id: "tapestry", title: "Tapestry", desc: "Your story, woven", icon: "GTapestry", dark: true },
-  { id: "amiibo", title: "amiibo", desc: "Needs the console", icon: "GAmiibo", locked: "amiibo needs the console's NFC reader, which a PC does not have." },
+  { id: "amiibo", title: "amiibo", desc: "Not available", icon: "GAmiibo", locked: "amiibo is not available in Ocarina Journal. It needs a console's NFC reader, which a PC does not have." },
   { id: "ocarina", title: "Ocarina", desc: "Play and record songs", icon: "GOcarina" },
   { id: "quiz", title: "Quiz", desc: "Test your memory", icon: "GQuiz" },
 ];

@@ -40,6 +40,8 @@ struct LiveState {
     game_dir: Option<String>,
     /// Earlier days, newest first (kept on disk).
     history: Vec<DaySummary>,
+    /// What each game save changed, newest first (kept on disk). Works without the bridge.
+    save_log: Vec<SaveEvent>,
 }
 
 impl LiveState {
@@ -142,6 +144,90 @@ fn archive(history: &mut Vec<DaySummary>, start_ms: u64, totals: &Totals) {
     save_history(history);
 }
 
+// ------------------------------------------------------------------------------------------------- the save log
+/// One save the game wrote, and what it changed since the slot's previous save: found chests, Gold Skulltulas and so
+/// on, rupees, and where Link saved. Made by comparing the saves themselves, so it needs neither the bridge nor the app
+/// to be open while playing (the app compares when it next reads the saves).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SaveEvent {
+    wall_ms: u64,
+    slot: String,
+    /// The game's map name where Link saved (`KokiriForest_Child`), and its place name.
+    map: Option<String>,
+    place: Option<String>,
+    age: Option<String>,
+    /// Category id -> how many more the slot has (only increases).
+    gains: std::collections::BTreeMap<String, u32>,
+    rupees: i64,
+}
+
+/// What the app last saw of each slot.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct SeenSlot {
+    modified_ms: u64,
+    have: std::collections::BTreeMap<String, u32>,
+    rupees: i64,
+    place: Option<String>,
+}
+
+const MAX_SAVE_EVENTS: usize = 2000;
+
+fn load_json<T: serde::de::DeserializeOwned + Default>(name: &str) -> T {
+    data_dir().and_then(|d| std::fs::read(d.join(name)).ok()).and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+}
+
+fn store_json<T: Serialize>(name: &str, v: &T) {
+    if let (Some(d), Ok(b)) = (data_dir(), serde_json::to_vec(v)) {
+        write_atomic(&d.join(name), &b);
+    }
+}
+
+/// Compares every slot in `report` with what was seen before and logs each slot that changed. Returns the whole log
+/// when something was added. The first look at a slot only records it.
+fn note_saves(save_dir: &std::path::Path, report: &serde_json::Value) -> Option<Vec<SaveEvent>> {
+    let mut seen: std::collections::BTreeMap<String, SeenSlot> = load_json("saves_seen.json");
+    let mut added = vec![];
+    for s in report["slots"].as_array()? {
+        let Some(slot) = s["slot"].as_str() else { continue };
+        let modified_ms = std::fs::metadata(save_dir.join(slot).join("progress.sav"))
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|m| m.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_millis() as u64);
+        let have: std::collections::BTreeMap<String, u32> = s["totals"]
+            .as_object()
+            .map(|t| t.iter().filter_map(|(k, v)| Some((k.clone(), v.get(0)?.as_u64()? as u32))).collect())
+            .unwrap_or_default();
+        let now = SeenSlot { modified_ms, have, rupees: s["rupees"].as_i64().unwrap_or(0), place: s["place"]["name"].as_str().map(String::from) };
+        match seen.get(slot) {
+            Some(before) if before.modified_ms < now.modified_ms => {
+                let gains: std::collections::BTreeMap<String, u32> =
+                    now.have.iter().filter_map(|(k, v)| v.checked_sub(*before.have.get(k).unwrap_or(&0)).filter(|d| *d > 0).map(|d| (k.clone(), d))).collect();
+                let rupees = now.rupees - before.rupees;
+                // The game rewrites untouched slots now and then; only real changes go in the log.
+                if !gains.is_empty() || rupees != 0 || now.place != before.place {
+                    added.push(SaveEvent { wall_ms: now.modified_ms, slot: slot.into(), map: s["place"]["area"].as_str().filter(|m| !m.is_empty()).map(String::from), place: now.place.clone(), age: s["age"].as_str().map(String::from), gains, rupees });
+                }
+                seen.insert(slot.into(), now);
+            }
+            Some(_) => {}
+            None => {
+                seen.insert(slot.into(), now);
+            }
+        }
+    }
+    store_json("saves_seen.json", &seen);
+    if added.is_empty() {
+        return None;
+    }
+    let mut log: Vec<SaveEvent> = load_json("save_log.json");
+    log.extend(added);
+    log.sort_by(|a, b| b.wall_ms.cmp(&a.wall_ms));
+    log.truncate(MAX_SAVE_EVENTS);
+    store_json("save_log.json", &log);
+    Some(log)
+}
+
 struct Shared(Arc<Mutex<LiveState>>);
 
 #[derive(Serialize, Clone)]
@@ -232,7 +318,20 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
     .await
     .map_err(|e| e.to_string())?;
     match res {
-        Ok(r) => Ok(r),
+        Ok(r) => {
+            if let (Some(file), Some(dir)) = (&r, oj_savefile::default_save_dir()) {
+                if let Some(log) = note_saves(&dir, &file.report) {
+                    let snap = {
+                        let shared = app.state::<Shared>();
+                        let mut s = shared.0.lock().unwrap();
+                        s.save_log = log;
+                        s.clone()
+                    };
+                    emit(&app, &snap);
+                }
+            }
+            Ok(r)
+        }
         Err(e) => report_file().map(Some).ok_or(e),
     }
 }
@@ -283,49 +382,18 @@ async fn get_lore(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
     .map_err(|e| e.to_string())?
 }
 
-/// Where Windows keeps the player's own screenshots: Win+PrtScn (`Pictures\\Screenshots`, also under OneDrive) and
-/// Game Bar captures (`Videos\\Captures`). Longshot itself has no screenshot folder for players.
-fn capture_dirs() -> Vec<std::path::PathBuf> {
-    let Some(home) = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from) else { return vec![] };
-    [home.join("Pictures").join("Screenshots"), home.join("OneDrive").join("Pictures").join("Screenshots"), home.join("Videos").join("Captures")]
-        .into_iter()
-        .filter(|d| d.is_dir())
-        .collect()
-}
-
-#[derive(Serialize)]
-struct Capture {
-    path: String,
-    modified_ms: u64,
-}
-
-/// The newest screenshots in those folders (last 30 days, at most 24), for the Photo Album to offer. Read-only.
+/// One of the game's ocarina sounds (a note, or the game's recording of a song) as WAV bytes, decoded from the player's
+/// own game files. Only ocarina sounds can be asked for (see `oj_gamedata::sound::allowed`).
 #[tauri::command]
-fn recent_captures() -> Vec<Capture> {
-    let cutoff = SystemTime::now() - Duration::from_secs(30 * 86_400);
-    let mut out: Vec<Capture> = capture_dirs()
-        .iter()
-        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
-        .filter(|e| matches!(e.path().extension().and_then(|x| x.to_str()).map(str::to_ascii_lowercase).as_deref(), Some("png" | "jpg" | "jpeg")))
-        .filter_map(|e| {
-            let t = e.metadata().ok()?.modified().ok()?;
-            (t >= cutoff).then(|| Capture { path: e.path().to_string_lossy().into_owned(), modified_ms: t.duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0) })
-        })
-        .collect();
-    out.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
-    out.truncate(24);
-    out
-}
-
-/// One of those screenshots' bytes. Only files directly inside the screenshot folders can be read.
-#[tauri::command]
-fn read_capture(path: String) -> Result<tauri::ipc::Response, String> {
-    let p = std::path::PathBuf::from(&path);
-    let inside = p.parent().is_some_and(|parent| capture_dirs().iter().any(|d| d == parent));
-    if !inside {
-        return Err("not a screenshot folder file".into());
-    }
-    std::fs::read(&p).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+async fn get_sound(app: AppHandle, name: String, whole: bool) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_, files, _) = map_source(&app)?;
+        // Notes are long sustained recordings; four seconds is plenty for a held note. Songs (`whole`) play to the end.
+        let secs = if whole { 60.0 } else { 4.0 };
+        oj_gamedata::sound::wav(&files, &name, secs).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -470,7 +538,7 @@ pub fn run() {
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
-        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, recent_captures, read_capture, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, get_sound, preview_enable_bridge, apply_enable_bridge, launch_game])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 
@@ -486,6 +554,7 @@ pub fn run() {
                         let mut s = shared.lock().unwrap();
                         s.journal = journal.snapshot();
                         s.history = history.clone();
+                        s.save_log = load_json("save_log.json");
                     }
                     let mut last_save = Instant::now();
                     let mut last_emit = Instant::now() - EMIT_EVERY;

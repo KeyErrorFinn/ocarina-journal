@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
 import { Bar, Header, RefreshBtn, Seg, Tabs } from "../components/chrome";
-import { clock, describe, friendlyMap, type DaySummary, type Entry, type Journal, type Mode, type Totals } from "../model";
+import { clock, describe, friendlyMap, type DaySummary, type Entry, type LiveState, type SaveEvent, type Totals } from "../model";
+import { BridgeActions } from "./Home";
 import { useLocal } from "../store";
 import { useMapIndex, type MapIndex } from "../maps";
 import { MapCrop } from "../components/MapCrop";
 import { MEDALS } from "../data/content";
 import { cat, totalKills, type Report } from "../report";
+
+/** A save's changes in words: "+2 Chests · +1 Gold Skulltulas · +45 rupees". */
+export function gainsText(e: SaveEvent, report: Report | null): string {
+  const parts = Object.entries(e.gains).map(([k, n]) => `+${n} ${cat(report, k)?.title ?? k}`);
+  if (e.rupees) parts.push(`${e.rupees > 0 ? "+" : "−"}${Math.abs(e.rupees)} rupees`);
+  return parts.join(" · ");
+}
+
+/** Timeline lines from the bridge that are worth reading (cutscenes, pick-ups and small heals are left out). */
+const SHOWN = new Set<Entry["type"]>(["area_entered", "battle_ended", "rupees_gained", "rupees_spent", "damage_taken", "max_life_up", "died", "age_changed"]);
+
+type Line = { at: number; key: string; title: string; detail?: string; place?: string | null; map?: string | null; e?: Entry };
 
 /** Paintings for key moments, drawn for this app (src/assets/scenes). Missing ones fall back to a drawn sky. */
 const SCENES = import.meta.glob<string>("../assets/scenes/*.webp", { eager: true, import: "default" });
@@ -84,13 +97,21 @@ function useSaveDelta(key: string, value: number | null, day: number): number {
 const sumAll = (days: DaySummary[], today: Totals, f: (t: Totals) => number) => days.reduce((a, d) => a + f(d.totals), f(today));
 const km = (units: number) => units / 1000; // map positions are in metres (see maps.rs), so one unit is a metre [I]
 
-export function Today({ onHome, journal, mode, report, history }: { onHome: () => void; journal: Journal; mode: Mode; report: Report | null; history: DaySummary[] }) {
+export function Today({ onHome, s, report }: { onHome: () => void; s: LiveState; report: Report | null }) {
+  const { journal, history, mode } = s;
   const idx = useMapIndex();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Timeline");
   const now = Date.now();
   const from = dayStart(now);
   const to = from + 86_400_000 - 60_000;
   const entries = journal.entries.filter((e) => e.wall_ms >= from);
+  const saves = (s.save_log ?? []).filter((e) => e.wall_ms >= from);
+  const lines: Line[] = [
+    ...entries.filter((e) => SHOWN.has(e.type)).map((e, i) => { const d = describe(e); return { at: e.wall_ms, key: `b${i}`, title: d.title, detail: d.detail, place: e.area, e: d.key ? e : undefined }; }),
+    ...saves.map((e, i) => ({ at: e.wall_ms, key: `s${i}`, title: `Saved${e.place ? ` in ${e.place}` : ""}`, detail: gainsText(e, report) || undefined, map: e.map })),
+  ].sort((a, b) => b.at - a.at);
+  const gained: Record<string, number> = {};
+  for (const e of saves) for (const [k, n] of Object.entries(e.gains)) gained[k] = (gained[k] ?? 0) + n;
   const t = journal.totals;
   const [age, setAge] = useState<"Child" | "Adult">("Child");
   const byAge = t.by_age_area?.[age.toLowerCase()];
@@ -99,32 +120,36 @@ export function Today({ onHome, journal, mode, report, history }: { onHome: () =
   const chests = useSaveDelta("chests", report ? cat(report, "chests")?.have ?? 0 : null, from);
   const killTiers = MEDALS.find((m) => m.id === "kills")!.tiers, chestTiers = MEDALS.find((m) => m.id === "chests")!.tiers;
   const life = (f: (t: Totals) => number) => sumAll(history, t, f);
-  const updated = journal.entries[0]?.wall_ms ?? (t.play_secs > 0 ? now : null);
-  const empty = entries.length === 0 && t.play_secs < 1;
+  const updated = Math.max(journal.entries[0]?.wall_ms ?? 0, saves[0]?.wall_ms ?? 0) || (t.play_secs > 0 ? now : null);
+  const empty = lines.length === 0 && t.play_secs < 1;
 
   return (
     <>
       <Header title="Today's Journal" onLeft={onHome} right={<RefreshBtn />}
-        help="A timeline and totals of what the app saw while it was open. The day runs from 05:00 to 04:59, like the original. Game screenshots are not captured: entering an area shows that spot on your game's world map, and other moments use paintings made for this app." />
+        help="What changed today. Every time the game saves, the app notes what the save gained (chests, Gold Skulltulas, rupees and so on), even if the app was closed while you played. With the bridge on, it also keeps a live timeline: areas, fights, damage and rupees. The day runs from 05:00 to 04:59, like the original." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div className="scroll grain">
         <h2 className="h2">Records for {fmtDay(from)}</h2>
         {empty ? (
-          <p className="empty">
-            {mode === "live" ? "Nothing yet. Walk somewhere, fight, or open a chest and it will appear here."
-              : mode === "bridge_off" ? "The game is running but the control bridge is off, so there is no live data."
-              : "The game is not running. Start Longshot to record a session."}
-          </p>
+          <div className="empty" style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 .8em" }}>
+              {mode === "live" ? "Nothing yet. Walk somewhere, fight, or open a chest and it will appear here."
+                : "Nothing recorded today yet. From now on, each time the game saves, what the save gained appears here, even if this app was closed while you played."}
+            </p>
+            {mode !== "live" && <p className="small muted" style={{ margin: 0 }}>For a live timeline as well (areas, fights, damage and rupees as they happen), turn on the bridge once below; it then stays on for every launch.</p>}
+          </div>
         ) : tab === "Timeline" ? (
           <div className="timeline">
-            {entries.map((e, i) => {
-              const d = describe(e);
+            {lines.map((l) => {
+              const place = l.map ? l.map.split("_")[0] : null;
               return (
-                <div className="ev" key={`${e.wall_ms}-${i}`}>
-                  <i className="node" />
-                  <div className="t">{clock(e.wall_ms)}{e.area ? ` · ${friendlyMap(e.area)}` : ""}</div>
-                  <div className="title">{d.title}{d.detail ? ` · ${d.detail}` : ""}</div>
-                  {d.key && <Scene e={e} idx={idx} />}
+                <div className="ev" key={l.key}>
+                  <i className={`node ${l.key[0] === "s" ? "save" : ""}`} />
+                  <div className="t">{clock(l.at)}{l.place ? ` · ${friendlyMap(l.place)}` : ""}</div>
+                  <div className="title">{l.title}{l.e && l.detail ? ` · ${l.detail}` : ""}</div>
+                  {!l.e && l.detail && <div className="ev-gains">{l.detail}</div>}
+                  {l.e && <Scene e={l.e} idx={idx} />}
+                  {!l.e && place && idx?.world.labels[place] && <div className="shot"><MapCrop idx={idx} place={place} /><span className="shot-tag">{friendlyMap(place)}</span></div>}
                 </div>
               );
             })}
@@ -139,7 +164,10 @@ export function Today({ onHome, journal, mode, report, history }: { onHome: () =
               {areas.length === 0 && <p className="small muted">{t.by_age_area ? `No time as ${age.toLowerCase()} Link today.` : "No time recorded yet."}</p>}
               {areas.map(([a, sec]) => <div key={a} className="rowline small" style={{ marginTop: ".35em" }}><span>{friendlyMap(a)}</span><span>+{Math.round(sec / 60)} minutes</span></div>)}
               {report && <StatCard label="Enemies Defeated" today={kills} total={totalKills(report)} tiers={killTiers} />}
-              {report && <StatCard label="Treasure Chests Opened" today={chests} total={cat(report, "chests")?.have ?? 0} tiers={chestTiers} />}
+              {report && <StatCard label="Treasure Chests Opened" today={Math.max(chests, gained.chests ?? 0)} total={cat(report, "chests")?.have ?? 0} tiers={chestTiers} />}
+              {Object.entries(gained).filter(([k]) => k !== "chests").map(([k, n]) => (
+                <div className="dstat" key={k}><div className="rowline"><b>{cat(report, k)?.title ?? k}</b><span className="dval">+{n}</span></div></div>
+              ))}
               <StatCard label="Battles" today={t.battles} total={life((x) => x.battles)} tiers={TIERS.battles} />
               <StatCard label="Game Over Count" today={t.deaths} total={life((x) => x.deaths)} tiers={TIERS.falls} />
               <StatCard label="Hearts Lost" today={t.damage_quarters / 4} total={life((x) => x.damage_quarters / 4)} tiers={TIERS.hearts} fmt={(n) => String(Math.round(n * 4) / 4)} />
@@ -148,12 +176,13 @@ export function Today({ onHome, journal, mode, report, history }: { onHome: () =
               <StatCard label="Distance Traveled" today={km(t.distance_units)} unit="km" total={life((x) => km(x.distance_units))} tiers={TIERS.km} fmt={(n) => n.toFixed(1)} />
             </div>
             <p className="note">
-              Data is gathered live while the app is open, between {fmtStamp(from)} and {fmtStamp(to)}. Enemies and chests
-              count from the first time the app read your save today. Tiers and lifetime totals are this app's own, from
+              Between {fmtStamp(from)} and {fmtStamp(to)}. Play time, battles, damage, distance and rupees come from the
+              bridge while it is on; the rest comes from comparing your saves, so it counts even when the app was closed. Tiers and lifetime totals are this app's own, from
               the days it has recorded. Grass cut, rolls and items used have no known source in the game's data yet.
             </p>
           </>
         )}
+        {mode !== "live" && <BridgeActions s={s} />}
       </div>
     </>
   );

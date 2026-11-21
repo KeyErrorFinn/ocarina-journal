@@ -13,11 +13,34 @@ export const WORLD: Record<string, { x: number; y: number; r?: number }> = {
   GerudoTrainingGround: { x: 50, y: 88 }, HountedWasteland: { x: 56, y: 70 }, DesertColossus: { x: 68, y: 92 }, SpiritTemple: { x: 80, y: 88 },
 };
 
-/** Ocarina notes. A = A button, then the four directions. */
+/** The ocarina's five notes. The ids are the original game's buttons (A, then ▼ ▶ ◀ ▲), kept so scores saved by
+ *  earlier versions still read; everything shown uses the remake's own names below. */
 export type Note = "A" | "D" | "R" | "L" | "U";
-export const NOTE_PITCH: Record<Note, number> = { A: 293.66, D: 349.23, R: 440, L: 493.88, U: 587.33 };
-export const NOTE_LABEL: Record<Note, string> = { A: "A", D: "▼", R: "▶", L: "◀", U: "▲" };
 
+/** Each note's pitch as the game names it: `GameParameter/MelodyScoreBook` stores the notes as the hashes of D, F, A, B
+ *  and HighD [V], and its sounds are `Sound/Resource/Stream/Ocarina_<pitch>.bwav` [V]. */
+export const NOTE_NAME: Record<Note, string> = { A: "D", D: "F", R: "A", L: "B", U: "D" };
+export const NOTE_SOUND: Record<Note, string> = { A: "D", D: "F", R: "A", L: "B", U: "HighD" };
+/** What the notes sound at: the game's recordings measure D5 F5 A5 B5 D6 [V]. Used only when they cannot be read. */
+export const NOTE_PITCH: Record<Note, number> = { A: 587.33, D: 698.46, R: 880, L: 987.77, U: 1174.66 };
+/** The remake's buttons for each note (its options screen lists the ocarina buttons in pitch order; the original
+ *  companion app shows A4 = A, B4 = Y, D5 = X [V]; L and R for the two low notes are our reading of the option's
+ *  icons [I]). */
+export const NOTE_BUTTON: Record<Note, string> = { A: "L", D: "R", R: "A", L: "Y", U: "X" };
+/** Notes from low to high. */
+export const NOTES: Note[] = ["A", "D", "R", "L", "U"];
+/** Every note the game has a sound for, a semitone apart (Ocarina_LowB ... Ocarina_HighF) [V]: holding ♭ or ♯ plays
+ *  the neighbour of the pressed note. */
+export const CHROMATIC = ["LowB", "LowC", "LowCsharp", "D", "Dsharp", "E", "F", "Fsharp", "G", "Gsharp", "A", "Asharp", "B", "C", "Csharp", "HighD", "HighDsharp", "HighE", "HighF"];
+export const NOTE_LABEL = NOTE_BUTTON;
+
+/** The game's twelve songs with their notes, as in its MelodyScoreBook [V], and the id of each song's own recording
+ *  (`Ocarina_<id>.bwav`) and pouch item (`Item_Melody_<id>`). */
+export const SONG_IDS: Record<string, string> = {
+  "Zelda's Lullaby": "ZeldaLullaby", "Epona's Song": "EponaSong", "Saria's Song": "SariaSong", "Sun's Song": "SunSong",
+  "Song of Time": "TimeSong", "Song of Storms": "StormSong", "Minuet of the Forest": "ForestMinuet", "Bolero of Fire": "FireBolero",
+  "Serenade of Water": "WaterSerenade", "Requiem of Spirit": "SpiritRequiem", "Nocturne of Shadow": "ShadowNocturne", "Prelude of Light": "LightPrelude",
+};
 export const SONGS: Record<string, Note[]> = {
   "Zelda's Lullaby": ["L", "U", "R", "L", "U", "R"],
   "Epona's Song": ["U", "L", "R", "U", "L", "R"],

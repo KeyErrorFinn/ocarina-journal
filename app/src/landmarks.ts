@@ -4,8 +4,8 @@ import type { Game } from "./model";
 
 /** A landmark from the player's game maps (crates/oj-gamedata/src/rumors.rs): Rumor Hunt's rumours and map markers. */
 export interface Landmark { id: string; kind: LandKind; area: string; pos: [number, number, number]; eras: ("child" | "adult")[] }
-export type LandKind = "stone" | "grotto" | "cow" | "owl" | "scarecrow" | "frog" | "bean" | "beehive";
-export const LAND_KINDS: LandKind[] = ["stone", "grotto", "bean", "cow", "scarecrow", "frog", "owl", "beehive"];
+export type LandKind = "stone" | "grotto" | "cow" | "owl" | "scarecrow" | "frog" | "beehive";
+export const LAND_KINDS: LandKind[] = ["stone", "grotto", "cow", "scarecrow", "frog", "owl", "beehive"];
 
 /** Each kind's name, Rumor Hunt points and rumour line. The wording is this app's own. */
 export const LANDMARK: Record<LandKind, { name: string; plural: string; points: number; said: string }> = {
@@ -15,7 +15,6 @@ export const LANDMARK: Record<LandKind, { name: string; plural: string; points: 
   owl: { name: "Owl's Perch", plural: "Owl's Perches", points: 20, said: "a wise old owl likes to rest in" },
   scarecrow: { name: "Scarecrow's Spot", plural: "Scarecrow Spots", points: 30, said: "a scarecrow will remember your tune in" },
   frog: { name: "Singing Frog", plural: "Singing Frogs", points: 30, said: "a frog sings along to anything played in" },
-  bean: { name: "Soft Soil", plural: "Soft Soil", points: 20, said: "soft soil is waiting for a seed in" },
   beehive: { name: "Beehive", plural: "Beehives", points: 20, said: "bees have made a hidden home in" },
 };
 

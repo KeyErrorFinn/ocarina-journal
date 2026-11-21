@@ -12,9 +12,7 @@ import { MapScreen } from "./screens/MapScreen";
 import { Rumors } from "./screens/Rumors";
 import { Hall } from "./screens/Hall";
 import { Compare } from "./screens/Compare";
-import { Photos } from "./screens/Photos";
 import { Tapestry } from "./screens/Tapestry";
-import { Amiibo } from "./screens/Amiibo";
 import { Ocarina } from "./screens/Ocarina";
 import { Quiz } from "./screens/Quiz";
 import { History } from "./screens/History";
@@ -84,7 +82,7 @@ export function App() {
       body = <Hall report={report} entries={s.journal.entries} onHome={home} />;
       break;
     case "today":
-      body = <Today onHome={home} journal={s.journal} mode={s.mode} report={report} history={s.history} />;
+      body = <Today onHome={home} s={s} report={report} />;
       break;
     case "journey":
       body = <Journey report={report} rupees={slotRupees} onHome={home} onCompare={() => setRoute("compare")} />;
@@ -93,16 +91,10 @@ export function App() {
       body = <Compare report={report} journal={s.journal} onHome={home} onBack={() => setRoute("journey")} />;
       break;
     case "history":
-      body = <History days={s.history} onHome={home} />;
-      break;
-    case "photos":
-      body = <Photos report={report} onHome={home} />;
+      body = <History days={s.history} saves={s.save_log ?? []} report={report} onHome={home} />;
       break;
     case "tapestry":
       body = <Tapestry report={report} onHome={home} />;
-      break;
-    case "amiibo":
-      body = <Amiibo onHome={home} />;
       break;
     case "ocarina":
       body = <Ocarina report={report} onHome={home} start={arg} />;

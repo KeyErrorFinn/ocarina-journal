@@ -17,6 +17,10 @@ const PAGE = 24; // cards drawn at a time: each is a crop of a large map picture
 const KINDS = LANDMARK;
 type Rumor = Landmark;
 
+/** A painting of each kind of place, drawn for this app (src/assets/rumors); the map is the fallback. */
+const CARDS = import.meta.glob<string>("../assets/rumors/*.webp", { eager: true, import: "default" });
+const cardArt = (kind: string): string | undefined => CARDS[`../assets/rumors/card_${kind}.webp`];
+
 export function Rumors({ game, onHome }: { report: Report | null; game: Game | null; onHome: () => void; openSong?: (s: string) => void }) {
   const rumors = useLandmarks();
   const idx = useMapIndex();
@@ -61,11 +65,11 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
         <Header title={k.name} left="back" onLeft={() => setOpen(null)} sub={`Rumor ${String(number.get(r.id)).padStart(3, "0")}`} />
         <div className="scroll grain gq-detail">
           <div className="gq-points">+{k.points}<small>P</small></div>
-          <div className="shot gq-snap"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={4} /></div>
+          <div className="shot gq-snap">{cardArt(r.kind) ? <img src={cardArt(r.kind)} alt="" /> : <SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={2} box={2 / 3} />}</div>
           <p className="gq-said">It is said that {k.said} {place(r.area)}...</p>
           <details className="gq-help" open={!!helped[r.id]} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setHelped({ ...helped, [r.id]: true })}>
             <summary>If you can't find it...</summary>
-            <div className="shot"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={3} marker /></div>
+            <div className="shot gq-map"><SpotCrop idx={idx} area={r.area} pos={r.pos} era={era(r)} zoom={1.4} marker box={1} /></div>
             <p className="small muted">The pin marks the spot on the {era(r)} map of {place(r.area)}.{r.eras.length === 1 ? ` It is only there as ${r.eras[0]} Link.` : ""}</p>
           </details>
           <p className={`gq-status ${d !== null && d <= WARM ? "warm" : ""}`}>{status}</p>
@@ -100,7 +104,8 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
               <div className="gq-grid">
                 {shown.slice(0, more).map((x) => (
                   <button key={x.id} className={`gq-card ${found[x.id] ? "done" : ""}`} onClick={() => setOpen(x.id)}>
-                    <span className="shot"><SpotCrop idx={idx} area={x.area} pos={x.pos} era={era(x)} zoom={4} /></span>
+                    <span className="shot">{cardArt(x.kind) ? <img src={cardArt(x.kind)} alt="" loading="lazy" /> : <SpotCrop idx={idx} area={x.area} pos={x.pos} era={era(x)} zoom={2} box={3 / 4} />}</span>
+                    <span className="gq-where">{place(x.area)}</span>
                     <span className="gq-p">{found[x.id] ? "✓ Found" : <>+{KINDS[x.kind].points}<small>P</small></>}</span>
                   </button>
                 ))}
@@ -111,12 +116,12 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
             <div className="gq-rewards">
               {REWARDS.map((w) => (
                 <button key={w.id} className={`gq-reward ${owned[w.id] ? "own" : ""}`} disabled={!!owned[w.id] || bank < w.cost} onClick={() => buy(w.id)}>
-                  <span className="pic">{rewardArt(w.art) ? <img src={rewardArt(w.art)} alt="" /> : <span className="glyph">{w.kind === "ocarina" ? "♪" : w.kind === "frame" ? "▣" : "★"}</span>}</span>
+                  <span className="pic">{rewardArt(w.art) ? <img src={rewardArt(w.art)} alt="" /> : <span className="glyph">♪</span>}</span>
                   <span className="cost">{owned[w.id] ? "Owned" : <>{w.cost}<small>P</small></>}</span>
                   <span className="nm">{w.name}</span>
                 </button>
               ))}
-              <p className="note" style={{ gridColumn: "1 / -1" }}>Ocarinas appear under Change Ocarina on the Ocarina page; frames and stickers in the Photo Album's editor.</p>
+              <p className="note" style={{ gridColumn: "1 / -1" }}>Ocarinas you buy appear under Change Ocarina on the Ocarina page.</p>
             </div>
           )}
       </div>
@@ -132,7 +137,7 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
           <button className="reveal-x" aria-label="Close" onClick={() => setCheer(null)}>✕</button>
           <div className="reveal-k">Quest complete!</div>
           <div className="reveal-p">+{KINDS[cheer.kind].points}<small>P</small></div>
-          {idx && <div className="shot reveal-img"><SpotCrop idx={idx} area={cheer.area} pos={cheer.pos} era={era(cheer)} zoom={7} /></div>}
+          {idx && <div className="shot reveal-img">{cardArt(cheer.kind) ? <img src={cardArt(cheer.kind)} alt="" /> : <SpotCrop idx={idx} area={cheer.area} pos={cheer.pos} era={era(cheer)} zoom={2} box={2 / 3} />}</div>}
           <p>You found the {KINDS[cheer.kind].name.toLowerCase()} in {place(cheer.area)}.</p>
           <button className="reveal-btn" onClick={() => setCheer(null)}>OK</button>
         </div>

@@ -31,8 +31,8 @@ export function Hearts({ life, max }: { life: number; max: number }) {
 
 interface Preview { path: string; exists: boolean; already: string | null; before: string; after: string }
 
-/** The two consented actions: turn the bridge on in longshot_env.txt, or start the game with it on. */
-function Actions({ s }: { s: LiveState }) {
+/** The two consented actions: turn the bridge on in longshot_env.txt (for every launch), or start the game with it on. */
+export function BridgeActions({ s }: { s: LiveState }) {
   const [sheet, setSheet] = useState<null | "enable" | "launch">(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,12 +42,11 @@ function Actions({ s }: { s: LiveState }) {
   return (
     <>
       <div style={{ padding: "0 1em .8em", position: "relative", zIndex: 2 }}>
-        {s.mode === "bridge_off" ? (
-          <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>
-            Turn on the bridge…
-          </button>
-        ) : (
-          <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); setSheet("launch"); }}>Start Longshot with the bridge…</button>
+        <button className="btn block" style={{ margin: 0, width: "100%" }} onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>
+          Turn on the bridge for every launch…
+        </button>
+        {s.mode === "offline" && (
+          <button className="btn ghost block" style={{ margin: ".6em 0 0", width: "100%" }} onClick={() => { setMsg(null); setSheet("launch"); }}>Start Longshot with the bridge once…</button>
         )}
       </div>
       {sheet === "enable" && (
@@ -89,7 +88,7 @@ function Actions({ s }: { s: LiveState }) {
 
 export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: (id: string) => void; fresh: string[]; locked: Record<string, string>; reportError: string | null }) {
   const [menu, setMenu] = useState(false);
-  const [why, setWhy] = useState<string | null>(null);
+  const [why, setWhy] = useState<{ title: string; text: string } | null>(null);
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
   const life = live ? s.game!.life : slot?.life ?? null;
@@ -125,14 +124,15 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
         )}
       </div>
 
-      <Actions s={s} />
+      <BridgeActions s={s} />
       <div className="tgrid">
         {TILES.map((t) => {
           const G = GLYPHS[t.icon];
           return (
-            <button key={t.id} className={`ttile ${t.locked || locked[t.id] ? "lock" : ""}`} onClick={() => (locked[t.id] ? setWhy(locked[t.id]) : go(t.id))}>
-              {fresh.includes(t.id) && !locked[t.id] && <i className="dot" />}
-              {locked[t.id] && <i className="padlock" aria-label="Locked">🔒</i>}
+            <button key={t.id} className={`ttile ${t.locked ? "unavailable" : locked[t.id] ? "lock" : ""}`} aria-disabled={!!(t.locked || locked[t.id])}
+              onClick={() => (t.locked ? setWhy({ title: "Not available", text: t.locked }) : locked[t.id] ? setWhy({ title: "Not open yet", text: `${locked[t.id]} Your save says it isn't yet.` }) : go(t.id))}>
+              {fresh.includes(t.id) && !locked[t.id] && !t.locked && <i className="dot" />}
+              {locked[t.id] && !t.locked && <i className="padlock" aria-label="Locked">🔒</i>}
               {artFor(t.id) ? (
                 <span className="frame art">
                   <img className="art-in" src={artFor(t.id)} alt="" draggable={false} />
@@ -148,8 +148,8 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       </div>
 
       {why && (
-        <Sheet title="Not open yet" onClose={() => setWhy(null)}>
-          <p style={{ padding: "0 1.2em 1.2em", lineHeight: 1.6 }}>{why} Your save says it isn't yet.</p>
+        <Sheet title={why.title} onClose={() => setWhy(null)}>
+          <p style={{ padding: "0 1.2em 1.2em", lineHeight: 1.6 }}>{why.text}</p>
         </Sheet>
       )}
       {menu && (

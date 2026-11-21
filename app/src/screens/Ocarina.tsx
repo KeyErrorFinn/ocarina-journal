@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Header, Seg, Sheet, Tabs } from "../components/chrome";
-import { NOTE_LABEL, NOTE_PITCH, SONGS, type Note } from "../data/content";
+import { NOTE_BUTTON, NOTE_NAME, NOTES, SONG_IDS, SONGS, type Note } from "../data/content";
 import { decodeScore, encodeScore, qrPath, scanScore } from "../data/scorecode";
 import { useOwned } from "../data/rewards";
+import { playNote, playRecording, preload, startNote, type Held, type Voice } from "../data/sound";
 import { useLocal } from "../store";
 import { cat, type Report } from "../report";
 
 const TABS = ["Play", "Game Scores", "Original Scores"] as const;
-const KEYS: Record<string, Note> = { a: "A", ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R" };
+/** Keyboard: the remake's buttons (L R A Y X), or the original's layout (Enter for its A, and the arrows). Hold Q for ♭
+ *  and E for ♯. */
+const KEYS: Record<string, Note> = {
+  l: "A", r: "D", a: "R", y: "L", x: "U",
+  ArrowDown: "D", ArrowRight: "R", ArrowLeft: "L", ArrowUp: "U", Enter: "A",
+};
 
 /** Pictures drawn for this app (src/assets/ocarina): ocarinas, song emblems and tab icons. Missing ones fall back. */
 const ART = import.meta.glob<string>("../assets/ocarina/*.webp", { eager: true, import: "default" });
@@ -15,61 +21,87 @@ const art = (name: string): string | undefined => ART[`../assets/ocarina/${name}
 const TAB_ICONS = { Play: art("tab_play"), "Game Scores": art("tab_scores"), "Original Scores": art("tab_original") };
 const SONG_ART: Record<string, string> = {
   "Zelda's Lullaby": "song_lullaby", "Epona's Song": "song_epona", "Saria's Song": "song_saria", "Sun's Song": "song_sun",
-  "Song of Time": "song_time", "Song of Storms": "song_storms", "Minuet of Forest": "song_minuet", "Bolero of Fire": "song_bolero",
+  "Song of Time": "song_time", "Song of Storms": "song_storms", "Minuet of the Forest": "song_minuet", "Bolero of Fire": "song_bolero",
   "Serenade of Water": "song_serenade", "Requiem of Spirit": "song_requiem", "Nocturne of Shadow": "song_nocturne", "Prelude of Light": "song_prelude",
 };
 
-/** The ocarinas to play: two to start with, two more bought with Rumor Hunt points. Each has its own sound. */
-const OCARINAS = [
-  { id: "blue", name: "Blue Ocarina", wave: "sine" as OscillatorType, vib: 4, reward: null },
-  { id: "clay", name: "Clay Ocarina", wave: "triangle" as OscillatorType, vib: 2, reward: null },
-  { id: "jade", name: "Jade Ocarina", wave: "sine" as OscillatorType, vib: 8, reward: "ocarina-jade" },
-  { id: "gold", name: "Gilded Ocarina", wave: "triangle" as OscillatorType, vib: 6, reward: "ocarina-gold" },
+/** The ocarinas to play: two to start with, two more bought with Rumor Hunt points. Each plays one of the game's two
+ *  sets of ocarina sounds. */
+const OCARINAS: { id: string; name: string; voice: Voice; reward: string | null }[] = [
+  { id: "blue", name: "Blue Ocarina", voice: "Ocarina", reward: null },
+  { id: "clay", name: "Clay Ocarina", voice: "Piccolo", reward: null },
+  { id: "jade", name: "Jade Ocarina", voice: "Ocarina", reward: "ocarina-jade" },
+  { id: "gold", name: "Gilded Ocarina", voice: "Ocarina", reward: "ocarina-gold" },
 ];
 type Ocarina = (typeof OCARINAS)[number];
 
 interface Take { id: string; name: string; at: number; notes: { n: Note; dt: number }[] }
 
-let ctx: AudioContext | null = null;
-function tone(n: Note, o: Ocarina = OCARINAS[0]) {
-  ctx ??= new AudioContext();
-  const t = ctx.currentTime;
-  const osc = ctx.createOscillator(), g = ctx.createGain();
-  osc.type = o.wave; osc.frequency.value = NOTE_PITCH[n];
-  const v = ctx.createOscillator(), vg = ctx.createGain();
-  v.frequency.value = 5.5; vg.gain.value = o.vib; v.connect(vg); vg.connect(osc.frequency);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(o.wave === "sine" ? 0.28 : 0.2, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.7);
-  osc.connect(g).connect(ctx.destination); osc.start(t); v.start(t); osc.stop(t + 0.75); v.stop(t + 0.75);
+/** The six finger holes on the painted ocarinas (percent of the picture), from left to right. */
+const HOLES: [number, number][] = [[24, 40], [38, 31], [53, 31], [31, 62], [47, 60], [68, 49]];
+/** Which holes light for each note: more open holes, higher note. */
+const OPEN: Record<Note, number[]> = { A: [0], D: [0, 3], R: [0, 3, 1], L: [0, 3, 1, 4], U: [0, 1, 2, 3, 4, 5] };
+
+/** One of the remake's buttons, drawn the way the game shows them in a score: a round light key with its letter. */
+function Key({ n, small }: { n: Note; small?: boolean }) {
+  const b = NOTE_BUTTON[n];
+  return <span className={`nkey ${b.length > 1 || b === "L" || b === "R" ? "shoulder" : ""} ${small ? "small" : ""}`}>{b}</span>;
 }
 
-/** Where the five holes sit on the painted ocarinas (percent of the picture), and on the drawn fallback. */
-const HOLES: Record<Note, [number, number]> = { U: [24, 36], L: [38, 30], R: [52, 36], D: [31, 66], A: [45, 66] };
-const POS: Record<Note, [number, number]> = { U: [30, 36], L: [50, 28], R: [70, 36], D: [40, 68], A: [62, 70] };
-
-/** The ocarina with its five holes to play. Uses the chosen ocarina's painting when it is in the app. */
-function Pad({ lit, onNote, ocarina = OCARINAS[0], wide }: { lit: Note | null; onNote: (n: Note) => void; ocarina?: Ocarina; wide?: boolean }) {
-  const pic = art(`ocarina_${ocarina.id}`);
-  const at = pic ? HOLES : POS;
+/** The chosen ocarina, with its holes lighting as notes sound. */
+function Instrument({ lit, ocarina }: { lit: Note | null; ocarina: Ocarina }) {
+  const pic = art(`ocarina_${ocarina.id}`) ?? art("ocarina_blue");
   return (
-    <div className={`ocarina ${wide ? "wide" : ""}`} style={{ aspectRatio: pic ? "16 / 7" : "4 / 3" }}>
-      {pic ? <img src={pic} alt="" className="oc-pic" /> : (
-        <svg viewBox="0 0 100 75" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} aria-hidden>
-          <defs><linearGradient id="oc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4f86d6" /><stop offset="1" stopColor="#173a78" /></linearGradient></defs>
-          <path d="M6 44C6 22 28 8 54 10c26 2 42 14 40 30-2 18-26 28-52 24C20 61 6 56 6 44z" fill="url(#oc)" stroke="#0b1b33" strokeWidth="1.4" />
-          <path d="M90 36l8-6 0 12z" fill="#c8b88a" stroke="#6b5a3a" strokeWidth=".8" />
-          <path d="M18 30c10-10 30-14 46-10" stroke="#fff" strokeWidth="1.2" fill="none" opacity=".4" strokeLinecap="round" />
-        </svg>
-      )}
-      {(Object.keys(at) as Note[]).map((n) => (
-        <button key={n} className={`hole ${pic ? "on-pic" : ""} ${lit === n ? "on" : ""}`} style={{ left: `${at[n][0]}%`, top: `${at[n][1]}%` }}
-          onPointerDown={() => onNote(n)} aria-label={`Note ${NOTE_LABEL[n]}`}>{NOTE_LABEL[n]}</button>
-      ))}
+    <div className="ocarina2">
+      {pic && <img src={pic} alt={ocarina.name} className="oc-pic" />}
+      {HOLES.map(([x, y], i) => <i key={i} className={`oc-hole ${lit && OPEN[lit].includes(i) ? "on" : ""}`} style={{ left: `${x}%`, top: `${y}%` }} />)}
     </div>
   );
 }
 
-/** The grid's rows, by pitch from D5 down to B3, as the original's score view lays them out; each ocarina note sits on
- *  its own pitch (A = D4, ▼ = F4, ▶ = A4, ◀ = B4, ▲ = D5). */
+/** The five note buttons in pitch order, with ♭ and ♯ to hold while pressing one. */
+function Keys({ lit, onDown, onUp, bend, setBend }: { lit: Note | null; onDown: (n: Note) => void; onUp: (n: Note) => void; bend: number; setBend: (b: number) => void }) {
+  const hold = (b: number) => ({ onPointerDown: () => setBend(b), onPointerUp: () => setBend(0), onPointerLeave: () => setBend(0), onPointerCancel: () => setBend(0) });
+  return (
+    <div className="oc-keys">
+      <button className={`oc-bend ${bend < 0 ? "on" : ""}`} aria-label="Hold for flat" {...hold(-1)}>♭</button>
+      {NOTES.map((n) => (
+        <button key={n} className={`oc-key ${lit === n ? "on" : ""}`} aria-label={`Note ${NOTE_NAME[n]} (${NOTE_BUTTON[n]})`}
+          onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); onDown(n); }}
+          onPointerUp={() => onUp(n)} onPointerCancel={() => onUp(n)}>
+          <Key n={n} />
+          <small>{NOTE_NAME[n]}{n === "U" ? "'" : ""}</small>
+        </button>
+      ))}
+      <button className={`oc-bend ${bend > 0 ? "on" : ""}`} aria-label="Hold for sharp" {...hold(1)}>♯</button>
+    </div>
+  );
+}
+
+/** A song as the game writes it: the notes' buttons on a five-line staff, D4 below the bottom line up to D5. */
+function Staff({ notes, done = 0, at = -1 }: { notes: Note[]; done?: number; at?: number }) {
+  // Steps above the bottom line (E4): D4 -1, F4 1, A4 3, B4 4, D5 6.
+  const STEP: Record<Note, number> = { A: -1, D: 1, R: 3, L: 4, U: 6 };
+  const W = 100 + notes.length * 44, H = 120, line = 12, bottom = 80;
+  return (
+    <svg className="staff" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={notes.map((n) => NOTE_BUTTON[n]).join(" ")}>
+      {[0, 1, 2, 3, 4].map((i) => <line key={i} x1="8" x2={W - 8} y1={bottom - i * line} y2={bottom - i * line} />)}
+      <text className="clef" x="12" y={bottom + 14}>𝄞</text>
+      {notes.map((n, i) => {
+        const x = 86 + i * 44, y = bottom - STEP[n] * (line / 2);
+        return (
+          <g key={i} className={i < done ? "hit" : i === at ? "now" : ""}>
+            {n === "A" && <line className="ledger" x1={x - 14} x2={x + 14} y1={bottom + line} y2={bottom + line} />}
+            <circle cx={x} cy={y} r="11" />
+            <text x={x} y={y + 4.5}>{NOTE_BUTTON[n]}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** The grid's rows, by pitch from D (high) down to B, one note per row as the original's score view lays them out. */
 const ROWS = ["D", "C", "B", "A", "G", "F", "E", "D", "C", "B"];
 const ROW_OF: Record<Note, number> = { U: 0, L: 2, R: 3, D: 5, A: 7 };
 const PX = 0.09; // pixels per millisecond
@@ -94,8 +126,8 @@ function Roll({ notes, head = null, done = 0 }: { notes: { n: Note; t: number }[
           {notes.map((x, i) => {
             const len = Math.min(600, (notes[i + 1]?.t ?? x.t + 600) - x.t);
             return (
-              <span key={i} className={`roll-n ${i < done ? "hit" : ""}`} style={{ left: 20 + x.t * PX, top: `${ROW_OF[x.n] * 10}%`, width: Math.max(22, len * PX - 4) }} title={NOTE_LABEL[x.n]}>
-                {ROWS[ROW_OF[x.n]]}<small>{NOTE_LABEL[x.n]}</small>
+              <span key={i} className={`roll-n ${i < done ? "hit" : ""}`} style={{ left: 20 + x.t * PX, top: `${ROW_OF[x.n] * 10}%`, width: Math.max(26, len * PX - 4) }}>
+                <Key n={x.n} small />
               </span>
             );
           })}
@@ -145,6 +177,8 @@ async function saveCard(svg: SVGSVGElement, name: string) {
   a.click();
 }
 
+const BEAT = 620; // ms between notes when the app plays a song's notes
+
 export function Ocarina({ report, onHome, start }: { report: Report | null; onHome: () => void; start?: string | null }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Play");
   const [song, setSong] = useState<string | null>(start ?? null);
@@ -153,55 +187,96 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
   const [ocId, setOcId] = useLocal("ocarina.instrument", "blue");
   const [owned] = useOwned();
   const [lit, setLit] = useState<Note | null>(null);
+  const [bend, setBend] = useState(0);
   const [rec, setRec] = useState<{ n: Note; t: number }[] | null>(null);
   const [naming, setNaming] = useState<Take["notes"] | null>(null);
   const [name, setName] = useState("");
   const [guided, setGuided] = useState(false);
-  const [mode, setMode] = useState<"Play only the beginning" | "Play the full version">("Play the full version");
+  const [mode, setMode] = useState<"Play only the beginning" | "Play the full version">("Play only the beginning");
   const [list, setList] = useState<"Link's Scores" | "Favorites">("Link's Scores");
   const [at, setAt] = useState(0);
+  const [demoAt, setDemoAt] = useState(-1);
   const [msg, setMsg] = useState("");
   const [code, setCode] = useState("");
   const [open, setOpen] = useState<Take | null>(null);
   const [sharing, setSharing] = useState<Take | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [head, setHead] = useState<number | null>(null);
+  const [playing, setPlaying] = useState<{ stop: () => void; secs: number; t0: number } | null>(null);
+  const [now, setNow] = useState(0);
   const timers = useRef<number[]>([]);
   const raf = useRef(0);
+  const held = useRef(new Map<Note, Held>());
   const card = useRef<HTMLDivElement>(null);
   const mine = OCARINAS.filter((o) => !o.reward || owned[o.reward]);
   const ocarina = mine.find((o) => o.id === ocId) ?? OCARINAS[0];
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 1800); };
-  const stopAll = () => { timers.current.forEach(clearTimeout); timers.current = []; cancelAnimationFrame(raf.current); setHead(null); };
+  const stopAll = () => {
+    timers.current.forEach(clearTimeout); timers.current = []; cancelAnimationFrame(raf.current); setHead(null); setDemoAt(-1);
+    setPlaying((p) => { p?.stop(); return null; });
+  };
   /** Moves the playhead across `len` milliseconds. */
   const runHead = (len: number) => {
     const t0 = performance.now();
     const step = () => { const t = performance.now() - t0; if (t > len) return setHead(null); setHead(t); raf.current = requestAnimationFrame(step); };
     raf.current = requestAnimationFrame(step);
   };
+  useEffect(() => { preload(ocarina.voice); }, [ocarina.voice]);
   useEffect(() => stopAll, []);
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => { const e = (performance.now() - playing.t0) / 1000; if (e > playing.secs) setPlaying(null); else setNow(e); }, 100);
+    return () => clearInterval(t);
+  }, [playing]);
 
   const known = new Set((cat(report, "songs")?.entries ?? []).filter((e) => e.have).map((e) => e.label));
-  const seq = (song ? SONGS[song] ?? [] : []).slice(0, mode === "Play only the beginning" ? 3 : undefined);
-  const play = (n: Note, ms = 160) => { tone(n, ocarina); setLit(n); setTimeout(() => setLit(null), ms); };
+  const seq = song ? SONGS[song] ?? [] : [];
+  const play = (n: Note, ms = 380) => { playNote(ocarina.voice, n, ms); setLit(n); setTimeout(() => setLit(null), ms); };
 
-  const press = useCallback((n: Note) => {
-    tone(n, ocarina); setLit(n); setTimeout(() => setLit(null), 160);
+  const down = useCallback((n: Note) => {
+    held.current.get(n)?.stop();
+    held.current.set(n, startNote(ocarina.voice, n, bend));
+    setLit(n);
     setRec((r) => (r ? [...r, { n, t: performance.now() }] : r));
     if (song && guided) setAt((a) => (seq[a] === n ? (a + 1 >= seq.length ? (flash("Well played!"), 0) : a + 1) : a));
-  }, [song, guided, seq, ocarina]);
+  }, [song, guided, seq, ocarina, bend]);
+  const up = useCallback((n: Note) => {
+    held.current.get(n)?.stop();
+    held.current.delete(n);
+    setLit((l) => (l === n ? null : l));
+  }, []);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { const n = KEYS[e.key]; if (n && !e.repeat && !(e.target instanceof HTMLInputElement)) { e.preventDefault(); press(n); } };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [press]);
+    const isText = (e: KeyboardEvent) => e.target instanceof HTMLInputElement;
+    const kd = (e: KeyboardEvent) => {
+      if (isText(e) || e.repeat) return;
+      if (e.key === "q" || e.key === "e") return setBend(e.key === "q" ? -1 : 1);
+      const n = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
+      if (n) { e.preventDefault(); down(n); }
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.key === "q" || e.key === "e") return setBend(0);
+      const n = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
+      if (n) up(n);
+    };
+    window.addEventListener("keydown", kd);
+    window.addEventListener("keyup", ku);
+    return () => { window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku); };
+  }, [down, up]);
 
+  /** Plays the song's notes with the game's note sounds, lighting each on the staff. */
   const demo = () => {
     stopAll(); setGuided(false);
-    seq.forEach((n, i) => timers.current.push(window.setTimeout(() => { play(n, 300); setAt(i + 1); }, i * 650)));
-    timers.current.push(window.setTimeout(() => setAt(0), seq.length * 650 + 300));
-    runHead(seq.length * 650);
+    seq.forEach((n, i) => timers.current.push(window.setTimeout(() => { play(n, 520); setDemoAt(i); }, i * BEAT)));
+    timers.current.push(window.setTimeout(() => setDemoAt(-1), seq.length * BEAT + 300));
+  };
+  /** Plays the game's own recording of the whole song. */
+  const full = async () => {
+    stopAll(); setGuided(false);
+    const id = song && SONG_IDS[song];
+    const r = id ? await playRecording(`Ocarina_${id}`) : null;
+    if (!r) return flash("The game's recording could not be read");
+    setPlaying({ ...r, t0: performance.now() });
   };
 
   const stopRec = () => {
@@ -240,7 +315,7 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
           const have = !o.reward || owned[o.reward];
           const pic = art(`ocarina_${o.id}`);
           return (
-            <button key={o.id} className={`oc-opt ${o.id === ocarina.id ? "on" : ""}`} disabled={!have} onClick={() => { setOcId(o.id); setChoosing(false); tone("A", o); }}>
+            <button key={o.id} className={`oc-opt ${o.id === ocarina.id ? "on" : ""}`} disabled={!have} onClick={() => { setOcId(o.id); setChoosing(false); preload(o.voice); playNote(o.voice, "R"); }}>
               {pic ? <img src={pic} alt="" /> : <span className="glyph">♪</span>}
               <b>{have ? o.name : "???"}</b>
               <small>{have ? (o.id === ocarina.id ? "Playing" : "Tap to play") : "A Rumor Hunt reward"}</small>
@@ -251,13 +326,15 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
     </Sheet>
   );
 
+  const keys = <Keys lit={lit} onDown={down} onUp={up} bend={bend} setBend={setBend} />;
+
   // ---------- one of the player's own scores ----------
   if (open) {
     return (
       <>
         <Header title={open.name} left="back" onLeft={() => { stopAll(); setOpen(null); }} sub="Original Scores" />
         <div className="scroll grain">
-          <Pad lit={lit} onNote={(n) => play(n)} ocarina={ocarina} />
+          <Instrument lit={lit} ocarina={ocarina} />
           <div className="transport">
             <button className="tp" aria-label="Back to the start" onClick={stopAll}>⏮</button>
             <button className="tp big" aria-label="Play" onClick={() => playTake(open)}>▶</button>
@@ -275,20 +352,32 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
 
   // ---------- song detail ----------
   if (song) {
+    const whole = mode === "Play the full version";
     return (
       <>
         <Header title={song} left="back" onLeft={() => { stopAll(); setSong(null); setGuided(false); setAt(0); }} sub="Game Scores"
           right={<button className={`icon-btn fav ${favs[song] ? "on" : ""}`} aria-label="Add to favorites" onClick={() => { const f = { ...favs }; if (f[song]) delete f[song]; else f[song] = true; setFavs(f); }}>{favs[song] ? "★" : "☆"}</button>} />
         <div className="scroll grain">
-          <Pad lit={lit} onNote={press} ocarina={ocarina} />
+          <Instrument lit={lit} ocarina={ocarina} />
           <div className="transport">
             <button className="tp" aria-label="Back to the start" onClick={() => { stopAll(); setAt(0); }}>⏮</button>
-            <button className="tp big" aria-label="Play a demo" onClick={demo}>▶</button>
-            <button className={`pillbtn ${guided ? "lit" : ""}`} onClick={() => { stopAll(); setGuided(!guided); setAt(0); }}>♪ Guided Playback</button>
+            {playing ? <button className="tp big" aria-label="Stop" onClick={stopAll}>■</button>
+              : <button className="tp big" aria-label="Play" onClick={whole ? full : demo}>▶</button>}
+            {!whole && <button className={`pillbtn ${guided ? "lit" : ""}`} onClick={() => { stopAll(); setGuided(!guided); setAt(0); }}>♪ Guided Play</button>}
           </div>
-          <div style={{ margin: "1em" }}><Seg items={["Play only the beginning", "Play the full version"] as const} value={mode} onChange={(m) => { setMode(m); setAt(0); }} /></div>
-          <Roll notes={seq.map((n, i) => ({ n, t: i * 650 }))} head={head} done={at} />
-          <p className="note">{guided ? "Play the notes in order (tap, or use the A key and arrow keys)." : "Press ▶ to hear it, or Guided Playback to follow along."}</p>
+          <div style={{ margin: ".6em 1em" }}><Seg items={["Play only the beginning", "Play the full version"] as const} value={mode} onChange={(m) => { stopAll(); setMode(m); setAt(0); }} /></div>
+          <div className="staff-wrap"><Staff notes={seq} done={guided ? at : 0} at={demoAt} /></div>
+          {whole ? (
+            <>
+              <div className="rec-bar"><i style={{ width: `${playing ? (100 * now) / playing.secs : 0}%` }} /></div>
+              <p className="note">The full version is the game's own recording of {song}, read from your game files.</p>
+            </>
+          ) : (
+            <>
+              {guided && keys}
+              <p className="note">{guided ? "Play the notes in order with the buttons, or the keyboard: L R A Y X." : "Press ▶ to hear it, or Guided Play to play along."}</p>
+            </>
+          )}
         </div>
         {msg && <div className="toast">{msg}</div>}
       </>
@@ -299,18 +388,19 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
   return (
     <>
       <Header title="Ocarina" onLeft={onHome}
-        help="Tap the holes or use the A key and arrow keys. Record a performance and name it, learn the songs you have found with Guided Playback, and share your own scores as a QR card or a code. More ocarinas can be bought with Rumor Hunt points." />
+        help="Play the game's own ocarina sounds with its buttons: L R A Y X (D F A B D) on the keyboard too, or Enter and the arrow keys as in the original. Hold ♭ or ♯ (keyboard Q or E) to bend a note by a semitone, as in the game. Record a performance and name it, learn the songs you have found, and share your own scores as a QR card or a code. More ocarinas can be bought with Rumor Hunt points." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} icons={TAB_ICONS} />
       <div className="scroll grain">
         {tab === "Play" && (
           <>
-            <Pad lit={lit} onNote={press} ocarina={ocarina} wide />
+            <Instrument lit={lit} ocarina={ocarina} />
+            {keys}
             <div className="oc-actions">
               {rec ? <button className="btn" onClick={stopRec}>■ Stop ({rec.length})</button> : <button className="btn ghost" onClick={() => setRec([])}>● Record Performance</button>}
               <button className="pillbtn" onClick={() => setChoosing(true)}>⇄ Change Ocarina</button>
             </div>
             {rec && <Roll notes={rec.map((x) => ({ n: x.n, t: x.t - rec[0].t }))} />}
-            <p className="note">Playing the {ocarina.name}. Notes: A, ▲ ▼ ◀ ▶ (keyboard: A and the arrow keys).</p>
+            <p className="note">Playing the {ocarina.name}. Keyboard: L R A Y X, or Enter and the arrows; hold Q or E for ♭ or ♯.</p>
           </>
         )}
         {tab === "Game Scores" && (

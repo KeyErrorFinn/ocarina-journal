@@ -147,7 +147,7 @@ type Prefs = {
 
 const MAP_DEFAULTS: Prefs = {
   kinds: { chests: true, skulltulas: true, "heart-pieces": true, "heart-containers": true },
-  marks: { stone: true, grotto: true, bean: true, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
+  marks: { stone: true, grotto: true, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
   incompleteOnly: false, contents: true, showLink: true, gamePictures: true, follow: true, era: "child",
 };
 

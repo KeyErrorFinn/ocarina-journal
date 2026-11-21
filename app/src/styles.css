@@ -139,6 +139,10 @@ h1, h2, h3, p { margin: 0; }
 .ttile span.c { font-size: .76em; font-weight: 800; text-align: center; line-height: 1.15; text-shadow: 0 1px 2px #000; }
 .ttile .dot { position: absolute; top: -.35em; right: -.25em; width: 1.05em; height: 1.05em; border-radius: 50%; background: #f5c33b; border: 2px solid #3a2713; z-index: 2; }
 .ttile.lock { opacity: .55; }
+/* Features this app does not offer: greyed out, with a "not available" note on the tile. */
+.ttile.unavailable .frame { filter: grayscale(1) brightness(.55) contrast(.9); }
+.ttile.unavailable span.c { color: #8d8276; }
+.ttile.unavailable::after { content: "Not available"; position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) rotate(-8deg); z-index: 2; padding: .2em .55em; border-radius: 4px; background: rgba(20, 14, 9, .88); border: 1px solid #6d5a44; color: #d8ccb8; font-size: .62em; font-weight: 800; letter-spacing: .03em; white-space: nowrap; pointer-events: none; }
 .ttile .padlock { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); z-index: 2; font-size: 1.6em; font-style: normal; filter: drop-shadow(0 2px 3px #000); }
 
 /* ---------- Timeline ---------- */
@@ -148,6 +152,8 @@ h1, h2, h3, p { margin: 0; }
 .ev .node { position: absolute; left: -2.15em; top: .35em; width: 1.2em; height: 1.2em; transform: rotate(45deg); background: #1a120b; border: 2px solid var(--gold); }
 .ev .t { font-size: .72em; color: var(--muted); }
 .ev .title { font-weight: 800; margin: .15em 0 .5em; }
+.ev .node.save { background: var(--gold); border-color: #fff1c8; }
+.ev-gains { margin: -.3em 0 .6em; font-size: .85em; font-weight: 700; color: #a7dc8a; }
 .shot { display: block; width: 100%; border: 1px solid #3b2d1e; background: #0b0807; aspect-ratio: 16 / 9; position: relative; overflow: hidden; }
 .shot { container-type: inline-size; }
 .shot > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -182,11 +188,12 @@ h1, h2, h3, p { margin: 0; }
 .mk { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 2em; height: 2em; background: none; border: 0; padding: 0; }
 .mk.land { width: 1.7em; height: 1.7em; z-index: 3; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
+.mk-pic { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
-.link { position: absolute; z-index: 5; width: 1.8em; height: 1.8em; transform: translate(-50%, -50%); }
+.link { position: absolute; z-index: 5; width: 1.25em; height: 1.25em; transform: translate(-50%, -50%); pointer-events: none; }
 .wisp { position: relative; display: block; width: 100%; height: 100%; }
-.wisp img { position: absolute; inset: -35%; width: 170%; height: 170%; animation: wisp 2.4s ease-in-out infinite; }
-.wisp-dir { position: absolute; left: 50%; top: -55%; width: 0; height: 0; margin-left: -.32em; border: .32em solid transparent; border-bottom: .5em solid #e8fbff; filter: drop-shadow(0 0 3px #6fd3ff); }
+.wisp img { position: absolute; inset: -20%; width: 140%; height: 140%; animation: wisp 2.4s ease-in-out infinite; }
+.wisp-dir { position: absolute; left: 50%; top: -45%; width: 0; height: 0; margin-left: -.24em; border: .24em solid transparent; border-bottom: .38em solid #e8fbff; filter: drop-shadow(0 0 2px #6fd3ff); }
 @keyframes wisp { 50% { transform: translateY(-6%) scale(1.05); filter: brightness(1.15); } }
 
 /* the game's own map pictures: a draggable, zoomable surface */
@@ -206,8 +213,9 @@ h1, h2, h3, p { margin: 0; }
 .banner small { display: block; font-size: .78em; opacity: .85; text-align: center; font-weight: 700; }
 .banner.dun { background: linear-gradient(180deg, #4b3b6a, #2f2547); }
 .banner.done { filter: saturate(.5) brightness(.95); }
-.dun-dot { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 1.25em; height: 1.25em; border-radius: 50%; padding: 0; border: 2px solid #f1dfb4; background: radial-gradient(circle at 40% 35%, #8a74b8, #3a2c5a); box-shadow: 0 1px 3px #0008; }
-.dun-dot.done { background: radial-gradient(circle at 40% 35%, #b4a98e, #6a6150); }
+/* Dungeons on the world map: a small dark badge with a doorway, gold rimmed; greyed when complete. */
+.dun-dot { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 1.7em; height: 1.7em; border-radius: 50%; padding: 0; border: 2px solid #d9b25f; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23140d07' stroke='%23f1dfb4' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23f1dfb4' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #5b4228, #24170c); box-shadow: 0 0 0 1px #1a1009, 0 2px 4px #000a; }
+.dun-dot.done { filter: grayscale(.85) brightness(.85); }
 .banner.done small::after { content: " ✓"; }
 .exit { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: none; border: 0; padding: 0; display: grid; justify-items: center; color: #fff; }
 .exit .chev { width: 1.9em; height: 1.9em; border-radius: 50%; background: rgba(40,28,16,.88); border: 2px solid #f1dfb4; display: grid; place-items: center; }
@@ -271,12 +279,7 @@ label.avatar img { border-radius: 50%; }
 .hist i { flex: 1; background: linear-gradient(180deg, #f6d56a, #b4791c); }
 .hist i.me { outline: 2px solid #fff; }
 
-/* ---------- Photos / ocarina / quiz ---------- */
-.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .6em; padding: 0 1em 1em; }
-.pgrid button { aspect-ratio: 16/10; border: 1px solid #3b2d1e; background: #0b0807 center/cover; position: relative; padding: 0; overflow: hidden; }
-.ocarina { position: relative; margin: .4em 1em; }
-.hole { position: absolute; width: 4.2em; height: 4.2em; border-radius: 50%; border: 3px solid #0b1b33; background: radial-gradient(circle at 35% 30%, #2d4f86, #07162b); color: #fff; display: grid; place-items: center; font-weight: 800; box-shadow: inset 0 0 0 2px #7aa4e0; transform: translate(-50%, -50%); }
-.hole.on { background: radial-gradient(circle, #ffe9a8, #e8a33d); color: #3d2a0c; }
+/* ---------- ocarina / quiz ---------- */
 .roll { display: flex; margin: 1em 0 .6em; height: 16em; background: #16100b; border-top: 2px solid #5b4630; border-bottom: 2px solid #5b4630; box-shadow: inset 0 0 1.5em #000a; }
 .roll-keys { display: flex; flex-direction: column; width: 2.4em; flex: none; border-right: 1px solid #5b4630; background: #20170f; }
 .roll-keys span { flex: 1; display: grid; place-items: center; font-weight: 700; font-size: .7em; color: #8a7458; }
@@ -348,6 +351,8 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .gq-card .shot::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #000b); }
 .gq-p { position: absolute; left: 0; right: 0; bottom: .35em; text-align: center; font: 700 1.35em var(--display); color: #8fe07a; text-shadow: 0 2px 4px #000; }
 .gq-p small { font-size: .7em; margin-left: .05em; }
+.gq-card .shot img:not(.crop) { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gq-where { position: absolute; left: .5em; top: .4em; right: .5em; text-align: left; font-size: .68em; font-weight: 800; color: #f1e8d6; text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gq-card.done { filter: saturate(.4) brightness(.75); }
 .gq-card.done .gq-p { color: #f1e8d6; font-size: 1em; }
 .gq-bank { flex-direction: column; align-items: stretch; gap: .25em; padding: .7em 1.2em .8em; }
@@ -360,6 +365,8 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .gq-help { text-align: left; margin: 0 .2em; }
 .gq-help summary { cursor: pointer; color: #cdb99c; font-weight: 700; padding: .4em 0; }
 .gq-help .shot { margin: .5em 0; }
+.gq-map { aspect-ratio: 1; border: 2px solid #6a5028; }
+.gq-snap img:not(.crop) { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gq-status { margin: 1.2em 0 .6em; color: #cdb99c; font-weight: 700; }
 .gq-status.warm { color: #8fe07a; }
 .gq-found:disabled { opacity: .45; }
@@ -376,10 +383,34 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .crop-pin { position: absolute; width: 1.1em; height: 1.1em; margin: -1.1em 0 0 -.55em; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e0453a; border: 2px solid #fff; box-shadow: 0 2px 4px #000a; }
 
 /* ---------- Ocarina: painted ocarinas, songs, sharing ---------- */
-.ocarina .oc-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px #000a); }
-.ocarina.wide { margin: .8em .4em; }
-.hole.on-pic { width: 3.4em; height: 3.4em; border: 2px solid #0008; background: radial-gradient(circle at 45% 40%, #0b0d14, #000); box-shadow: inset 0 2px 4px #000, 0 1px 0 #fff4; color: #e9eef8; font-size: .9em; }
-.hole.on-pic.on { background: radial-gradient(circle, #e8fbff, #6fd3ff 55%, #1d6fa8); color: #0b2238; box-shadow: 0 0 18px #8fe3ff, inset 0 0 6px #fff; }
+/* The ocarina: a painting of the instrument whose holes glow as notes sound, the remake's note buttons below it. */
+.ocarina2 { position: relative; aspect-ratio: 2 / 1; margin: .2em .4em 0; }
+.ocarina2 .oc-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 14px #000b); pointer-events: none; }
+.oc-hole { position: absolute; width: 6.5%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); transition: box-shadow .08s, background .08s; }
+.oc-hole.on { background: radial-gradient(circle, #f4fdff 0 25%, #7fdcff 55%, transparent 72%); box-shadow: 0 0 1.1em .3em #8fe3ffcc; }
+.oc-keys { display: flex; justify-content: center; align-items: flex-end; gap: .45em; margin: .2em .6em .9em; touch-action: none; user-select: none; }
+.oc-key { display: flex; flex-direction: column; align-items: center; gap: .25em; padding: 0; background: none; border: 0; color: #cdb99c; }
+.oc-key .nkey { font-size: 1.35em; transition: transform .06s; }
+.oc-key.on .nkey { transform: scale(.92); background: radial-gradient(circle at 40% 35%, #fff, #bfe9ff); box-shadow: 0 0 0 2px #7fdcff, 0 0 14px #8fe3ff; }
+.oc-key small { font-size: .7em; font-weight: 800; letter-spacing: .04em; }
+.oc-bend { width: 2.3em; height: 2.3em; margin-bottom: 1.2em; border-radius: 50%; border: 2px solid #8a6a3a; background: #1a120b; color: #e9dcc0; font-size: 1.05em; font-weight: 800; }
+.oc-bend.on { background: #d9b25f; color: #1a120b; border-color: #fff1c8; }
+/* One of the remake's buttons as the game draws it in a score: a round cream key with a dark letter. */
+.nkey { display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fffdf6, #e6dcc6); color: #1d1610; font: 800 1em var(--body); box-shadow: 0 2px 0 #0007, inset 0 -2px 0 #0002; border: 1.5px solid #2a2017; }
+.nkey.shoulder { border-radius: .55em; width: 2.3em; }
+.nkey.small { font-size: .62em; }
+.staff-wrap { margin: .4em 1em .6em; padding: .4em .2em; background: linear-gradient(180deg, #2a1f15, #1c140d); border: 1px solid #4a3a28; border-radius: 6px; }
+.staff { display: block; width: 100%; height: auto; max-height: 9em; }
+.staff line { stroke: #8a7458; stroke-width: 1; }
+.staff line.ledger { stroke: #b39b78; }
+.staff .clef { font-size: 74px; fill: #6b5a44; font-family: "Segoe UI Symbol", serif; }
+.staff circle { fill: #f6f0e2; stroke: #1d1610; stroke-width: 1.5; }
+.staff g text { font: 800 12px var(--body); text-anchor: middle; fill: #1d1610; }
+.staff g.hit circle { fill: #f6d36b; }
+.staff g.now circle { fill: #bfe9ff; stroke: #7fdcff; filter: drop-shadow(0 0 4px #8fe3ff); }
+.rec-bar { height: .45em; margin: .2em 1.2em .4em; background: #2a1f15; border-radius: 9px; overflow: hidden; }
+.rec-bar i { display: block; height: 100%; background: linear-gradient(90deg, #d9b25f, #f6d36b); transition: width .1s linear; }
+.roll-n .nkey { margin-left: -.2em; }
 .oc-actions { display: flex; gap: .8em; justify-content: center; align-items: center; margin: .4em 0 .8em; flex-wrap: wrap; }
 .oc-actions .btn { margin: 0; }
 .pillbtn.lit { border-color: var(--gold); color: var(--gold); }
@@ -402,27 +433,3 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .icon-btn.fav.on { color: #f6d36b; }
 .share-card { width: 100%; max-width: 18em; display: block; margin: 0 auto; filter: drop-shadow(0 6px 12px #000a); }
 
-/* ---------- Photo Album: milestones, screenshots, editor ---------- */
-.ph-strip { display: flex; gap: .7em; overflow-x: auto; padding: 0 1em .8em; scrollbar-width: none; }
-.ph-stone { flex: none; width: 62%; }
-.ph-stone .shot { background-size: cover; background-position: center; display: grid; place-items: center; }
-.ph-medal { width: 26%; display: block; }
-.ph-n { position: absolute; right: .6em; bottom: .4em; font: 700 1.5em var(--display); color: #f6d36b; text-shadow: 0 2px 4px #000; }
-.ph-cap { flex: none; width: 46%; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
-.ph-cap .shot { background-size: cover; background-position: center; }
-.ph-cap small { color: var(--muted); }
-.ph-edit { position: relative; background: #000; touch-action: none; user-select: none; }
-.ph-edit > img:first-child { width: 100%; display: block; }
-.ph-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.ph-sticker { position: absolute; transform: translate(-50%, -50%); cursor: grab; }
-.ph-sticker.on { outline: 2px dashed #f6d36b; outline-offset: 2px; }
-.ph-title { position: absolute; left: 0; right: 0; top: 86%; transform: translateY(-75%); text-align: center; font: 800 1.3em var(--body); color: #fff7e6; -webkit-text-stroke: 1px #1c140c; text-shadow: 0 2px 3px #000; pointer-events: none; }
-.ph-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6em; padding: .9em 1em; }
-.ph-pick.stickers { grid-template-columns: repeat(4, 1fr); }
-.ph-pick button { display: flex; flex-direction: column; align-items: center; gap: .25em; padding: .4em; background: #1a120b; border: 2px solid #4a3a28; border-radius: 4px; color: inherit; }
-.ph-pick button.on { border-color: var(--gold); }
-.ph-pick button:disabled { opacity: .35; }
-.ph-pick img { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #5a5a5a; }
-.ph-pick.stickers img { aspect-ratio: 1; background: none; }
-.ph-pick .glyph { aspect-ratio: 16 / 9; width: 100%; display: grid; place-items: center; font-size: 1.6em; color: var(--muted); }
-.ph-pick small { font-size: .72em; }
