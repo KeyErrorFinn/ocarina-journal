@@ -3,6 +3,8 @@ import { Header, RefreshBtn, Tabs } from "../components/chrome";
 import { Crest, Ribbon } from "../components/art";
 import { cat, hallTime, prettyArea, type RepEntry, type RepHall, type Report } from "../report";
 import type { Entry } from "../model";
+import { useMapImage } from "../maps";
+import hallBg from "../assets/bg/hall.webp";
 
 const TABS = ["Records", "Rankings"] as const;
 
@@ -19,6 +21,9 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
   };
   const trials = hall.filter((h) => h.id.startsWith("trial/"));
 
+  // A defeated boss's title card, from the player's own game files (see `bossname/` in oj-gamedata's maps.rs).
+  const card = useMapImage(open?.boss && open.have ? `bossname/${open.id.split("/").pop()}` : null);
+
   if (open) {
     const fights = entries.filter((e) => e.type === "battle_ended") as Extract<Entry, { type: "battle_ended" }>[];
     return (
@@ -28,9 +33,15 @@ export function Hall({ report, entries, onHome }: { report: Report | null; entri
         <div className="scroll grain">
           {tab === "Records" ? (
             <>
-              <div style={{ textAlign: "center", padding: "1.4em 0 .4em" }}>
-                <div style={{ width: "5em", margin: "0 auto" }}><Crest name={open.label} /></div>
-                <div className="small muted" style={{ marginTop: ".6em" }}>Status</div>
+              {open.boss ? (
+                <div className="hall-hero" style={{ backgroundImage: `url(${hallBg})` }}>
+                  {card ? <img src={card.url} alt={open.label} /> : <span className="hall-name">{open.have ? open.label : "???"}</span>}
+                </div>
+              ) : (
+                <div style={{ width: "5em", margin: "1.4em auto 0" }}><Crest name={open.label} /></div>
+              )}
+              <div style={{ textAlign: "center", padding: ".6em 0 .4em" }}>
+                <div className="small muted">Status</div>
                 <div className="big" style={{ fontSize: "1.8em" }}>{open.have ? (open.count ? `Defeated ×${open.count}` : "Defeated") : "Not yet"}</div>
                 {open.area && <div className="small muted">{prettyArea(open.area)}</div>}
               </div>

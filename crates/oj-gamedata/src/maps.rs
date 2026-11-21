@@ -287,6 +287,36 @@ fn decode_named(files: &GameFiles, rel: &str, name: Option<&str>) -> Result<Imag
     decode(&d, t)
 }
 
+/// A boss's title card, the lettering the game shows when the boss appears ("Parasitic Armored Arachnid / Gohma"),
+/// from `UI/CustomTex/BossName/Enemy_DungeonBoss_<Boss>_<Lang>`: three single-channel masks (the letters, a glow and a
+/// shadow), drawn here as white letters with a warm glow over a soft shadow, at half size. English (US, then EU).
+fn boss_title(files: &GameFiles, boss: &str) -> Result<Image, Error> {
+    let layer = |kind: &str| {
+        ["USen", "EUen"]
+            .iter()
+            .find_map(|lang| decode_named(files, &format!("UI/CustomTex/BossName/Enemy_DungeonBoss_{boss}{kind}_{lang}.bntx.zs"), None).ok())
+            .ok_or_else(|| Error::Game(format!("no title card for {boss}")))
+    };
+    let text = layer("")?;
+    let (glow, shadow) = (layer("_Glow").ok(), layer("_Sh").ok());
+    let mut out = Image { width: text.width, height: text.height, rgba: vec![0; text.rgba.len()] };
+    let mut paint = |mask: &Image, colour: [u8; 3], strength: f32| {
+        if mask.width != out.width || mask.height != out.height {
+            return;
+        }
+        let top = Image { width: mask.width, height: mask.height, rgba: mask.rgba.chunks_exact(4).flat_map(|p| [colour[0], colour[1], colour[2], (p[0] as f32 * strength) as u8]).collect() };
+        over(&mut out, &top, 1.0);
+    };
+    if let Some(s) = &shadow {
+        paint(s, [0, 0, 0], 0.85);
+    }
+    if let Some(g) = &glow {
+        paint(g, [255, 214, 140], 0.45);
+    }
+    paint(&text, [255, 255, 255], 1.0);
+    Ok(out.half())
+}
+
 /// Pictures served as JPEG (see `map_file`).
 pub fn is_painting(name: &str) -> bool {
     name == "world" || name.starts_with("tapestry/")
@@ -334,6 +364,7 @@ pub fn map_image(files: &GameFiles, name: &str) -> Result<Image, Error> {
             }
         }
         ["tapestry", layer] => crate::tapestry::tapestry_image(files, layer),
+        ["bossname", boss] if safe(boss) => boss_title(files, boss),
         _ => Err(Error::Game(format!("unknown map picture {name:?}"))),
     }
 }

@@ -35,4 +35,8 @@ fn reads_the_game_tapestry() {
     let img = oj_gamedata::maps::map_image(&files, "tapestry/woven").unwrap();
     assert_eq!((img.width, img.height), (1536, 3072));
     assert!(oj_gamedata::maps::map_image(&files, "tapestry/other").is_err());
+    let card = oj_gamedata::maps::map_image(&files, "bossname/Gohma").unwrap();
+    assert_eq!((card.width, card.height), (896, 282));
+    assert!(card.rgba.chunks_exact(4).any(|p| p == [255, 255, 255, 255]));
+    assert!(oj_gamedata::maps::map_image(&files, "bossname/Nobody").is_err());
 }

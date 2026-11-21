@@ -102,6 +102,15 @@ The Tapestry screen shows the tapestry from the game's Threads of Time menu, bui
   the save's `Step_<Quest>` flag; the report keeps them as `step` for the tapestry's logic.
 - Cutscene replay from a section (the Zelda Notes "+") is not done; see `FEATURE_PARITY_MATRIX.md`.
 
+## Boss title cards
+
+The Hall of Foes boss page shows the boss's own title card, the lettering the game shows when a boss appears
+("Infernal Dinosaur / King Dodongo"). It comes from `UI/CustomTex/BossName/Enemy_DungeonBoss_<Boss>_<Lang>.bntx.zs`:
+one 1792×565 BC4 mask each for the letters, a glow (`_Glow`) and a shadow (`_Sh`), in 15 languages. The app
+draws white letters with a warm glow over the shadow, at half size, in English (US, then EU), only for bosses the save
+has defeated. [V] The arena behind it is painted for this app. The game has no 2D pictures of the bosses: they are
+3D models only.
+
 ## Legal note
 
 The map and tapestry pictures are Nintendo's artwork. The app only decodes them from the player's own installed copy, on the player's
