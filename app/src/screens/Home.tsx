@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
-import { ForestBg } from "../components/art";
 import { Sheet, Sync } from "../components/chrome";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
+import homeBg from "../assets/bg/home.webp";
 
 /** Tile pictures drawn for this app (`assets/tiles/<tile id>.webp`), shown inside the shared gold frame. Tiles
  *  without one keep their line icon. */
@@ -104,7 +104,8 @@ export function Home({ s, go, hasNew, reportError }: { s: LiveState; go: (id: st
         : "Game not running · saved data";
   return (
     <div className="titles">
-      <ForestBg />
+      {/* A forest painted for this app (not a scene from the game), dimmed behind the tiles. */}
+      <div className="bg home-bg" style={{ backgroundImage: `url(${homeBg})` }} aria-hidden />
       <div className="top">
         <span style={{ display: "inline-grid", width: "1.6em" }}><Ic.Grid /></span>
         <b>Titles</b>
