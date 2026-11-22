@@ -123,7 +123,7 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
         <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}><Ic.Dots /></button>
       </div>
 
-      <div style={{ position: "relative", zIndex: 2, padding: ".3em 1.2em 0" }}>
+      <div className="home-head" style={{ position: "relative", zIndex: 2, padding: ".3em 1.2em 0" }}>
         <div style={{ fontSize: ".78em", color: "#cfe0c0", textShadow: "0 1px 2px #000" }}>{status}</div>
         {life != null && max != null && (
           <div style={{ margin: ".5em 0 1em", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1em" }}>

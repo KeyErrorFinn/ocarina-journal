@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Back, Chevron, Close, Filter, Gear, Locate } from "../components/icons";
 import { LandIcon, LinkArrow, Marker } from "../components/art";
 import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
@@ -50,8 +50,8 @@ function Paper({ seed, world }: { seed: string; world?: boolean }) {
 /** The part of the picture on screen, as fractions of its width and height, and its width in pixels. */
 export interface View { x0: number; x1: number; y0: number; y1: number; px: number }
 
-export function PanZoom({ aspect, cover, focus, focusKey, children }: {
-  aspect: number; cover?: boolean | number; focus?: { x: number; y: number } | null; focusKey?: string; children: ReactNode | ((zoom: number, view: View) => ReactNode);
+export function PanZoom({ aspect, cover, fit, focus, focusKey, children }: {
+  aspect: number; cover?: boolean | number; fit?: boolean; focus?: { x: number; y: number } | null; focusKey?: string; children: ReactNode | ((zoom: number, view: View) => ReactNode);
 }) {
   const view = useRef<HTMLDivElement>(null);
   const [vw, setVw] = useState(400), [vh, setVh] = useState(800);
@@ -71,7 +71,9 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
   }, []);
 
   const fill = Math.max(1, vh / (vw * aspect));
-  const base = cover === true ? fill : typeof cover === "number" ? Math.min(cover, fill) : 1;
+  // (`fit`: never taller than the view at zoom 1, for tall pictures in a wide window)
+  const base = fit ? Math.min(typeof cover === "number" ? cover : 1, (vh * 0.96) / (vw * aspect))
+    : cover === true ? fill : typeof cover === "number" ? Math.min(cover, fill) : 1;
   const cw = vw * base * z, ch = cw * aspect;
   const clamp = (x: number, y: number, w = cw, h = ch) => ({
     x: w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, x)),
@@ -281,26 +283,21 @@ function Counts({ kinds }: { kinds: AreaRow["kinds"] }) {
   );
 }
 
-/** A place's name on the world map, drawn as a scroll ribbon (dark green for dungeons) with a small tag under it of what
- *  is still to find there, by kind. Hovering it (or focusing it with the keyboard) opens a card of found and missing. */
+/** A place's name on the world map: a small plaque with a ring for how much of it is found. Hovering it (or focusing it
+ *  with the keyboard) opens a card of what has been found there and what is still missing. */
 function Plaque({ name, row, dungeon, dot, side, left, top, onPick }: {
   name: string; row?: AreaRow; dungeon: boolean; dot: boolean; side: string; left: number; top: number; onPick: () => void;
 }) {
   const p = row ? pct(row.have, row.of) : 0, done = !!row && row.have >= row.of;
   const kinds = row ? MAP_KINDS.filter((k) => row.kinds[k]) : [];
-  const missing = kinds.map((k) => [k, row!.kinds[k]![1] - row!.kinds[k]![0]] as const).filter(([, n]) => n > 0);
   return (
     <button className={`plaque ${dot ? "dot" : ""} ${dungeon ? "dun" : ""} ${done ? "done" : ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={onPick}
       aria-label={row ? `${name}, ${p}% found` : name}>
       {!dot && (
         <>
+          {row && <span className="ring" style={{ "--p": p } as CSSProperties}>{done && "✓"}</span>}
           <span className="nm">{name}</span>
-          {done && <span className="ok" aria-hidden>✓</span>}
-          {missing.length > 0 && (
-            <span className="left" aria-hidden>
-              {missing.map(([k, n]) => <span key={k}><Marker kind={k} />{n}</span>)}
-            </span>
-          )}
+          {row && !done && <span className="pc">{p}%</span>}
         </>
       )}
       <span className={`acard ${side}`} role="tooltip">

@@ -83,7 +83,7 @@ export function Tapestry({ report, onHome }: { report: Report | null; onHome: ()
       />
       <div className="tap">
         {idx && base && shadow && woven ? (
-          <PanZoom aspect={2304 / 1152} cover={0.9} focus={{ x: 0.5, y: 0 }} focusKey="top">
+          <PanZoom aspect={2304 / 1152} cover={0.9} fit focus={{ x: 0.5, y: 0 }} focusKey="top">
             <svg viewBox={`0 0 ${idx.width} ${idx.height}`} preserveAspectRatio="none" className="pz-img"
               style={{ pointerEvents: "auto", left: pct(HOLE.left), top: pct(HOLE.top), width: pct(HOLE.width), height: pct(HOLE.height) }}>
               <defs>

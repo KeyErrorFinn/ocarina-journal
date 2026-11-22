@@ -38,17 +38,17 @@ html, body, #root { height: 100%; margin: 0; background: #070504; color: var(--t
 button { font: inherit; color: inherit; cursor: pointer; }
 h1, h2, h3, p { margin: 0; }
 
-/* Phone-shaped column, letterboxed at any window size. */
-.stage { height: 100%; display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #1a120c, #050302); }
+/* The app fills the window at any size. Text scales a little with the window; pages of text and lists keep a column
+   of at most --col wide in the middle, while maps, the tapestry and the home background use the whole window. */
+.stage { height: 100%; background: #050302; }
 .phone {
   /* Dark leather drawn for this app, behind every page (home, map and tapestry draw over it). */
   position: relative; overflow: hidden; background: var(--ink) url(./assets/bg/page.webp) center top / cover no-repeat;
-  height: min(100vh, calc(100vw * 19.5 / 9)); aspect-ratio: 9 / 19.5;
-  font-size: calc(min(100vh, calc(100vw * 19.5 / 9)) / 52);
-  box-shadow: 0 0 0 1px #000, 0 0 60px rgba(0,0,0,.7);
+  width: 100%; height: 100%; --col: 46em;
+  font-size: clamp(14px, min(100vw / 26, 100vh / 46), 19px);
   display: flex; flex-direction: column;
 }
-.scroll { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; }
+.scroll { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; padding-inline: max(0px, calc((100% - var(--col)) / 2)); }
 .scroll::-webkit-scrollbar { display: none; }
 .grain { background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px); background-size: 3px 3px; }
 /* Rumor Hunt glows orange, like hints told by firelight (texture drawn for this app). */
@@ -56,7 +56,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* ---------- Header band ---------- */
 /* Leather band with a torn edge, drawn for this app; below the tear it is transparent over the page. */
-.band { position: relative; flex: none; padding: .7em 1em 2.1em; color: var(--text);
+.band { position: relative; flex: none; padding: .7em max(1em, calc((100% - var(--col)) / 2 + 1em)) 2.1em; color: var(--text);
   background: url(./assets/bg/band.webp) center bottom / cover no-repeat; }
 .band .tools { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; min-height: 2.4em; }
 .band .tools .l, .band .tools .r { display: flex; align-items: center; gap: .15em; }
@@ -78,7 +78,7 @@ h1, h2, h3, p { margin: 0; }
 .tabs.icons .tab { flex-direction: column; gap: .2em; padding-top: .5em; padding-bottom: .5em; font-size: .85em; }
 .tab-ic { width: 2.2em; height: 2.2em; object-fit: contain; opacity: .7; }
 .tab.on .tab-ic { opacity: 1; }
-.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: #4a3320; border-bottom: 2px solid #2a1c10; position: relative; }
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: #4a3320; border-bottom: 2px solid #2a1c10; position: relative; padding-inline: max(0px, calc((100% - var(--col)) / 2)); }
 .tab { background: #5a4129; border: 0; padding: 1em .4em; font: 700 1em var(--body); color: #cdb99c; position: relative; display: flex; justify-content: center; gap: .6em; align-items: center; }
 .tab.on { background: linear-gradient(180deg, #6d4d30, #5a3f27); color: #fff; box-shadow: inset 0 -3px 0 var(--gold); }
 .tab .orn { opacity: .75; font-size: .85em; }
@@ -114,7 +114,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* ---------- Bottom sheet ---------- */
 .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
-.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 78%; background: #14100c; border-top: 1px solid var(--line); display: flex; flex-direction: column; animation: up .18s ease-out; }
+.sheet { position: absolute; left: max(0px, calc(50% - 21em)); right: max(0px, calc(50% - 21em)); bottom: 0; z-index: 41; max-height: 78%; background: #14100c; border-top: 1px solid var(--line); display: flex; flex-direction: column; animation: up .18s ease-out; }
 .sheet .grab { width: 3.2em; height: .3em; background: #5d4c3a; border-radius: 9px; margin: .55em auto .2em; }
 .sheet header { display: flex; align-items: center; justify-content: space-between; padding: .6em 1em; font-weight: 800; }
 .sheet .body { overflow-y: auto; padding: 0 0 1.2em; scrollbar-width: none; }
@@ -130,7 +130,8 @@ h1, h2, h3, p { margin: 0; }
 .titles .top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: .6em; padding: .8em 1em; background: linear-gradient(180deg, rgba(10,8,5,.92), rgba(10,8,5,.4)); }
 .titles .top b { font-weight: 800; }
 .titles .top .logo { margin: 0 auto 0 .2em; font: 700 .85em var(--display); letter-spacing: .12em; color: var(--ochre); text-align: left; line-height: 1.1; }
-.tgrid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3em .9em; padding: 1.2em 1.1em 2em; }
+.tgrid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2em, 1fr)); gap: 1.3em .9em; padding: 1.2em 1.1em 2em; max-width: 64em; margin: 0 auto; }
+.home-head { max-width: 64em; margin: 0 auto; }
 .ttile { background: none; border: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: .55em; position: relative; }
 .ttile .frame { width: 100%; aspect-ratio: 1; border-radius: 6px; border: 2px solid #b78d45; background: linear-gradient(145deg, #e2c887, #b8935a); box-shadow: 0 0 0 1px #3a2713, inset 0 0 0 3px rgba(255,248,220,.25), 0 4px 10px rgba(0,0,0,.5); display: grid; place-items: center; color: #5a3a14; overflow: hidden; }
 .ttile .frame.dark { background: linear-gradient(145deg, #2d2118, #15100b); color: var(--ochre); }
@@ -214,29 +215,23 @@ h1, h2, h3, p { margin: 0; }
 .pz:active { cursor: grabbing; }
 .pz-in { position: absolute; left: 0; top: 0; will-change: transform; }
 .pz-img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-/* A place's name on the world map, as a scroll ribbon: a cream band with folded tails (dark green for dungeons), and
-   under it a small dark tag of what's still to find there. Hovering opens a card of found and missing. */
-.plaque { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .35em; padding: .22em .75em .24em;
-  background: linear-gradient(180deg, #f6eed4, #e4d3a2); border-top: 1.5px solid #5e4220; border-bottom: 1.5px solid #5e4220; color: #33230f;
-  box-shadow: 0 2px 3px #0005; font: 800 .7em var(--body); white-space: nowrap; transition: transform .12s; }
-.plaque::before, .plaque::after { content: ""; position: absolute; z-index: -1; top: .3em; bottom: -.3em; width: .75em; background: linear-gradient(180deg, #d3be86, #b89d5f);
-  border-top: 1.5px solid #5e4220; border-bottom: 1.5px solid #5e4220; }
-.plaque::before { left: -.7em; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 40% 50%); }
-.plaque::after { right: -.7em; clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%); }
-.plaque:hover, .plaque:focus-visible { z-index: 9; transform: translate(-50%, -50%) scale(1.06); outline: none; }
-.plaque .ok { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; background: #5f8f3e; color: #f6eed4; font-size: .8em; font-weight: 900; }
-.plaque .left { position: absolute; left: 50%; top: calc(100% + .3em); transform: translateX(-50%); display: flex; gap: .55em; padding: .12em .5em; border-radius: 99px;
-  background: #1f1a12e6; color: #f1e8d6; font: 800 .92em var(--body); }
-.plaque .left span { display: inline-flex; align-items: center; gap: .15em; }
-.plaque .left svg, .plaque .left .mk-pic { width: 1.25em; height: 1.25em; }
-.plaque.dun { background: linear-gradient(180deg, #3f5f43, #2a4430); color: #eef3dc; border-color: #1c2c1f; }
-.plaque.dun::before, .plaque.dun::after { background: linear-gradient(180deg, #2c4530, #1e3122); border-color: #1c2c1f; }
-.plaque.dun .ok { background: #d9c98a; color: #22361f; }
-/* (dungeons when zoomed out: a round green doorway badge) */
-.plaque.dot { width: 1.7em; height: 1.7em; padding: 0; font-size: 1em; border: 2px solid #d9c98a; border-radius: 50%; justify-content: center;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23101a12' stroke='%23eef3dc' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23eef3dc' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #4d7352, #1e3122); }
-.plaque.dot::before, .plaque.dot::after { display: none; }
-.plaque.dot.done { filter: saturate(.6); }
+/* A place's name on the world map: a dark ink plaque with a gold rim, a ring for how much is found, and a card of
+   what's found and missing on hover. */
+.plaque { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .4em; padding: .28em .7em .28em .32em; border-radius: 99px;
+  background: linear-gradient(180deg, #2e2014f2, #1c130bf2); border: 1.5px solid #c9a24f; box-shadow: 0 2px 5px #0007, inset 0 1px 0 #fff2; color: #fbf0d4; font: 800 .7em var(--body); white-space: nowrap; transition: transform .12s, border-color .12s; }
+.plaque:hover, .plaque:focus-visible { z-index: 9; transform: translate(-50%, -50%) scale(1.06); border-color: #f3d68a; outline: none; }
+.plaque .nm { text-shadow: 0 1px 0 #000a; }
+.plaque .pc { font-size: .86em; font-weight: 700; color: #e9c46a; }
+.plaque .ring { flex: none; width: 1.45em; height: 1.45em; border-radius: 50%; display: grid; place-items: center; font-size: .9em; color: #1b130b;
+  background: radial-gradient(closest-side, #241810 66%, transparent 70%), conic-gradient(#e9c46a calc(var(--p) * 1%), #ffffff24 0); }
+.plaque.done { border-color: #7fb069; }
+.plaque.done .ring { background: radial-gradient(circle at 40% 35%, #b6e39a, #5f9a45); font-weight: 900; }
+.plaque.dun { background: linear-gradient(180deg, #3c2f58f2, #241b38f2); border-color: #b9a6e6; }
+.plaque.dun .ring { background: radial-gradient(closest-side, #241b38 66%, transparent 70%), conic-gradient(#c9b8ff calc(var(--p) * 1%), #ffffff24 0); }
+/* (dungeons when zoomed out: a round doorway badge) */
+.plaque.dot { width: 1.7em; height: 1.7em; padding: 0; font-size: 1em; border: 2px solid #d9b25f; justify-content: center;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23140d07' stroke='%23f1dfb4' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23f1dfb4' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #5b4228, #24170c); }
+.plaque.dot.done { border-color: #7fb069; }
 .acard { position: absolute; left: 50%; bottom: calc(100% + .6em); transform: translateX(-50%); display: none; width: 15.5em; padding: .7em .8em .65em; border-radius: 10px; text-align: left; white-space: normal; cursor: default;
   background: linear-gradient(180deg, #2a1d12, #19110a); border: 1.5px solid #c9a24f; box-shadow: 0 8px 22px #000b; color: #f1e8d6; font: 600 .82rem var(--body); pointer-events: none; }
 .plaque:hover .acard, .plaque:focus-visible .acard { display: block; }
@@ -301,7 +296,7 @@ label.avatar img { border-radius: 50%; }
 .master { filter: drop-shadow(0 0 .35em #ffe9a0) drop-shadow(0 0 .8em #c88bff); }
 .minimedals { display: grid; grid-template-columns: repeat(9, 1fr); gap: .3em; padding: .8em 1em; margin: 0 1em; background: #130e0a; border: 1px solid #3a2b1d; }
 .minimedals svg { width: 100%; }
-.medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em .7em; padding: 1.2em 1em 5em; }
+.medals { display: grid; grid-template-columns: repeat(auto-fill, minmax(7em, 1fr)); gap: .9em .7em; padding: 1.2em 1em 5em; }
 .medal { background: none; border: 0; padding: 0; text-align: center; color: inherit; }
 .medal-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: 1; padding: .55em .5em .5em; background: radial-gradient(circle at 50% 40%, #5b4528, #2e2214 75%); border: 2px solid #8a6a3a; box-shadow: inset 0 0 0 2px #1a120b, inset 0 0 1.2em #000a; }
 .medal-tile > svg, .medal-tile > .medal-art { width: 66%; flex: 1; min-height: 0; }
@@ -313,7 +308,7 @@ label.avatar img { border-radius: 50%; }
 .medal-art img.emblem { width: 55%; height: auto; left: 22.5%; top: 18%; inset-inline-end: auto; bottom: auto; }
 .minimedals .medal-art { width: 100%; }
 .tierrow .medal-art { width: 2.8em; flex: none; }
-.pinned { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; display: flex; justify-content: space-between; align-items: center; padding: .9em 1.3em; background: #0d0a06; border-top: 1px solid #3a2b1d; box-shadow: 0 -6px 14px #000a; font-weight: 800; }
+.pinned { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; display: flex; justify-content: space-between; align-items: center; padding: .9em max(1.3em, calc((100% - var(--col)) / 2 + 1.3em)); background: #0d0a06; border-top: 1px solid #3a2b1d; box-shadow: 0 -6px 14px #000a; font-weight: 800; }
 .tierrow { display: flex; align-items: center; gap: 1em; margin: .8em 1.1em; padding: .9em 1.1em; border: 1px solid #6a5028; background: #2a2016; }
 .tierrow svg { width: 2.8em; }
 .tierrow .v { margin-left: auto; font: 700 1.1em var(--display); }
@@ -366,7 +361,7 @@ label.avatar img { border-radius: 50%; }
 .tap-hit:hover { fill: #fff3d01a; }
 .tap-hit.on { fill: #ffe6a033; }
 .tap-count { position: absolute; top: .7em; right: .8em; padding: .3em .8em; border-radius: 99px; background: #000a; color: #f1e8d6; font: 700 .8em var(--body); pointer-events: none; }
-.tap-cap { position: absolute; left: 1em; right: 1em; bottom: 1em; padding: .8em 1em; display: flex; flex-direction: column; gap: .2em; background: linear-gradient(180deg, #3b2c1a, #231a10); border: 1px solid #8a6a3a; border-radius: 4px; color: #f1e8d6; box-shadow: 0 4px 16px #0008; }
+.tap-cap { position: absolute; left: max(1em, calc(50% - 20em)); right: max(1em, calc(50% - 20em)); bottom: 1em; padding: .8em 1em; display: flex; flex-direction: column; gap: .2em; background: linear-gradient(180deg, #3b2c1a, #231a10); border: 1px solid #8a6a3a; border-radius: 4px; color: #f1e8d6; box-shadow: 0 4px 16px #0008; }
 .tap-cap span { font-size: .85em; color: #cdb99c; }
 input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--line); color: var(--text); padding: .8em; font: inherit; }
 
@@ -389,7 +384,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 
 /* ---------- Rumor Hunt (gossip quests) ---------- */
 .gq-sort { background: #1a120b; color: var(--text); border: 1px solid #6a5028; border-radius: 99px; padding: .3em .8em; font: 700 .8em var(--body); }
-.gq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7em; padding: .7em 1em 1em; }
+.gq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5em, 1fr)); gap: .7em; padding: .7em 1em 1em; }
 .gq-card { content-visibility: auto; contain-intrinsic-size: auto 10em; position: relative; padding: 0; border: 2px solid #6a5028; background: #1a120b; box-shadow: inset 0 0 0 2px #120c07; overflow: hidden; }
 .gq-card .shot { aspect-ratio: 4 / 3; border: 0; }
 .gq-card .shot::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #000b); }
@@ -399,7 +394,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .gq-where { position: absolute; left: .5em; top: .4em; right: .5em; text-align: left; font-size: .68em; font-weight: 800; color: #f1e8d6; text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gq-card.done { filter: saturate(.4) brightness(.75); }
 .gq-card.done .gq-p { color: #f1e8d6; font-size: 1em; }
-.gq-bank { flex-direction: column; align-items: stretch; gap: .25em; padding: .7em 1.2em .8em; }
+.gq-bank { flex-direction: column; align-items: stretch; gap: .25em; padding: .7em max(1.2em, calc((100% - var(--col)) / 2 + 1.2em)) .8em; }
 .gq-bank .num small { font-size: .65em; margin-left: .1em; }
 .gq-detail { text-align: center; padding: 0 1.1em 2em; }
 .gq-points { font: 700 2.2em var(--display); color: #8fe07a; margin: .5em 0 .4em; }
@@ -428,7 +423,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 
 /* ---------- Ocarina: painted ocarinas, songs, sharing ---------- */
 /* The ocarina: a painting of the instrument whose holes glow as notes sound, the remake's note buttons below it. */
-.ocarina2 { position: relative; aspect-ratio: 2 / 1; margin: .2em .4em 0; }
+.ocarina2 { position: relative; aspect-ratio: 2 / 1; margin: .2em auto 0; width: calc(100% - .8em); max-width: min(30em, 80vh); }
 .ocarina2 .oc-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 14px #000b); pointer-events: none; }
 .oc-hole { position: absolute; width: 4.2%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); transition: box-shadow .08s, background .08s; }
 .oc-hole.on { background: radial-gradient(circle, #f4fdff 0 25%, #7fdcff 55%, transparent 72%); box-shadow: 0 0 1.1em .3em #8fe3ffcc; }
@@ -467,7 +462,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .oc-opt img { width: 100%; aspect-ratio: 2 / 1; object-fit: contain; }
 .oc-opt .glyph { font-size: 2em; color: var(--gold); }
 .oc-opt small { color: var(--muted); font-size: .72em; }
-.songs { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em .6em; padding: .9em 1em 1.4em; }
+.songs { display: grid; grid-template-columns: repeat(auto-fill, minmax(7em, 1fr)); gap: .9em .6em; padding: .9em 1em 1.4em; }
 .song { background: none; border: 0; padding: 0; color: inherit; text-align: center; }
 .song .pic { position: relative; display: grid; place-items: center; aspect-ratio: 1; background: radial-gradient(circle at 50% 40%, #5b4528, #2e2214 75%); border: 2px solid #8a6a3a; }
 .song .pic img { width: 78%; height: 78%; object-fit: contain; }
@@ -480,7 +475,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .share-card { width: 100%; max-width: 18em; display: block; margin: 0 auto; filter: drop-shadow(0 6px 12px #000a); }
 
 /* ---------- the bridge card (Home, Today's Journal): a leather panel in the tiles' gold frame ---------- */
-.bridge-card { position: relative; z-index: 2; margin: 0 1em .9em; display: grid; grid-template-columns: auto 1fr; gap: .55em .8em; align-items: center; padding: .75em .85em .8em; background: radial-gradient(120% 140% at 0% 0%, #3a2a1a, #1a120b 70%); border: 2px solid #b78d45; border-radius: 6px; box-shadow: 0 0 0 1px #3a2713, inset 0 0 0 3px #120c07, inset 0 0 0 4px #5a4224, 0 4px 10px rgba(0,0,0,.5); }
+.bridge-card { position: relative; z-index: 2; margin: 0 max(1em, calc((100% - 62em) / 2)) .9em; display: grid; grid-template-columns: auto 1fr; gap: .55em .8em; align-items: center; padding: .75em .85em .8em; background: radial-gradient(120% 140% at 0% 0%, #3a2a1a, #1a120b 70%); border: 2px solid #b78d45; border-radius: 6px; box-shadow: 0 0 0 1px #3a2713, inset 0 0 0 3px #120c07, inset 0 0 0 4px #5a4224, 0 4px 10px rgba(0,0,0,.5); }
 .bridge-card::before, .bridge-card::after { content: ""; position: absolute; top: 5px; width: 9px; height: 9px; border-top: 2px solid var(--ochre); opacity: .8; }
 .bridge-card::before { left: 5px; border-left: 2px solid var(--ochre); }
 .bridge-card::after { right: 5px; border-right: 2px solid var(--ochre); }
@@ -494,3 +489,10 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .bridge-btn { flex: 1; padding: .55em .6em; border-radius: 3px; font: 800 .82em var(--body); color: #fff; background: linear-gradient(180deg, #9a7740, #6d5129); border: 1px solid #d9b25f; box-shadow: 0 2px 0 #3d2b14, inset 0 1px 0 #ffffff26; }
 .bridge-btn.ghost { color: #e9dcc0; background: #120d09; border-color: #6a5028; box-shadow: none; }
 .bridge-btn:active { transform: translateY(1px); box-shadow: none; }
+
+/* Short windows: a slimmer header band so the page keeps most of the height. */
+@media (max-height: 640px) {
+  .band { padding-top: .35em; padding-bottom: 1.5em; }
+  .band h1 { font-size: 1.5em; }
+  .band .sub { margin-top: 0; }
+}
