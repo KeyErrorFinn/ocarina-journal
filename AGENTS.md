@@ -50,6 +50,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 $env:OJ_TEST_GAME = "<Longshot folder holding romfs>"; cargo test -p oj-gamedata   # tests that need the game
+# On Linux the same commands work in a shell; set the variable with: OJ_TEST_GAME=<folder> cargo test -p oj-gamedata
 
 # app/
 pnpm install
@@ -69,6 +70,11 @@ Tests that read the game skip silently without `OJ_TEST_GAME`; say so if you cou
 - Save flags are murmur3 hashes (`oj_savefile::flag_hash`). `GameData::find` sees only top-level flags; read
   struct members such as `HavePlayedEvent.*` with `sav.get(flag_hash(name))`.
 - The interface resizes freely: check narrow (about 450 px) and wide windows.
+- Windows and Linux are both supported. Keep host-specific paths and names in `app/src-tauri/src/platform.rs` and
+  `crates/oj-savefile` (`default_data_dir`), behind `cfg(windows)` / `cfg(unix)`, and write cross-platform code
+  otherwise. Facts about Longshot on Linux are in `docs/research/LINUX.md`; mark anything new [V], [I] or [U].
+  You can't build the Linux app on Windows: CI is the check for it, and for library crates
+  `cargo check --target x86_64-unknown-linux-gnu` works (except `oj-gamedata`, which needs a Linux C compiler).
 - Follow the guide in [docs/workflows/](docs/workflows) when adding a quiz question, medal, map marker kind,
   landmark kind or save flag.
 

@@ -211,9 +211,26 @@ impl SlotSummary {
     }
 }
 
-/// Where Longshot keeps saves on Windows: `%APPDATA%\Longshot\save\<user id>`; the first user folder found.
+/// Longshot's launcher data root (the same path its `--user` option accepts).
+pub fn default_data_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    return Some(PathBuf::from(std::env::var_os("APPDATA")?).join("Longshot"));
+    #[cfg(unix)]
+    {
+        let base = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .or_else(|| Some(PathBuf::from(std::env::var_os("HOME")?).join(".local/share")))?;
+        Some(base.join("longshot"))
+    }
+}
+
+/// The first user folder under Longshot's save root. `OJ_SAVE_DIR` selects one explicitly.
 pub fn default_save_dir() -> Option<PathBuf> {
-    let root = PathBuf::from(std::env::var_os("APPDATA")?).join("Longshot").join("save");
+    if let Some(dir) = std::env::var_os("OJ_SAVE_DIR").map(PathBuf::from).filter(|p| p.is_dir()) {
+        return Some(dir);
+    }
+    let root = default_data_dir()?.join("save");
     let mut users: Vec<_> = std::fs::read_dir(root).ok()?.flatten().filter(|e| e.path().is_dir()).collect();
     users.sort_by_key(|e| e.file_name());
     users.into_iter().next().map(|e| e.path())

@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "targets": ["deb", "rpm", "appimage"],
+    "category": "Utility",
+    "shortDescription": "Unofficial read-only companion journal for the Longshot PC recompilation of Ocarina of Time",
+    "longDescription": "Ocarina Journal reads your own saves and game files, and follows the game live over Longshot's local, read-only control bridge, to show what you have found, what you have missed and how your day of play went. It contains no game files. Not affiliated with or endorsed by Nintendo."
+  }
+}

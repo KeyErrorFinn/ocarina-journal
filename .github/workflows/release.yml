@@ -1,5 +1,7 @@
-# Builds the Windows installer from a version tag (v0.1.0, ...) and attaches it to a draft GitHub Release, which a
-# maintainer checks and publishes. Releases are built here from tagged source only, never uploaded by hand.
+# Builds the Windows installer and the Linux packages (.deb, .rpm, AppImage) from a version tag (v1.1.0, ...) and
+# attaches them to a draft GitHub Release, which a maintainer checks and publishes. Releases are built here from
+# tagged source only, never uploaded by hand. The Linux job waits for the Windows one so the two never race to create
+# the draft release.
 name: Release
 
 on:
@@ -59,6 +61,70 @@ jobs:
           args: --bundles nsis
           tagName: ${{ github.ref_name }}
           releaseName: Ocarina Journal ${{ github.ref_name }}
-          releaseBody: Unofficial read-only Windows companion. See CHANGELOG.md, THIRD_PARTY_NOTICES.md and the corresponding source for details. No game files or saves are included. The Windows installer is unsigned.
+          releaseBody: Unofficial read-only companion for Windows and Linux. See CHANGELOG.md, THIRD_PARTY_NOTICES.md and the corresponding source for details. No game files or saves are included. The Windows installer and the Linux packages are unsigned.
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  linux:
+    needs: windows
+    # 22.04 rather than the newest image: a build links the system's glibc, so an older one runs on more distributions.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: System packages (Tauri's Linux prerequisites)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev patchelf rpm
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - name: Check tag and package versions
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Expected a version tag, got $tag" }
+          $version = $tag.Substring(1)
+          $app = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
+          $tauri = (Get-Content app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $workspace = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages |
+            Where-Object name -eq 'ocarina-journal' | Select-Object -ExpandProperty version
+          if ($LASTEXITCODE -ne 0) { throw 'cargo metadata failed' }
+          if ($app -ne $version -or $tauri -ne $version -or $workspace -ne $version) {
+            throw "Tag $tag must match package.json ($app), tauri.conf.json ($tauri), and Cargo ($workspace)"
+          }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - run: pnpm check
+        working-directory: app
+      - name: glib string-iterator tripwire (RUSTSEC-2024-0429)
+        run: python3 scripts/check-linux-glib.py
+      - name: Remap source paths in release binaries
+        run: |
+          # CARGO_ENCODED_RUSTFLAGS separates flags with the control character 0x1f (octal 037).
+          {
+            printf 'CARGO_ENCODED_RUSTFLAGS=--remap-path-prefix=%s=/source' "$GITHUB_WORKSPACE"
+            printf '\037--remap-path-prefix=%s=/cargo\n' "${CARGO_HOME:-$HOME/.cargo}"
+          } >> "$GITHUB_ENV"
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # AppImage tooling runs without FUSE on the runner.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        with:
+          projectPath: app
+          args: --bundles deb,rpm,appimage
+          tagName: ${{ github.ref_name }}
+          releaseName: Ocarina Journal ${{ github.ref_name }}
+          releaseBody: Unofficial read-only companion for Windows and Linux. See CHANGELOG.md, THIRD_PARTY_NOTICES.md and the corresponding source for details. No game files or saves are included. The Windows installer and the Linux packages are unsigned.
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}

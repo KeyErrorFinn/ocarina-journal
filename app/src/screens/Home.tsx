@@ -50,17 +50,18 @@ interface Preview {
 
 /** The two consented actions: turn the bridge on in longshot_env.txt (for every launch), or start the game with it on. */
 export function BridgeActions({ s }: { s: LiveState }) {
+  const persistent = s.bridge_config_supported !== false;
   const [sheet, setSheet] = useState<null | "enable" | "launch">(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   // Whether longshot_env.txt already turns the bridge on (read-only check), so the card doesn't offer it twice.
   const [isOn, setIsOn] = useState(false);
   useEffect(() => {
-    if (s.mode === "live") return;
+    if (s.mode === "live" || !persistent) return;
     invoke<Preview>("preview_enable_bridge")
       .then((p) => setIsOn(!!p.already))
       .catch(() => setIsOn(false));
-  }, [s.mode, msg]);
+  }, [s.mode, msg, persistent]);
   const run = (cmd: string) =>
     invoke<string>(cmd, { confirm: true })
       .then(setMsg)
@@ -84,17 +85,19 @@ export function BridgeActions({ s }: { s: LiveState }) {
                 : "Live bridge is off"}
           </b>
           <span>
-            {isOn
-              ? s.mode === "bridge_off"
-                ? "The bridge is turned on, but this game was started before it was."
-                : "Start Longshot and the app follows Link live."
-              : s.mode === "bridge_off"
-                ? "Turn it on, then restart Longshot to follow Link live."
-                : "Turn it on once to follow Link live on every launch."}
+            {!persistent
+              ? "Start Longshot from here for live tracking, or configure its local socket as described in the Linux guide."
+              : isOn
+                ? s.mode === "bridge_off"
+                  ? "The bridge is turned on, but this game was started before it was."
+                  : "Start Longshot and the app follows Link live."
+                : s.mode === "bridge_off"
+                  ? "Turn it on, then restart Longshot to follow Link live."
+                  : "Turn it on once to follow Link live on every launch."}
           </span>
         </div>
         <div className="bridge-btns">
-          {!isOn && (
+          {!isOn && persistent && (
             <button
               className="bridge-btn"
               onClick={() => {
@@ -166,8 +169,8 @@ export function BridgeActions({ s }: { s: LiveState }) {
         <Sheet title="Start Longshot" onClose={() => setSheet(null)}>
           <div style={{ padding: "0 1.2em", lineHeight: 1.55, fontSize: ".9em" }}>
             <p>
-              This starts <b>longshot.exe</b> from your game folder with the control bridge on (<b>HOS_CONTROL={s.pipe || "longshot"}</b>, for this launch only)
-              and your normal saves. Nothing is changed on disk.
+              This starts Longshot from your game folder with the control bridge on (<b>HOS_CONTROL={s.pipe || "longshot"}</b>, for this launch only) and your
+              normal saves. Nothing is changed on disk.
             </p>
             <p className="muted small">
               If you usually start the game from the Longshot Launcher, that works too, but the bridge is off unless you turn it on.
@@ -200,6 +203,7 @@ export function Home({
 }) {
   const [menu, setMenu] = useState(false);
   const [why, setWhy] = useState<{ title: string; text: string } | null>(null);
+  const persistent = s.bridge_config_supported !== false;
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
   const life = live ? s.game!.life : (slot?.life ?? null);
@@ -294,7 +298,7 @@ export function Home({
             </p>
             {s.version && <p className="muted small">{s.version}</p>}
             <p className="muted small" style={{ overflowWrap: "anywhere" }}>
-              Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}
+              {persistent ? "Pipe" : "Socket"}: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}
             </p>
             <p className="muted small">Game folder: {s.game_dir ?? "not detected (found when the game runs, or set OJ_GAME)"}</p>
             <p className="small" style={{ color: reportError ? "var(--amber)" : "var(--teal)" }}>
@@ -302,8 +306,14 @@ export function Home({
             </p>
             {s.mode === "bridge_off" && (
               <p style={{ marginTop: ".8em" }}>
-                Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>, or add that line to{" "}
-                <b>longshot_env.txt</b> in the game folder. This app will not change your files without asking.
+                Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>
+                {persistent ? (
+                  <>
+                    , or add that line to <b>longshot_env.txt</b> in the game folder. This app will not change your files without asking.
+                  </>
+                ) : (
+                  <>, or close it and use Start game from this app. This app will not change your files without asking.</>
+                )}
               </p>
             )}
             <p className="muted small" style={{ marginTop: "1em" }}>

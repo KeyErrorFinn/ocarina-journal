@@ -1,5 +1,6 @@
-# Checks every pull request and every push to master: Rust formatting, lints and tests; the app's type check, lints,
-# formatting and build; and the repository rules that a machine can check (docs/RULES.md).
+# Checks every pull request and every push to master: Rust formatting, lints and tests on Windows and Linux; a Linux
+# build that is started in a virtual display; the app's type check, lints, formatting and build; and the repository
+# rules that a machine can check (docs/RULES.md).
 name: CI
 
 on:
@@ -17,7 +18,7 @@ concurrency:
 jobs:
   rust:
     name: Rust (fmt, clippy, tests)
-    # Windows: the bridge talks over a Windows named pipe and the app is Windows-only.
+    # Windows: the bridge talks over a Windows named pipe here (the Linux job below covers the Unix socket).
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +33,45 @@ jobs:
       - name: Tests
         # Tests that read a real game install skip here (no OJ_TEST_GAME); contributors run them locally.
         run: cargo test --workspace
+
+  linux:
+    name: Linux (clippy, tests, build, smoke test)
+    # 22.04 rather than the newest image: a build links the system's glibc, so an older one runs on more distributions.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: System packages (Tauri's Linux prerequisites, and a virtual display for the smoke test)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev patchelf xvfb x11-utils
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        # Includes the bridge client against a real Unix socket. Tests that need a game install skip here.
+        run: cargo test --workspace
+      - name: glib string-iterator tripwire (RUSTSEC-2024-0429)
+        run: python3 scripts/check-linux-glib.py
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - name: Release build, without packaging
+        run: pnpm tauri build --no-bundle
+        working-directory: app
+      - name: Start it with no game, and with a synthetic report
+        # No game, saves or user data exist on the runner; the script supplies none (docs/RULES.md).
+        run: xvfb-run -a python3 scripts/smoke-linux.py target/release/ocarina-journal
 
   app:
     name: App (types, lint, format, build)
