@@ -20,6 +20,8 @@ that changes what players see.
   mechanism the app edits there, and nothing equivalent is established for Linux.
 - The app's data folder, saves and game folder are resolved per platform (`app/src-tauri/src/platform.rs`).
 - The launch and About texts no longer name `longshot.exe`.
+- Dependencies updated: qrcode-generator 2 (the share-code QR images are unchanged), Vite 8, TypeScript 6, zstd 0.14,
+  sysinfo 0.40 (a failure to list processes now counts as "game not detected" instead of a crash) and jiff 1.0.
 
 
 ## 1.0.0 - 2026-11-22
