@@ -41,6 +41,13 @@ report) on both platforms.
 - The bridge client (`crates/oj-bridge`) opens a `UnixStream` on Linux. A test serves the fixture on a real
   Unix socket (`talks_to_a_real_unix_socket`) and runs on Linux in CI.
 
+## Install tests
+
+The published 1.1.0 packages were installed and started on clean hosted machines: `.deb` on Ubuntu 22.04 and 24.04,
+`.rpm` on Fedora, and the AppImage on Ubuntu 22.04, each showing the real window. The machines needed what a desktop
+has: a D-Bus session bus (without one the first window took about 30 s on Ubuntu) and system graphics libraries
+(the AppImage does not bundle `libEGL`). Details in [the 1.1.0 validation](../releases/1.1.0-validation.md).
+
 ## What is not verified
 
 - **[U]** A full run of the Linux app against a live Linux Longshot game. CI builds and starts the app in a virtual

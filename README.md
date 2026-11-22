@@ -102,9 +102,14 @@ Running the same version repairs it. New installers reject downgrades.
 Releases include a `.deb`, an `.rpm` and an AppImage for x86_64, all unsigned. They are built on Ubuntu 22.04, so
 the glibc they need is that old or older. The app uses the system's WebKitGTK 4.1 (`libwebkit2gtk-4.1`) and GTK 3.
 
-- **AppImage:** `chmod +x Ocarina.Journal_*.AppImage`, then run it.
+- **AppImage:** `chmod +x Ocarina.Journal_*.AppImage`, then run it. It uses your system's graphics libraries
+  (EGL, from Mesa or your GPU driver), which any desktop install has.
 - **Debian, Ubuntu:** `sudo apt install ./Ocarina.Journal_*.deb`
 - **Fedora, openSUSE:** `sudo dnf install ./Ocarina.Journal-*.rpm`
+
+All three were installed and started on clean Ubuntu 22.04 and 24.04 and Fedora machines before release (see
+[the 1.1.0 validation](docs/releases/1.1.0-validation.md)). They expect an ordinary desktop session, including a
+D-Bus session bus.
 
 Where it looks, on Linux, for what it reads (verified against Longshot's own documentation; details and what is
 still unverified are in [`docs/research/LINUX.md`](docs/research/LINUX.md)):
