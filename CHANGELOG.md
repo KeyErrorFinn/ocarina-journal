@@ -6,6 +6,10 @@ that changes what players see.
 
 ## Unreleased
 
+## 1.1.0 - 2026-11-22
+
+Adds the Linux build and updates every dependency.
+
 ### Added
 - Linux build (x86_64): `.deb`, `.rpm` and AppImage packages, built by the release workflow on Ubuntu 22.04. The
   app finds the game in `~/Games/Longshot` and saves in `~/.local/share/longshot`, and follows the game over a
