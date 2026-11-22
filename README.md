@@ -18,7 +18,7 @@ have missed, and how your day of play went. It runs on your own PC, from your ow
 > Ocarina Journal contains no game files, keys, Nintendo assets or Nintendo source code. All artwork in the
 > app is original. "Zelda", "Ocarina of Time" and related names belong to Nintendo.
 
-**Status: early, working prototype.** It runs and reads real saves, but expect rough edges. Several details
+**Status: 1.0.0, first public release.** It runs and reads real saves, but expect rough edges. Several details
 are still unverified; they are listed under [Known gaps](#known-gaps).
 
 ## What it does
@@ -71,8 +71,12 @@ uploaded anywhere.
   [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for Windows (WebView2, MSVC build tools)
 
 Windows installers are published under [Releases](https://github.com/KeyErrorFinn/ocarina-journal/releases)
-when available. This early prototype is unsigned. It installs for the current Windows user and requires
+as unsigned Windows x64 installers. It installs for the current Windows user and requires
 WebView2; your game files and saves are supplied separately and are never bundled. Build from source below.
+
+To update, close Ocarina Journal and run the new `-setup.exe`. It updates the existing installation in the same
+folder, preserves your settings and journal data, and keeps one entry in Windows Installed apps. You do not
+need to uninstall first. Running the same version repairs it. New installers reject downgrades. Downloads are manual; the app does not check for updates or contact a server.
 
 ## Build and run
 

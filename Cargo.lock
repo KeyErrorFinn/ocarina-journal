@@ -2222,7 +2222,7 @@ dependencies = [
 
 [[package]]
 name = "ocarina-journal"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "jiff",
  "oj-bridge",
@@ -2240,7 +2240,7 @@ dependencies = [
 
 [[package]]
 name = "oj-bridge"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures",
  "oj-protocol",
@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "oj-gamedata"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "jpeg-encoder",
  "oj-savefile",
@@ -2267,7 +2267,7 @@ dependencies = [
 
 [[package]]
 name = "oj-journal"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "oj-protocol",
  "oj-testkit",
@@ -2277,7 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "oj-protocol"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2286,7 +2286,7 @@ dependencies = [
 
 [[package]]
 name = "oj-savefile"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -2294,7 +2294,7 @@ dependencies = [
 
 [[package]]
 name = "oj-testkit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures",
  "oj-protocol",

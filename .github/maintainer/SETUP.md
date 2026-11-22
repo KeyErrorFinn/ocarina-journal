@@ -20,7 +20,7 @@ Starter issues: [clean Windows setup (#1)](https://github.com/KeyErrorFinn/ocari
 [Tapestry states (#4)](https://github.com/KeyErrorFinn/ocarina-journal/issues/4).
 
 At this initial snapshot, publishing source/workflows and building the first release were still pending.
-See [0.1.0 validation](../../docs/releases/0.1.0-validation.md) for the subsequent source publication, privacy
+See [1.0.0 validation](../../docs/releases/1.0.0-validation.md) and [candidate validation](../../docs/releases/0.1.0-validation.md) for source publication, privacy
 cleanup, installer tests and release gates. Uploading a social preview remains optional.
 Social-preview upload could not be completed because the browser access host was unavailable.
 The README still needs a sanitized no-game/synthetic UI screenshot; no gameplay screenshot has been committed.
@@ -91,10 +91,11 @@ Issue form labels only apply if those labels exist on GitHub.
    notices and target-specific dependencies. Record accepted maintenance risks or replace affected dependencies.
 2. Confirm `Cargo.toml` workspace version, `app/package.json` and `app/src-tauri/tauri.conf.json` agree. Move
    release notes from Unreleased into a dated version section in `CHANGELOG.md`.
-3. Commit and push the reviewed release source. Create and push `v0.1.0` only when ready to make that release.
+3. Commit and push the reviewed release source. Create and push `v1.0.0` only when ready to make that release.
    This starts `release.yml`; it builds the Windows installers into a **draft** GitHub Release. The workflow
    rejects mismatched tag/package versions. Tags with a hyphen are marked prereleases.
-4. Download the draft installer and check it on Windows. It is unsigned unless signing is separately configured;
+4. Download the draft installer and check it on Windows, including a fresh install and an in-place upgrade
+   following [the installer checks](../../app/src-tauri/windows/README.md). It is unsigned unless signing is separately configured;
    no signing certificate is supplied by this setup. Check that no game data or personal files are bundled.
 5. Publish the draft after acceptance. The latest-release badge will have no release to display until then.
 

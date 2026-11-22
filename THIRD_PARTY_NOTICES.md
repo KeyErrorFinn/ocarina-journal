@@ -26,3 +26,6 @@ Rust crates, frontend libraries and the Cinzel/Nunito Sans fonts retain their ow
 third-party licence file includes their notices and source locations, including MIT, Apache-2.0, BSD, MPL-2.0,
 Unicode and SIL Open Font License texts as applicable. Build-time dependencies are included in the notice set.
 Third-party notices do not change the licences of those components.
+
+The Windows NSIS installer template is adapted from Tauri CLI 2.12.6 under its MIT licence. Its upstream
+revision, local changes and licence are in [app/src-tauri/windows](app/src-tauri/windows/README.md).

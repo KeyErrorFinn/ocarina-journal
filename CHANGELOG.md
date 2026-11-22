@@ -6,7 +6,16 @@ that changes what players see.
 
 ## Unreleased
 
-## 0.1.0 - 2026-11-22
+## 1.0.0 - 2026-11-22
+
+First public release; includes all features and fixes from the 0.1.0 release candidate below.
+
+### Changed
+- Windows installers now update the existing installation in place, including 0.1.0 installs. They reuse its
+  folder and installed-app entry, preserve local data and shortcuts, and never run its uninstaller.
+- Reinstalling the same version repairs the existing copy. Installing an older version over a newer one is blocked.
+
+## 0.1.0 - 2026-11-22 (release candidate)
 
 ### Added
 - Map of Hyrule and every area from the player's own game files, with chests, Gold Skulltulas and hearts, what
