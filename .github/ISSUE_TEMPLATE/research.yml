@@ -1,0 +1,32 @@
+name: Research finding
+description: Something is counted, named or placed wrongly, or you worked out a game fact (a flag, a tier, a format)
+labels: [research, needs-triage]
+body:
+  - type: textarea
+    id: claim
+    attributes:
+      label: What you found
+      description: "For example: the trial clears are stored in flag X; the Foe Hunter medal counts Y; this chest is on the wrong floor."
+    validations:
+      required: true
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: How sure are you
+      options:
+        - "[V] Verified: I checked it against real files or a real save"
+        - "[I] Inferred: it follows from evidence, but I didn't check it directly"
+        - "[U] A guess or an open question"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and how you checked it
+      description: What you did and what you saw. Describe game data in words or values; don't attach game files or copyrighted art.
+    validations:
+      required: true
+  - type: input
+    id: longshot
+    attributes:
+      label: Longshot version and game revision

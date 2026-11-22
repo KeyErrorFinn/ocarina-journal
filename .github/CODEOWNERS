@@ -1,0 +1,9 @@
+# The maintainer reviews everything; these lines make it explicit for the parts where a mistake costs the most.
+*                       @KeyErrorFinn
+/crates/oj-bridge/      @KeyErrorFinn
+/crates/oj-protocol/    @KeyErrorFinn
+/crates/oj-savefile/    @KeyErrorFinn
+/app/src-tauri/         @KeyErrorFinn
+/.github/               @KeyErrorFinn
+/docs/RULES.md          @KeyErrorFinn
+/LICENSE                @KeyErrorFinn

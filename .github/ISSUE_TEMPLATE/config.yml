@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or "does it work with my setup?"
+    url: https://github.com/KeyErrorFinn/ocarina-journal/discussions/categories/q-a
+    about: Ask in Discussions. Issues are for bugs, research findings and agreed features.
+  - name: An idea
+    url: https://github.com/KeyErrorFinn/ocarina-journal/discussions/categories/ideas
+    about: Share it in Discussions, where people can upvote and talk it through.
+  - name: The game itself crashes or misbehaves
+    url: https://github.com/Recomper/Longshot/issues
+    about: Problems in Longshot belong to the Longshot project.
+  - name: A security problem
+    url: https://github.com/KeyErrorFinn/ocarina-journal/security/advisories/new
+    about: Report it privately, not in a public issue.

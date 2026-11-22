@@ -1,0 +1,56 @@
+# Builds the Windows installer from a version tag (v0.1.0, ...) and attaches it to a draft GitHub Release, which a
+# maintainer checks and publishes. Releases are built here from tagged source only, never uploaded by hand.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - name: Check tag and package versions
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Expected a version tag, got $tag" }
+          $version = $tag.Substring(1)
+          $app = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
+          $tauri = (Get-Content app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $workspace = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages |
+            Where-Object name -eq 'ocarina-journal' | Select-Object -ExpandProperty version
+          if ($LASTEXITCODE -ne 0) { throw 'cargo metadata failed' }
+          if ($app -ne $version -or $tauri -ne $version -or $workspace -ne $version) {
+            throw "Tag $tag must match package.json ($app), tauri.conf.json ($tauri), and Cargo ($workspace)"
+          }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - run: pnpm check
+        working-directory: app
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_name }}
+          releaseName: Ocarina Journal ${{ github.ref_name }}
+          releaseBody: See CHANGELOG.md for what changed. Unofficial fan app; it contains no game files.
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

@@ -1,0 +1,81 @@
+# Checks every pull request and every push to master: Rust formatting, lints and tests; the app's type check, lints,
+# formatting and build; and the repository rules that a machine can check (docs/RULES.md).
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, tests)
+    # Windows: the bridge talks over a Windows named pipe and the app is Windows-only.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Formatting
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        # Tests that read a real game install skip here (no OJ_TEST_GAME); contributors run them locally.
+        run: cargo test --workspace
+
+  app:
+    name: App (types, lint, format, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Type check, ESLint, Prettier
+        run: pnpm check
+      - name: Build
+        run: pnpm build
+
+  rules:
+    name: Repository rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: No game files, saves or agent hooks
+        run: |
+          bad=$(git ls-files | grep -Ei '(^|/)romfs/|\.(sav|bwav|bwar|bars|bntx|bfres|zs|sarc|bcett|byml|msbt|nca|nsp|xci|keys)$|(^|/)\.(claude|codex|cursor)/' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::These files can't be in the repository (docs/RULES.md):"; echo "$bad"; exit 1
+          fi
+      - name: Pictures stay small
+        run: |
+          big=$(git ls-files -z 'app/src/assets/*' 'assets/*' | while IFS= read -r -d '' f; do
+            case "$f" in
+              *.png|*.jpg|*.jpeg|*.webp|*.gif|*.svg|*.ico|*.icns)
+                s=$(stat -c %s "$f")
+                if [ "$s" -gt 1048576 ]; then printf '%s %s KB\n' "$f" "$((s / 1024))"; fi
+                ;;
+            esac
+          done)
+          if [ -n "$big" ]; then
+            echo "::error::Pictures over 1 MB; convert them to WebP or shrink them:"; echo "$big"; exit 1
+          fi

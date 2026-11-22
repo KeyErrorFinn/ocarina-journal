@@ -1,0 +1,34 @@
+name: Feature proposal
+description: A new screen or a bigger change, to agree on before anyone builds it
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Small ideas are welcome in [Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions/categories/ideas) too. Read [where ideas go](https://github.com/KeyErrorFinn/ocarina-journal/blob/master/CONTRIBUTING.md#where-does-my-idea-go) first.
+  - type: textarea
+    id: what
+    attributes:
+      label: What it would do, for the player
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where its data comes from
+      description: The save, the game files, the live bridge, or nothing. Name the flags or files if you know them.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Rules
+      options:
+        - label: It stays read-only, local and free of Nintendo assets (docs/RULES.md)
+          required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Would you build it?
+      options:
+        - "Yes"
+        - "With help"
+        - "No, just suggesting"

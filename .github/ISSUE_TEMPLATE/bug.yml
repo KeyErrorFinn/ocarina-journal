@@ -1,0 +1,68 @@
+name: Bug
+description: Something in the app looks or behaves wrong
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't attach game files or screenshots that show your save folder's path or id.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part
+      options:
+        - Map
+        - Rumor Hunt
+        - Hall of Foes
+        - Today's Journal or History
+        - My Journey or Slot Compare
+        - Ocarina
+        - Quiz
+        - Tapestry
+        - Home screen or bridge set-up
+        - Installing or starting the app
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Ocarina Journal version or commit
+      placeholder: v0.1.0, or the commit you built
+    validations:
+      required: true
+  - type: input
+    id: longshot
+    attributes:
+      label: Longshot version and game revision
+      placeholder: Longshot 3.0.0-rc.5
+    validations:
+      required: true
+  - type: dropdown
+    id: bridge
+    attributes:
+      label: Was the live bridge on?
+      options:
+        - "Yes, the game was running with the bridge"
+        - "The game was running without the bridge"
+        - "The game wasn't running (saves only)"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Map
+        2. Switch to Adult
+  - type: textarea
+    id: shot
+    attributes:
+      label: Screenshot or log
+      description: Paste a screenshot of the app, or the error text. Blur personal paths.

@@ -2,6 +2,13 @@
 
 # Ocarina Journal
 
+[![CI](https://github.com/KeyErrorFinn/ocarina-journal/actions/workflows/ci.yml/badge.svg)](https://github.com/KeyErrorFinn/ocarina-journal/actions/workflows/ci.yml)
+[![Licence: GPL-3.0-or-later](https://img.shields.io/badge/licence-GPL--3.0--or--later-blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/KeyErrorFinn/ocarina-journal?include_prereleases)](https://github.com/KeyErrorFinn/ocarina-journal/releases)
+
+[Contributing](CONTRIBUTING.md) · [Common contribution guides](docs/workflows/README.md) ·
+[Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions)
+
 An unofficial, read-only **Windows companion app** for the native PC recompilation of
 *The Legend of Zelda: Ocarina of Time* ([Longshot](https://github.com/Recomper/Longshot)). It is a fan-made
 take on the idea behind Nintendo's *Zelda Notes*: a pocket journal that shows what you have found, what you
@@ -16,7 +23,7 @@ are still unverified; they are listed under [Known gaps](#known-gaps).
 
 ## What it does
 
-The app is a phone-shaped window with twelve tiles:
+The app has a freely resizable window with twelve tiles:
 
 | Tile | What it shows |
 |---|---|
@@ -68,13 +75,13 @@ There are no release builds yet; build from source.
 ## Build and run
 
 ```powershell
-git clone <this repository>
-cd <repository folder>
+git clone https://github.com/KeyErrorFinn/ocarina-journal.git
+cd ocarina-journal
 
 cd app
 pnpm install
 pnpm tauri dev        # development window with hot reload
-pnpm tauri build      # installer under app/src-tauri/target/release/bundle
+pnpm tauri build      # installer under target/release/bundle (workspace target directory)
 ```
 
 To use Live mode, start Longshot with the bridge on. The app can do this for you from its Home screen, or you
@@ -92,6 +99,7 @@ crates/oj-savefile    Reader for the game's save files (progress.sav flag table)
 crates/oj-gamedata    Reads names, categories and maps from your game files (zstd, SARC, BYML, MSBT, BNTX)
 crates/oj-testkit     Fake bridge and recorded fixtures for tests
 docs/research/        Investigation notes, formats, architecture, risks and open questions
+docs/workflows/       Step-by-step guides for common contributions
 ```
 
 Run the tests with:
@@ -100,8 +108,9 @@ Run the tests with:
 cargo test --workspace
 ```
 
-Two optional tests use a real install and are skipped unless you set `OJ_TEST_REAL=1` (and the related
-variables described in the test files).
+The game-data integration tests skip silently unless you set `OJ_TEST_GAME` to your own install's folder
+holding `romfs`. The golden comparison also needs `OJ_TEST_SAVE` and `OJ_TEST_GOLDEN`. Other live tests use
+`OJ_TEST_REAL=1`; see [Contributing](CONTRIBUTING.md#tests-that-need-the-game) and each test's header.
 
 ## Known gaps
 
@@ -127,6 +136,11 @@ See `docs/research/RISKS_AND_LIMITATIONS.md` and `docs/research/IN_APP_NAME_READ
 
 ## Help wanted
 
+Start with [good first issues](https://github.com/KeyErrorFinn/ocarina-journal/labels/good%20first%20issue),
+[help wanted](https://github.com/KeyErrorFinn/ocarina-journal/labels/help%20wanted), or
+[research findings](https://github.com/KeyErrorFinn/ocarina-journal/labels/research). Questions and ideas go in
+[Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions).
+
 If you own the real *Zelda Notes* in the Nintendo Switch app and are willing to help, the most useful things
 are the ones nobody can derive from the game files:
 
@@ -138,6 +152,16 @@ are the ones nobody can derive from the game files:
 
 Players of the PC recompilation can also help by running the app against their saves and reporting what looks
 wrong. Open an issue and say which game revision and Longshot version you used.
+
+## Contributing
+
+Small fixes, original art and documented research are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), the
+[project rules](docs/RULES.md) and [do's and don'ts](docs/DOS-AND-DONTS.md) before starting. The
+[workflow guides](docs/workflows/README.md) cover quiz questions, medals, save flags, map kinds, landmarks and
+screen fixes. Forks, ports and larger redesigns have a home in [SHOWCASE.md](SHOWCASE.md).
+
+Maintainers: [repository activation and release checklist](.github/maintainer/SETUP.md),
+[review policy](.github/maintainer/MAINTAINER.md), and [PR bot setup](.github/maintainer/PR-BOT.md).
 
 ## Legal
 
