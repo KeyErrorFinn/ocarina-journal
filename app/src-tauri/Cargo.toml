@@ -22,7 +22,7 @@ oj-bridge = { path = "../../crates/oj-bridge" }
 oj-journal = { path = "../../crates/oj-journal" }
 oj-savefile = { path = "../../crates/oj-savefile" }
 oj-gamedata = { path = "../../crates/oj-gamedata" }
-jiff = "0.2.46"
+jiff = "1.0.1"
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 
 [lints]
