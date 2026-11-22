@@ -704,7 +704,10 @@ pub fn run() {
                         let running = tauri::async_runtime::spawn_blocking({
                             let dir = save_dir.clone();
                             move || {
-                                let mut sys = System::new();
+                                let saves = dir.as_deref().map(oj_savefile::list_slots).unwrap_or_default();
+                                // If the process list can't be read (System::new fails), the game counts as not
+                                // detected for this round; the saves are still reported.
+                                let Ok(mut sys) = System::new() else { return (false, saves, None) };
                                 sys.refresh_processes(ProcessesToUpdate::All, true);
                                 let exe = sys
                                     .processes()
@@ -715,7 +718,6 @@ pub fn run() {
                                 // Packaged games live in <game folder>/bin on both supported platforms.
                                 let game_dir =
                                     exe.flatten().and_then(|e| e.parent()?.parent().map(|p| p.display().to_string()));
-                                let saves = dir.as_deref().map(oj_savefile::list_slots).unwrap_or_default();
                                 (running, saves, game_dir)
                             }
                         })
