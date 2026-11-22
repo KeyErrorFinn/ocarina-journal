@@ -97,9 +97,9 @@ fn day_start_in(now_ms: u64, zone: jiff::tz::TimeZone) -> u64 {
     let Some(now) = i64::try_from(now_ms).ok().and_then(|ms| jiff::Timestamp::from_millisecond(ms).ok()) else {
         return now_ms;
     };
-    let now = now.to_zoned(zone.clone());
+    let now = now.to_zoned_datetime(zone.clone());
     let date = if now.hour() < 5 { now.date().yesterday().ok() } else { Some(now.date()) };
-    date.and_then(|d| zone.to_ambiguous_zoned(d.at(5, 0, 0, 0)).compatible().ok())
+    date.and_then(|d| zone.to_ambiguous_zoned_datetime(d.at(5, 0, 0, 0)).compatible().ok())
         .and_then(|start| u64::try_from(start.timestamp().as_millisecond()).ok())
         .unwrap_or(now_ms)
 }
@@ -108,7 +108,7 @@ fn date_of(ms: u64) -> String {
     i64::try_from(ms)
         .ok()
         .and_then(|ms| jiff::Timestamp::from_millisecond(ms).ok())
-        .map(|t| t.to_zoned(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d").to_string())
+        .map(|t| t.to_zoned_datetime(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d").to_string())
         .unwrap_or_default()
 }
 
@@ -534,7 +534,7 @@ fn apply_enable_bridge(state: State<'_, Shared>, confirm: bool) -> Result<String
     }
     let path = std::path::PathBuf::from(&preview.path);
     if preview.exists {
-        let stamp = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S").to_string();
+        let stamp = jiff::ZonedDateTime::now().strftime("%Y%m%d-%H%M%S").to_string();
         let backup = path.with_file_name(format!("longshot_env.txt.oj-backup-{stamp}"));
         std::fs::copy(&path, &backup).map_err(|e| format!("could not back up the file: {e}"))?;
     }
@@ -756,8 +756,8 @@ mod tests {
         let zone = jiff::tz::TimeZone::get("Europe/London").unwrap();
         for (month, day, hours) in [(3, 29, 23), (10, 25, 25)] {
             let date = jiff::civil::date(2026, month, day);
-            let before = zone.to_ambiguous_zoned(date.at(4, 59, 0, 0)).compatible().unwrap();
-            let after = zone.to_ambiguous_zoned(date.at(5, 0, 0, 0)).compatible().unwrap();
+            let before = zone.to_ambiguous_zoned_datetime(date.at(4, 59, 0, 0)).compatible().unwrap();
+            let after = zone.to_ambiguous_zoned_datetime(date.at(5, 0, 0, 0)).compatible().unwrap();
             let previous = day_start_in(before.timestamp().as_millisecond() as u64, zone.clone());
             let current = day_start_in(after.timestamp().as_millisecond() as u64, zone.clone());
             assert_eq!(current, after.timestamp().as_millisecond() as u64);
