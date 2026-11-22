@@ -3,7 +3,10 @@ import jsQR from "jsqr";
 import { NOTE_PITCH, type Note } from "./content";
 
 /** A recorded score: notes with the milliseconds since the previous one. */
-export interface Score { name: string; notes: { n: Note; dt: number }[] }
+export interface Score {
+  name: string;
+  notes: { n: Note; dt: number }[];
+}
 
 /** A score as short text: `OJ1;<name>;<note><ms in base 36>,...`. Fits a QR code for a few hundred notes. */
 export function encodeScore(s: Score): string {
@@ -16,7 +19,10 @@ export function decodeScore(code: string): Score | null {
   try {
     if (t.startsWith("OJ1;")) {
       const [, name, body] = t.split(";");
-      const notes = (body ?? "").split(",").filter(Boolean).map((p) => ({ n: p[0] as Note, dt: parseInt(p.slice(1), 36) }));
+      const notes = (body ?? "")
+        .split(",")
+        .filter(Boolean)
+        .map((p) => ({ n: p[0] as Note, dt: parseInt(p.slice(1), 36) }));
       if (!name || notes.some((x) => !(x.n in NOTE_PITCH) || !Number.isFinite(x.dt))) return null;
       return { name: name.slice(0, 20), notes: notes.slice(0, 400) };
     }

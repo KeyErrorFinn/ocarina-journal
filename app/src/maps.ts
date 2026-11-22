@@ -5,10 +5,26 @@ import { useEffect, useState } from "react";
 import type { Report, RepEntry, Vec3 } from "./report";
 import { coords } from "./report";
 
-export interface MapExit { to: string; x: number; z: number }
-export interface MapMask { width: number; height: number; bits: string }
-export interface MapEra { image: string; exits: MapExit[]; mask: MapMask | null }
-export interface MapFloor { name: string; y: number; image: string | null }
+export interface MapExit {
+  to: string;
+  x: number;
+  z: number;
+}
+export interface MapMask {
+  width: number;
+  height: number;
+  bits: string;
+}
+export interface MapEra {
+  image: string;
+  exits: MapExit[];
+  mask: MapMask | null;
+}
+export interface MapFloor {
+  name: string;
+  y: number;
+  image: string | null;
+}
 export interface MapPlace {
   center: [number, number];
   /** Metres across the picture's width. */
@@ -74,12 +90,19 @@ function loadImage(name: string): Promise<MapImage> {
   if (!p) {
     p = invoke<ArrayBuffer>("get_map_image", { name })
       .then((buf) => URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })))
-      .then((url) => new Promise<MapImage>((ok, bad) => {
-        const i = new Image();
-        i.onload = () => { i.decode().catch(() => {}).finally(() => ok({ url, w: i.naturalWidth, h: i.naturalHeight })); };
-        i.onerror = bad;
-        i.src = url;
-      }))
+      .then(
+        (url) =>
+          new Promise<MapImage>((ok, bad) => {
+            const i = new Image();
+            i.onload = () => {
+              i.decode()
+                .catch(() => {})
+                .finally(() => ok({ url, w: i.naturalWidth, h: i.naturalHeight }));
+            };
+            i.onerror = bad;
+            i.src = url;
+          }),
+      )
       .then((m) => (loaded.set(name, m), m));
     p.catch(() => urls.delete(name));
     urls.set(name, p);
@@ -99,7 +122,9 @@ export function useMapImage(name: string | null | undefined): MapImage | null {
   useEffect(() => {
     if (!name || loaded.has(name)) return;
     let live = true;
-    loadImage(name).then((m) => live && setImg({ name, img: m })).catch(() => {});
+    loadImage(name)
+      .then((m) => live && setImg({ name, img: m }))
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -117,7 +142,8 @@ function inMask(p: MapPlace, era: MapEra | null, x: number, z: number): boolean 
   const m = era?.mask;
   if (!m) return false;
   const { left, top } = project(p, x, z, m.height / m.width);
-  const gx = Math.floor((left / 100) * m.width), gy = Math.floor((top / 100) * m.height);
+  const gx = Math.floor((left / 100) * m.width),
+    gy = Math.floor((top / 100) * m.height);
   return gx >= 0 && gy >= 0 && gx < m.width && gy < m.height && m.bits[gy * m.width + gx] === "1";
 }
 

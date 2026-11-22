@@ -83,12 +83,19 @@ export const cat = (r: Report | null, id: string): RepCategory | undefined => r?
 
 /** The game's own place names (LocationMsg, read from the player's files), once loaded; see setPlaceNames. */
 let gameNames: Record<string, string> = {};
-export const setPlaceNames = (names: Record<string, string>) => { gameNames = names; };
+export const setPlaceNames = (names: Record<string, string>) => {
+  gameNames = names;
+};
 
 /** A place's name: the game's own when known, else "InsideTheDekuTree" -> "Inside The Deku Tree". */
 export function prettyArea(id: string): string {
   if (gameNames[id]) return gameNames[id];
-  const fixed: Record<string, string> = { HountedWasteland: "Haunted Wasteland", LostWood: "Lost Woods", GanonCastle: "Ganon's Castle", InsideGanonCastle: "Inside Ganon's Castle" };
+  const fixed: Record<string, string> = {
+    HountedWasteland: "Haunted Wasteland",
+    LostWood: "Lost Woods",
+    GanonCastle: "Ganon's Castle",
+    InsideGanonCastle: "Inside Ganon's Castle",
+  };
   return fixed[id] ?? id.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
@@ -129,7 +136,10 @@ export const pct = (have: number, of: number) => (of ? Math.round((100 * have) /
 /** Overall completion over the four map kinds. The weighting is this app's, not the game's. */
 export function overall(r: Report | null): number {
   const rows = areaRows(r);
-  return pct(rows.reduce((a, x) => a + x.have, 0), rows.reduce((a, x) => a + x.of, 0));
+  return pct(
+    rows.reduce((a, x) => a + x.have, 0),
+    rows.reduce((a, x) => a + x.of, 0),
+  );
 }
 
 export function entriesFor(r: Report | null, area: string, kinds: readonly MapKind[] = MAP_KINDS) {

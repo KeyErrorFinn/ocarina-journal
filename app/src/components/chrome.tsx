@@ -9,8 +9,20 @@ const TORN = (() => {
 })();
 
 export function Header({
-  title, sub = "Ocarina Journal", left = "home", onLeft, right, help,
-}: { title: string; sub?: string; left?: "home" | "back"; onLeft: () => void; right?: ReactNode; help?: string }) {
+  title,
+  sub = "Ocarina Journal",
+  left = "home",
+  onLeft,
+  right,
+  help,
+}: {
+  title: string;
+  sub?: string;
+  left?: "home" | "back";
+  onLeft: () => void;
+  right?: ReactNode;
+  help?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -29,7 +41,11 @@ export function Header({
           {help && (
             <button className="help" onClick={() => setOpen(true)} aria-label="Help">
               {/* (drawn, so the mark sits in the middle of the ring whatever the font) */}
-              <svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.8" opacity=".75" /><path d="M9.2 9.3a2.9 2.9 0 1 1 4.3 2.5c-.9.5-1.5 1.1-1.5 2.1v.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="17.4" r="1.25" fill="currentColor" /></svg>
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.8" opacity=".75" />
+                <path d="M9.2 9.3a2.9 2.9 0 1 1 4.3 2.5c-.9.5-1.5 1.1-1.5 2.1v.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="12" cy="17.4" r="1.25" fill="currentColor" />
+              </svg>
             </button>
           )}
         </h1>
@@ -47,10 +63,14 @@ export function Header({
 }
 
 export const RefreshBtn = ({ onClick }: { onClick?: () => void }) => (
-  <button className="icon-btn" onClick={onClick} aria-label="Refresh"><Refresh /></button>
+  <button className="icon-btn" onClick={onClick} aria-label="Refresh">
+    <Refresh />
+  </button>
 );
 export const GearBtn = ({ onClick }: { onClick?: () => void }) => (
-  <button className="icon-btn" onClick={onClick} aria-label="Settings"><Gear /></button>
+  <button className="icon-btn" onClick={onClick} aria-label="Settings">
+    <Gear />
+  </button>
 );
 
 export function Sync({ on }: { on: boolean }) {
@@ -66,7 +86,17 @@ export function Sync({ on }: { on: boolean }) {
 }
 
 /** Tabs; with `icons`, each tab shows its picture above the name (no ornaments), as the original's Play Ocarina does. */
-export function Tabs<T extends string>({ tabs, value, onChange, icons }: { tabs: readonly T[]; value: T; onChange: (t: T) => void; icons?: Partial<Record<T, string>> }) {
+export function Tabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  icons,
+}: {
+  tabs: readonly T[];
+  value: T;
+  onChange: (t: T) => void;
+  icons?: Partial<Record<T, string>>;
+}) {
   return (
     <div className={`tabs ${icons ? "icons" : ""}`} role="tablist">
       {tabs.map((t) => (
@@ -84,7 +114,9 @@ export function Seg<T extends string>({ items, value, onChange }: { items: reado
   return (
     <div className="seg">
       {items.map((t) => (
-        <button key={t} className={t === value ? "on" : ""} onClick={() => onChange(t)}>{t}</button>
+        <button key={t} className={t === value ? "on" : ""} onClick={() => onChange(t)}>
+          {t}
+        </button>
       ))}
     </div>
   );
@@ -100,7 +132,12 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
       <div className="scrim" onClick={onClose} />
       <section className="sheet" role="dialog" aria-label={title}>
         <div className="grab" />
-        <header><span>{title}</span><button className="x" onClick={onClose} aria-label="Close"><Close /></button></header>
+        <header>
+          <span>{title}</span>
+          <button className="x" onClick={onClose} aria-label="Close">
+            <Close />
+          </button>
+        </header>
         <div className="body">{children}</div>
       </section>
     </>
@@ -108,7 +145,11 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Bar({ value }: { value: number }) {
-  return <div className="bar"><i style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%` }} /></div>;
+  return (
+    <div className="bar">
+      <i style={{ width: `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%` }} />
+    </div>
+  );
 }
 
 export function Note({ children }: { children: ReactNode }) {

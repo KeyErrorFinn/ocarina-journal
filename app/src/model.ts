@@ -99,8 +99,17 @@ export interface LiveState {
 }
 
 export const EMPTY_TOTALS: Totals = {
-  play_secs: 0, by_area: {}, distance_units: 0, rupees_gained: 0, rupees_spent: 0, damage_quarters: 0,
-  deaths: 0, battles: 0, battle_secs: 0, scenes: 0, areas_visited: [],
+  play_secs: 0,
+  by_area: {},
+  distance_units: 0,
+  rupees_gained: 0,
+  rupees_spent: 0,
+  damage_quarters: 0,
+  deaths: 0,
+  battles: 0,
+  battle_secs: 0,
+  scenes: 0,
+  areas_visited: [],
 };
 
 export const EMPTY: LiveState = {
@@ -138,17 +147,28 @@ export function mins(secs: number): string {
 export function describe(e: Entry): { title: string; detail?: string; key: boolean } {
   const hearts = (q: number) => `${q / 4} ${q === 4 ? "heart" : "hearts"}`;
   switch (e.type) {
-    case "area_entered": return { title: `Entered ${friendlyMap(e.entered)}`, key: true };
-    case "battle_started": return { title: "Battle started", detail: e.area ? friendlyMap(e.area) : undefined, key: false };
-    case "battle_ended": return { title: "Battle ended", detail: `${Math.round(e.secs)} s`, key: false };
-    case "rupees_gained": return { title: `+${e.amount} rupees`, key: false };
-    case "rupees_spent": return { title: `Spent ${e.amount} rupees`, key: false };
-    case "damage_taken": return { title: `Took ${hearts(e.quarters)} of damage`, key: false };
-    case "healed": return { title: `Recovered ${hearts(e.quarters)}`, key: false };
-    case "max_life_up": return { title: `Max hearts +${hearts(e.quarters)}`, key: true };
-    case "died": return { title: "Link fell", key: true };
-    case "age_changed": return { title: `Now ${e.age} Link`, key: true };
-    case "scene": return { title: "Cutscene or item pickup", detail: `${Math.round(e.secs)} s`, key: false };
+    case "area_entered":
+      return { title: `Entered ${friendlyMap(e.entered)}`, key: true };
+    case "battle_started":
+      return { title: "Battle started", detail: e.area ? friendlyMap(e.area) : undefined, key: false };
+    case "battle_ended":
+      return { title: "Battle ended", detail: `${Math.round(e.secs)} s`, key: false };
+    case "rupees_gained":
+      return { title: `+${e.amount} rupees`, key: false };
+    case "rupees_spent":
+      return { title: `Spent ${e.amount} rupees`, key: false };
+    case "damage_taken":
+      return { title: `Took ${hearts(e.quarters)} of damage`, key: false };
+    case "healed":
+      return { title: `Recovered ${hearts(e.quarters)}`, key: false };
+    case "max_life_up":
+      return { title: `Max hearts +${hearts(e.quarters)}`, key: true };
+    case "died":
+      return { title: "Link fell", key: true };
+    case "age_changed":
+      return { title: `Now ${e.age} Link`, key: true };
+    case "scene":
+      return { title: "Cutscene or item pickup", detail: `${Math.round(e.secs)} s`, key: false };
   }
 }
 
@@ -181,9 +201,21 @@ export const TILES: { id: string; title: string; desc: string; icon: string; dar
   { id: "journey", title: "My Journey", desc: "Medals and totals", icon: "GMedal", dark: true },
   { id: "compare", title: "Slot Compare", desc: "Your save slots side by side", icon: "GChart" },
   { id: "history", title: "History", desc: "Your days over time", icon: "GHistory", dark: true },
-  { id: "photos", title: "Photo Album", desc: "Not available", icon: "GCamera", locked: "The Photo Album is not available in Ocarina Journal. The PC version of the game has no photo capture for it to use." },
+  {
+    id: "photos",
+    title: "Photo Album",
+    desc: "Not available",
+    icon: "GCamera",
+    locked: "The Photo Album is not available in Ocarina Journal. The PC version of the game has no photo capture for it to use.",
+  },
   { id: "tapestry", title: "Tapestry", desc: "Your story, woven", icon: "GTapestry", dark: true },
-  { id: "amiibo", title: "amiibo", desc: "Not available", icon: "GAmiibo", locked: "amiibo is not available in Ocarina Journal. It needs a console's NFC reader, which a PC does not have." },
+  {
+    id: "amiibo",
+    title: "amiibo",
+    desc: "Not available",
+    icon: "GAmiibo",
+    locked: "amiibo is not available in Ocarina Journal. It needs a console's NFC reader, which a PC does not have.",
+  },
   { id: "ocarina", title: "Ocarina", desc: "Play and record songs", icon: "GOcarina" },
   { id: "quiz", title: "Quiz", desc: "Test your memory", icon: "GQuiz" },
 ];

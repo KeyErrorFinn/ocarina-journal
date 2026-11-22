@@ -13,8 +13,18 @@ const ART = import.meta.glob<string>("../assets/tiles/*.webp", { eager: true, im
 const artFor = (id: string) => ART[`../assets/tiles/${id}.webp`];
 
 const GLYPHS: Record<string, () => ReactNode> = {
-  GMap: Ic.GMap, GScroll: Ic.GScroll, GMedal: Ic.GMedal, GSkull: Ic.GSkull, GTapestry: Ic.GTapestry, GCamera: Ic.GCamera,
-  GOcarina: Ic.GOcarina, GHistory: Ic.GHistory, GQuiz: Ic.GQuiz, GRumor: Ic.GRumor, GChart: Ic.GChart, GAmiibo: Ic.GAmiibo,
+  GMap: Ic.GMap,
+  GScroll: Ic.GScroll,
+  GMedal: Ic.GMedal,
+  GSkull: Ic.GSkull,
+  GTapestry: Ic.GTapestry,
+  GCamera: Ic.GCamera,
+  GOcarina: Ic.GOcarina,
+  GHistory: Ic.GHistory,
+  GQuiz: Ic.GQuiz,
+  GRumor: Ic.GRumor,
+  GChart: Ic.GChart,
+  GAmiibo: Ic.GAmiibo,
 };
 
 export function Hearts({ life, max }: { life: number; max: number }) {
@@ -30,7 +40,13 @@ export function Hearts({ life, max }: { life: number; max: number }) {
   );
 }
 
-interface Preview { path: string; exists: boolean; already: string | null; before: string; after: string }
+interface Preview {
+  path: string;
+  exists: boolean;
+  already: string | null;
+  before: string;
+  after: string;
+}
 
 /** The two consented actions: turn the bridge on in longshot_env.txt (for every launch), or start the game with it on. */
 export function BridgeActions({ s }: { s: LiveState }) {
@@ -41,24 +57,73 @@ export function BridgeActions({ s }: { s: LiveState }) {
   const [isOn, setIsOn] = useState(false);
   useEffect(() => {
     if (s.mode === "live") return;
-    invoke<Preview>("preview_enable_bridge").then((p) => setIsOn(!!p.already)).catch(() => setIsOn(false));
+    invoke<Preview>("preview_enable_bridge")
+      .then((p) => setIsOn(!!p.already))
+      .catch(() => setIsOn(false));
   }, [s.mode, msg]);
-  const run = (cmd: string) => invoke<string>(cmd, { confirm: true }).then(setMsg).catch((e) => setMsg(String(e)));
+  const run = (cmd: string) =>
+    invoke<string>(cmd, { confirm: true })
+      .then(setMsg)
+      .catch((e) => setMsg(String(e)));
   if (s.mode === "live") return null;
   const added = preview ? preview.after.split(/\r?\n/).filter((l) => !preview.before.split(/\r?\n/).includes(l) && l) : [];
   return (
     <>
       <div className="bridge-card">
-        <span className="bridge-badge" aria-hidden><Sync on={false} /></span>
+        <span className="bridge-badge" aria-hidden>
+          <Sync on={false} />
+        </span>
         <div className="bridge-text">
-          <b>{isOn ? (s.mode === "bridge_off" ? "Restart Longshot to connect" : "Live bridge is on") : s.mode === "bridge_off" ? "Game running without the bridge" : "Live bridge is off"}</b>
-          <span>{isOn
-            ? s.mode === "bridge_off" ? "The bridge is turned on, but this game was started before it was." : "Start Longshot and the app follows Link live."
-            : s.mode === "bridge_off" ? "Turn it on, then restart Longshot to follow Link live." : "Turn it on once to follow Link live on every launch."}</span>
+          <b>
+            {isOn
+              ? s.mode === "bridge_off"
+                ? "Restart Longshot to connect"
+                : "Live bridge is on"
+              : s.mode === "bridge_off"
+                ? "Game running without the bridge"
+                : "Live bridge is off"}
+          </b>
+          <span>
+            {isOn
+              ? s.mode === "bridge_off"
+                ? "The bridge is turned on, but this game was started before it was."
+                : "Start Longshot and the app follows Link live."
+              : s.mode === "bridge_off"
+                ? "Turn it on, then restart Longshot to follow Link live."
+                : "Turn it on once to follow Link live on every launch."}
+          </span>
         </div>
         <div className="bridge-btns">
-          {!isOn && <button className="bridge-btn" onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>Turn on…</button>}
-          {s.mode === "offline" && <button className={`bridge-btn ${isOn ? "" : "ghost"}`} onClick={() => { setMsg(null); setSheet("launch"); }}>{isOn ? "Start game…" : "Start game once…"}</button>}
+          {!isOn && (
+            <button
+              className="bridge-btn"
+              onClick={() => {
+                setMsg(null);
+                invoke<Preview>("preview_enable_bridge")
+                  .then((p) => {
+                    setPreview(p);
+                    setSheet("enable");
+                  })
+                  .catch((e) => {
+                    setMsg(String(e));
+                    setSheet("enable");
+                  });
+              }}
+            >
+              Turn on…
+            </button>
+          )}
+          {s.mode === "offline" && (
+            <button
+              className={`bridge-btn ${isOn ? "" : "ghost"}`}
+              onClick={() => {
+                setMsg(null);
+                setSheet("launch");
+              }}
+            >
+              {isOn ? "Start game…" : "Start game once…"}
+            </button>
+          )}
         </div>
       </div>
       {sheet === "enable" && (
@@ -66,16 +131,29 @@ export function BridgeActions({ s }: { s: LiveState }) {
           <div style={{ padding: "0 1.2em", lineHeight: 1.55, fontSize: ".9em" }}>
             {preview ? (
               <>
-                <p>This adds a line to <b>longshot_env.txt</b> in the game folder so Longshot offers its control bridge the next time it starts. The bridge only lets this app read; it can't press buttons or change saves.</p>
-                <p className="muted small" style={{ margin: ".6em 0 0" }}>{preview.path}</p>
+                <p>
+                  This adds a line to <b>longshot_env.txt</b> in the game folder so Longshot offers its control bridge the next time it starts. The bridge only
+                  lets this app read; it can't press buttons or change saves.
+                </p>
+                <p className="muted small" style={{ margin: ".6em 0 0" }}>
+                  {preview.path}
+                </p>
                 {preview.already ? (
                   <p style={{ color: "var(--amber)" }}>HOS_CONTROL is already set to “{preview.already}”. If the game was started before that, restart it.</p>
                 ) : (
                   <>
-                    <p className="small muted" style={{ margin: ".8em 0 .2em" }}>{preview.exists ? "The file exists. This line is added:" : "The file does not exist yet. It would contain:"}</p>
-                    <pre style={{ background: "#0b0807", padding: ".7em", border: "1px solid #3a2b1d", whiteSpace: "pre-wrap" }}>{added.map((l) => `+ ${l}`).join("\n")}</pre>
+                    <p className="small muted" style={{ margin: ".8em 0 .2em" }}>
+                      {preview.exists ? "The file exists. This line is added:" : "The file does not exist yet. It would contain:"}
+                    </p>
+                    <pre style={{ background: "#0b0807", padding: ".7em", border: "1px solid #3a2b1d", whiteSpace: "pre-wrap" }}>
+                      {added.map((l) => `+ ${l}`).join("\n")}
+                    </pre>
                     <p className="small muted">{preview.exists ? "A backup copy of the old file is made first." : ""} You must restart the game afterwards.</p>
-                    {!msg && <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("apply_enable_bridge")}>{preview.exists ? "Back up and apply" : "Create the file"}</button>}
+                    {!msg && (
+                      <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("apply_enable_bridge")}>
+                        {preview.exists ? "Back up and apply" : "Create the file"}
+                      </button>
+                    )}
                   </>
                 )}
               </>
@@ -87,9 +165,18 @@ export function BridgeActions({ s }: { s: LiveState }) {
       {sheet === "launch" && (
         <Sheet title="Start Longshot" onClose={() => setSheet(null)}>
           <div style={{ padding: "0 1.2em", lineHeight: 1.55, fontSize: ".9em" }}>
-            <p>This starts <b>longshot.exe</b> from your game folder with the control bridge on (<b>HOS_CONTROL={s.pipe || "longshot"}</b>, for this launch only) and your normal saves. Nothing is changed on disk.</p>
-            <p className="muted small">If you usually start the game from the Longshot Launcher, that works too, but the bridge is off unless you turn it on.</p>
-            {!msg && <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("launch_game")}>Start the game</button>}
+            <p>
+              This starts <b>longshot.exe</b> from your game folder with the control bridge on (<b>HOS_CONTROL={s.pipe || "longshot"}</b>, for this launch only)
+              and your normal saves. Nothing is changed on disk.
+            </p>
+            <p className="muted small">
+              If you usually start the game from the Longshot Launcher, that works too, but the bridge is off unless you turn it on.
+            </p>
+            {!msg && (
+              <button className="btn block" style={{ width: "100%", margin: ".6em 0" }} onClick={() => run("launch_game")}>
+                Start the game
+              </button>
+            )}
             {msg && <p style={{ color: "var(--teal)" }}>{msg}</p>}
           </div>
         </Sheet>
@@ -98,14 +185,26 @@ export function BridgeActions({ s }: { s: LiveState }) {
   );
 }
 
-export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: (id: string) => void; fresh: string[]; locked: Record<string, string>; reportError: string | null }) {
+export function Home({
+  s,
+  go,
+  fresh,
+  locked,
+  reportError,
+}: {
+  s: LiveState;
+  go: (id: string) => void;
+  fresh: string[];
+  locked: Record<string, string>;
+  reportError: string | null;
+}) {
   const [menu, setMenu] = useState(false);
   const [why, setWhy] = useState<{ title: string; text: string } | null>(null);
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
-  const life = live ? s.game!.life : slot?.life ?? null;
-  const max = live ? s.game!.max_life : slot?.max_life ?? null;
-  const rupees = live ? s.game!.rupees : slot?.rupees ?? null;
+  const life = live ? s.game!.life : (slot?.life ?? null);
+  const max = live ? s.game!.max_life : (slot?.max_life ?? null);
+  const rupees = live ? s.game!.rupees : (slot?.rupees ?? null);
   const status =
     s.mode === "live"
       ? live
@@ -120,9 +219,15 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       <div className="bg home-bg" style={{ backgroundImage: `url(${homeBg})` }} aria-hidden />
       <div className="top">
         <img className="logo-mark" src={logo} alt="" draggable={false} />
-        <div className="logo">OCARINA<br />JOURNAL</div>
+        <div className="logo">
+          OCARINA
+          <br />
+          JOURNAL
+        </div>
         <Sync on={s.connected} />
-        <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}><Ic.Dots /></button>
+        <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}>
+          <Ic.Dots />
+        </button>
       </div>
 
       <div className="home-head" style={{ position: "relative", zIndex: 2, padding: ".3em 1.2em 0" }}>
@@ -130,7 +235,9 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
         {life != null && max != null && (
           <div style={{ margin: ".5em 0 1em", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1em" }}>
             <Hearts life={life} max={max} />
-            <span className="num" style={{ display: "flex", gap: ".35em", alignItems: "center", fontSize: "1.2em" }}><Ic.Rupee /> {rupees ?? "–"}</span>
+            <span className="num" style={{ display: "flex", gap: ".35em", alignItems: "center", fontSize: "1.2em" }}>
+              <Ic.Rupee /> {rupees ?? "–"}
+            </span>
           </div>
         )}
       </div>
@@ -140,17 +247,33 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
         {TILES.map((t) => {
           const G = GLYPHS[t.icon];
           return (
-            <button key={t.id} className={`ttile ${t.locked ? "unavailable" : locked[t.id] ? "lock" : ""}`} aria-disabled={!!(t.locked || locked[t.id])}
-              onClick={() => (t.locked ? setWhy({ title: "Not available", text: t.locked }) : locked[t.id] ? setWhy({ title: "Not open yet", text: `${locked[t.id]} Your save says it isn't yet.` }) : go(t.id))}>
+            <button
+              key={t.id}
+              className={`ttile ${t.locked ? "unavailable" : locked[t.id] ? "lock" : ""}`}
+              aria-disabled={!!(t.locked || locked[t.id])}
+              onClick={() =>
+                t.locked
+                  ? setWhy({ title: "Not available", text: t.locked })
+                  : locked[t.id]
+                    ? setWhy({ title: "Not open yet", text: `${locked[t.id]} Your save says it isn't yet.` })
+                    : go(t.id)
+              }
+            >
               {fresh.includes(t.id) && !locked[t.id] && !t.locked && <i className="dot" />}
-              {locked[t.id] && !t.locked && <i className="padlock" aria-label="Locked">🔒</i>}
+              {locked[t.id] && !t.locked && (
+                <i className="padlock" aria-label="Locked">
+                  🔒
+                </i>
+              )}
               {artFor(t.id) ? (
                 <span className="frame art">
                   <img className="art-in" src={artFor(t.id)} alt="" draggable={false} />
                   <img className="art-fr" src={tileFrame} alt="" draggable={false} />
                 </span>
               ) : (
-                <span className={`frame ${t.dark ? "dark" : ""}`}><G /></span>
+                <span className={`frame ${t.dark ? "dark" : ""}`}>
+                  <G />
+                </span>
               )}
               <span className="c">{t.title}</span>
             </button>
@@ -166,20 +289,26 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       {menu && (
         <Sheet title="Ocarina Journal" onClose={() => setMenu(false)}>
           <div style={{ padding: "0 1.2em", lineHeight: 1.6, fontSize: ".9em" }}>
-            <p><b>Mode:</b> {s.mode === "live" ? "Live (bridge connected)" : s.mode === "bridge_off" ? "Game running, bridge off" : "Game not running"}</p>
+            <p>
+              <b>Mode:</b> {s.mode === "live" ? "Live (bridge connected)" : s.mode === "bridge_off" ? "Game running, bridge off" : "Game not running"}
+            </p>
             {s.version && <p className="muted small">{s.version}</p>}
-            <p className="muted small" style={{ overflowWrap: "anywhere" }}>Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}</p>
+            <p className="muted small" style={{ overflowWrap: "anywhere" }}>
+              Pipe: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}
+            </p>
             <p className="muted small">Game folder: {s.game_dir ?? "not detected (found when the game runs, or set OJ_GAME)"}</p>
             <p className="small" style={{ color: reportError ? "var(--amber)" : "var(--teal)" }}>
               Names and positions: {reportError ? `unavailable (${reportError})` : "read from your game folder"}
             </p>
             {s.mode === "bridge_off" && (
               <p style={{ marginTop: ".8em" }}>
-                Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>, or add
-                that line to <b>longshot_env.txt</b> in the game folder. This app will not change your files without asking.
+                Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>, or add that line to{" "}
+                <b>longshot_env.txt</b> in the game folder. This app will not change your files without asking.
               </p>
             )}
-            <p className="muted small" style={{ marginTop: "1em" }}>Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.</p>
+            <p className="muted small" style={{ marginTop: "1em" }}>
+              Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.
+            </p>
           </div>
         </Sheet>
       )}

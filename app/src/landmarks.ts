@@ -3,7 +3,13 @@ import { useEffect, useState } from "react";
 import type { Game } from "./model";
 
 /** A landmark from the player's game maps (crates/oj-gamedata/src/rumors.rs): Rumor Hunt's rumours and map markers. */
-export interface Landmark { id: string; kind: LandKind; area: string; pos: [number, number, number]; eras: ("child" | "adult")[] }
+export interface Landmark {
+  id: string;
+  kind: LandKind;
+  area: string;
+  pos: [number, number, number];
+  eras: ("child" | "adult")[];
+}
 export type LandKind = "stone" | "grotto" | "cow" | "owl" | "scarecrow" | "frog" | "beehive";
 export const LAND_KINDS: LandKind[] = ["stone", "grotto", "cow", "scarecrow", "frog", "owl", "beehive"];
 

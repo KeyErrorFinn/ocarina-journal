@@ -15,8 +15,14 @@ export const PORTRAIT = art("portrait");
 export function Medal({ id, tier, glyph }: { id: string; tier: Tier; glyph: string }) {
   // Master (the fourth tier) is the gold shield with a glow.
   const metal = tier === "master" ? "gold" : tier;
-  const base = art(`shield_${metal}`), emblem = art(`emblem_${id}`);
-  if (!base || !emblem) return <span className={tier === "master" ? "master" : undefined}><MedalBadge tier={metal} glyph={tier === "locked" ? "?" : glyph} /></span>;
+  const base = art(`shield_${metal}`),
+    emblem = art(`emblem_${id}`);
+  if (!base || !emblem)
+    return (
+      <span className={tier === "master" ? "master" : undefined}>
+        <MedalBadge tier={metal} glyph={tier === "locked" ? "?" : glyph} />
+      </span>
+    );
   return (
     <span className={`medal-art ${tier === "master" ? "master" : ""}`}>
       <img src={base} alt="" />

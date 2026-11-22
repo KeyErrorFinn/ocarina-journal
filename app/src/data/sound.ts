@@ -34,14 +34,18 @@ const ready = new Map<string, AudioBuffer | null>();
 
 /** Loads a voice's notes (and their neighbours for ♭ and ♯) ahead of time so the first press sounds at once. */
 export function preload(voice: Voice) {
-  for (const n of Object.keys(NOTE_SOUND) as Note[]) for (const b of [-1, 0, 1]) {
-    const f = noteFile(voice, n, b);
-    void gameSound(f).then((x) => ready.set(f, x));
-  }
+  for (const n of Object.keys(NOTE_SOUND) as Note[])
+    for (const b of [-1, 0, 1]) {
+      const f = noteFile(voice, n, b);
+      void gameSound(f).then((x) => ready.set(f, x));
+    }
 }
 
 /** A sounding note; `stop` lets it fade out like a released button, `bend` slides it to another semitone offset. */
-export interface Held { stop: () => void; bend: (b: number) => void }
+export interface Held {
+  stop: () => void;
+  bend: (b: number) => void;
+}
 
 /** Starts a note now. Holding it sustains the game's recording (up to four seconds); `stop` releases it. */
 export function startNote(voice: Voice, n: Note, bend = 0): Held {
@@ -112,5 +116,14 @@ export async function playRecording(name: string): Promise<{ stop: () => void; s
   s.buffer = buf;
   s.connect(a.destination);
   s.start();
-  return { stop: () => { try { s.stop(); } catch { /* already ended */ } }, secs: buf.duration };
+  return {
+    stop: () => {
+      try {
+        s.stop();
+      } catch {
+        /* already ended */
+      }
+    },
+    secs: buf.duration,
+  };
 }

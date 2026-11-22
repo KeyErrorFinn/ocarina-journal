@@ -43,9 +43,19 @@ function Scene({ e, idx }: { e: Entry; idx: MapIndex | null }) {
   const place = e.type === "area_entered" ? e.entered.split("_")[0] : null;
   const paint = scene(e.type === "max_life_up" ? "heart" : e.type === "died" ? "fell" : e.type === "age_changed" ? "age" : "day");
   if (place && idx?.world.labels[place]) {
-    return <div className="shot"><MapCrop idx={idx} place={place} /><span className="shot-tag">{friendlyMap(place)}</span></div>;
+    return (
+      <div className="shot">
+        <MapCrop idx={idx} place={place} />
+        <span className="shot-tag">{friendlyMap(place)}</span>
+      </div>
+    );
   }
-  if (paint) return <div className="shot"><img src={paint} alt="" /></div>;
+  if (paint)
+    return (
+      <div className="shot">
+        <img src={paint} alt="" />
+      </div>
+    );
   const hue = e.type === "died" ? 0 : e.type === "area_entered" ? 100 : 40;
   return (
     <div className="shot" style={{ background: `linear-gradient(180deg, hsl(${hue} 35% 30%), hsl(${hue + 40} 40% 14%))` }}>
@@ -68,16 +78,38 @@ const TIERS = {
 };
 
 /** One stat of the day: today's change, and how far its lifetime total is from the next tier. */
-function StatCard({ label, today, unit, total, tiers, fmt = (n) => String(Math.round(n)) }: {
-  label: string; today: number; unit?: string; total: number; tiers: readonly number[]; fmt?: (n: number) => string;
+function StatCard({
+  label,
+  today,
+  unit,
+  total,
+  tiers,
+  fmt = (n) => String(Math.round(n)),
+}: {
+  label: string;
+  today: number;
+  unit?: string;
+  total: number;
+  tiers: readonly number[];
+  fmt?: (n: number) => string;
 }) {
   const n = tiers.find((t) => total < t);
   const prev = [...tiers].reverse().find((t) => total >= t) ?? 0;
   return (
     <div className="dstat">
-      <div className="rowline"><b>{label}</b><span className="dval">{today > 0 ? "+" : ""}{fmt(today)}{unit && <small>{unit}</small>}</span></div>
+      <div className="rowline">
+        <b>{label}</b>
+        <span className="dval">
+          {today > 0 ? "+" : ""}
+          {fmt(today)}
+          {unit && <small>{unit}</small>}
+        </span>
+      </div>
       <div className="dnext">
-        <div className="rowline small"><span>Next tier:</span><span>{n === undefined ? "All tiers reached" : `${fmt(n - total)}${unit ? ` ${unit}` : ""} left`}</span></div>
+        <div className="rowline small">
+          <span>Next tier:</span>
+          <span>{n === undefined ? "All tiers reached" : `${fmt(n - total)}${unit ? ` ${unit}` : ""} left`}</span>
+        </div>
         <Bar value={n === undefined ? 1 : (total - prev) / (n - prev)} />
       </div>
     </div>
@@ -107,36 +139,59 @@ export function Today({ onHome, s, report }: { onHome: () => void; s: LiveState;
   const entries = journal.entries.filter((e) => e.wall_ms >= from);
   const saves = (s.save_log ?? []).filter((e) => e.wall_ms >= from);
   const lines: Line[] = [
-    ...entries.filter((e) => SHOWN.has(e.type)).map((e, i) => { const d = describe(e); return { at: e.wall_ms, key: `b${i}`, title: d.title, detail: d.detail, place: e.area, e: d.key ? e : undefined }; }),
-    ...saves.map((e, i) => ({ at: e.wall_ms, key: `s${i}`, title: `Saved${e.place ? ` in ${e.place}` : ""}`, detail: gainsText(e, report) || undefined, map: e.map })),
+    ...entries
+      .filter((e) => SHOWN.has(e.type))
+      .map((e, i) => {
+        const d = describe(e);
+        return { at: e.wall_ms, key: `b${i}`, title: d.title, detail: d.detail, place: e.area, e: d.key ? e : undefined };
+      }),
+    ...saves.map((e, i) => ({
+      at: e.wall_ms,
+      key: `s${i}`,
+      title: `Saved${e.place ? ` in ${e.place}` : ""}`,
+      detail: gainsText(e, report) || undefined,
+      map: e.map,
+    })),
   ].sort((a, b) => b.at - a.at);
   const gained: Record<string, number> = {};
   for (const e of saves) for (const [k, n] of Object.entries(e.gains)) gained[k] = (gained[k] ?? 0) + n;
   const t = journal.totals;
   const [age, setAge] = useState<"Child" | "Adult">("Child");
   const byAge = t.by_age_area?.[age.toLowerCase()];
-  const areas = Object.entries(t.by_age_area ? byAge ?? {} : t.by_area).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const areas = Object.entries(t.by_age_area ? (byAge ?? {}) : t.by_area)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
   const kills = useSaveDelta("kills", report ? totalKills(report) : null, from);
-  const chests = useSaveDelta("chests", report ? cat(report, "chests")?.have ?? 0 : null, from);
-  const killTiers = MEDALS.find((m) => m.id === "kills")!.tiers, chestTiers = MEDALS.find((m) => m.id === "chests")!.tiers;
+  const chests = useSaveDelta("chests", report ? (cat(report, "chests")?.have ?? 0) : null, from);
+  const killTiers = MEDALS.find((m) => m.id === "kills")!.tiers,
+    chestTiers = MEDALS.find((m) => m.id === "chests")!.tiers;
   const life = (f: (t: Totals) => number) => sumAll(history, t, f);
   const updated = Math.max(journal.entries[0]?.wall_ms ?? 0, saves[0]?.wall_ms ?? 0) || (t.play_secs > 0 ? now : null);
   const empty = lines.length === 0 && t.play_secs < 1;
 
   return (
     <>
-      <Header title="Today's Journal" onLeft={onHome} right={<RefreshBtn />}
-        help="What changed today. Every time the game saves, the app notes what the save gained (chests, Gold Skulltulas, rupees and so on), even if the app was closed while you played. With the bridge on, it also keeps a live timeline: areas, fights, damage and rupees. The day runs from 05:00 to 04:59, like the original." />
+      <Header
+        title="Today's Journal"
+        onLeft={onHome}
+        right={<RefreshBtn />}
+        help="What changed today. Every time the game saves, the app notes what the save gained (chests, Gold Skulltulas, rupees and so on), even if the app was closed while you played. With the bridge on, it also keeps a live timeline: areas, fights, damage and rupees. The day runs from 05:00 to 04:59, like the original."
+      />
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
       <div className="scroll grain">
         <h2 className="h2">Records for {fmtDay(from)}</h2>
         {empty ? (
           <div className="empty" style={{ textAlign: "left" }}>
             <p style={{ margin: "0 0 .8em" }}>
-              {mode === "live" ? "Nothing yet. Walk somewhere, fight, or open a chest and it will appear here."
+              {mode === "live"
+                ? "Nothing yet. Walk somewhere, fight, or open a chest and it will appear here."
                 : "Nothing recorded today yet. From now on, each time the game saves, what the save gained appears here, even if this app was closed while you played."}
             </p>
-            {mode !== "live" && <p className="small muted" style={{ margin: 0 }}>With the live bridge (below), a timeline of areas, fights, damage and rupees fills in as you play too.</p>}
+            {mode !== "live" && (
+              <p className="small muted" style={{ margin: 0 }}>
+                With the live bridge (below), a timeline of areas, fights, damage and rupees fills in as you play too.
+              </p>
+            )}
           </div>
         ) : tab === "Timeline" ? (
           <div className="timeline">
@@ -145,40 +200,87 @@ export function Today({ onHome, s, report }: { onHome: () => void; s: LiveState;
               return (
                 <div className="ev" key={l.key}>
                   <i className={`node ${l.key[0] === "s" ? "save" : ""}`} />
-                  <div className="t">{clock(l.at)}{l.place ? ` · ${friendlyMap(l.place)}` : ""}</div>
-                  <div className="title">{l.title}{l.e && l.detail ? ` · ${l.detail}` : ""}</div>
+                  <div className="t">
+                    {clock(l.at)}
+                    {l.place ? ` · ${friendlyMap(l.place)}` : ""}
+                  </div>
+                  <div className="title">
+                    {l.title}
+                    {l.e && l.detail ? ` · ${l.detail}` : ""}
+                  </div>
                   {!l.e && l.detail && <div className="ev-gains">{l.detail}</div>}
                   {l.e && <Scene e={l.e} idx={idx} />}
-                  {!l.e && place && idx?.world.labels[place] && <div className="shot"><MapCrop idx={idx} place={place} /><span className="shot-tag">{friendlyMap(place)}</span></div>}
+                  {!l.e && place && idx?.world.labels[place] && (
+                    <div className="shot">
+                      <MapCrop idx={idx} place={place} />
+                      <span className="shot-tag">{friendlyMap(place)}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
           <>
-            <p className="small muted" style={{ margin: "-.6em 1.2em .6em" }}>Last updated: {updated ? fmtStamp(updated) : "not yet"}</p>
+            <p className="small muted" style={{ margin: "-.6em 1.2em .6em" }}>
+              Last updated: {updated ? fmtStamp(updated) : "not yet"}
+            </p>
             <div className="card dcard">
               <StatCard label="Play Time" today={t.play_secs / 60} unit="minutes" total={life((x) => x.play_secs / 60)} tiers={TIERS.minutes} />
-              <div className="small muted" style={{ margin: ".9em 0 .4em" }}>Time Spent by Area</div>
+              <div className="small muted" style={{ margin: ".9em 0 .4em" }}>
+                Time Spent by Area
+              </div>
               {t.by_age_area && <Seg items={["Child", "Adult"] as const} value={age} onChange={setAge} />}
               {areas.length === 0 && <p className="small muted">{t.by_age_area ? `No time as ${age.toLowerCase()} Link today.` : "No time recorded yet."}</p>}
-              {areas.map(([a, sec]) => <div key={a} className="rowline small" style={{ marginTop: ".35em" }}><span>{friendlyMap(a)}</span><span>+{Math.round(sec / 60)} minutes</span></div>)}
-              {report && <StatCard label="Enemies Defeated" today={kills} total={totalKills(report)} tiers={killTiers} />}
-              {report && <StatCard label="Treasure Chests Opened" today={Math.max(chests, gained.chests ?? 0)} total={cat(report, "chests")?.have ?? 0} tiers={chestTiers} />}
-              {Object.entries(gained).filter(([k]) => k !== "chests").map(([k, n]) => (
-                <div className="dstat" key={k}><div className="rowline"><b>{cat(report, k)?.title ?? k}</b><span className="dval">+{n}</span></div></div>
+              {areas.map(([a, sec]) => (
+                <div key={a} className="rowline small" style={{ marginTop: ".35em" }}>
+                  <span>{friendlyMap(a)}</span>
+                  <span>+{Math.round(sec / 60)} minutes</span>
+                </div>
               ))}
+              {report && <StatCard label="Enemies Defeated" today={kills} total={totalKills(report)} tiers={killTiers} />}
+              {report && (
+                <StatCard
+                  label="Treasure Chests Opened"
+                  today={Math.max(chests, gained.chests ?? 0)}
+                  total={cat(report, "chests")?.have ?? 0}
+                  tiers={chestTiers}
+                />
+              )}
+              {Object.entries(gained)
+                .filter(([k]) => k !== "chests")
+                .map(([k, n]) => (
+                  <div className="dstat" key={k}>
+                    <div className="rowline">
+                      <b>{cat(report, k)?.title ?? k}</b>
+                      <span className="dval">+{n}</span>
+                    </div>
+                  </div>
+                ))}
               <StatCard label="Battles" today={t.battles} total={life((x) => x.battles)} tiers={TIERS.battles} />
               <StatCard label="Game Over Count" today={t.deaths} total={life((x) => x.deaths)} tiers={TIERS.falls} />
-              <StatCard label="Hearts Lost" today={t.damage_quarters / 4} total={life((x) => x.damage_quarters / 4)} tiers={TIERS.hearts} fmt={(n) => String(Math.round(n * 4) / 4)} />
+              <StatCard
+                label="Hearts Lost"
+                today={t.damage_quarters / 4}
+                total={life((x) => x.damage_quarters / 4)}
+                tiers={TIERS.hearts}
+                fmt={(n) => String(Math.round(n * 4) / 4)}
+              />
               <StatCard label="Rupees Earned" today={t.rupees_gained} total={life((x) => x.rupees_gained)} tiers={TIERS.rupees} />
               <StatCard label="Rupees Spent" today={t.rupees_spent} total={life((x) => x.rupees_spent)} tiers={TIERS.rupees} />
-              <StatCard label="Distance Traveled" today={km(t.distance_units)} unit="km" total={life((x) => km(x.distance_units))} tiers={TIERS.km} fmt={(n) => n.toFixed(1)} />
+              <StatCard
+                label="Distance Traveled"
+                today={km(t.distance_units)}
+                unit="km"
+                total={life((x) => km(x.distance_units))}
+                tiers={TIERS.km}
+                fmt={(n) => n.toFixed(1)}
+              />
             </div>
             <p className="note">
-              Between {fmtStamp(from)} and {fmtStamp(to)}. Play time, battles, damage, distance and rupees come from the
-              bridge while it is on; the rest comes from comparing your saves, so it counts even when the app was closed. Tiers and lifetime totals are this app's own, from
-              the days it has recorded. Grass cut, rolls and items used have no known source in the game's data yet.
+              Between {fmtStamp(from)} and {fmtStamp(to)}. Play time, battles, damage, distance and rupees come from the bridge while it is on; the rest comes
+              from comparing your saves, so it counts even when the app was closed. Tiers and lifetime totals are this app's own, from the days it has recorded.
+              Grass cut, rolls and items used have no known source in the game's data yet.
             </p>
           </>
         )}

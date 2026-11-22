@@ -2,7 +2,13 @@ import { useLocal } from "../store";
 
 /** What Gossip Points buy. The original trades points for ocarina scores of the game's music; this app trades them for
  *  its own ocarinas instead (the music is Nintendo's). */
-export interface Reward { id: string; kind: "ocarina"; name: string; cost: number; art: string }
+export interface Reward {
+  id: string;
+  kind: "ocarina";
+  name: string;
+  cost: number;
+  art: string;
+}
 
 export const REWARDS: Reward[] = [
   { id: "ocarina-jade", kind: "ocarina", name: "Jade Ocarina", cost: 300, art: "ocarina_jade" },

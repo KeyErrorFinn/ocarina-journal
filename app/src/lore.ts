@@ -2,7 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 /** Game text from the player's own files (crates/oj-gamedata/src/lore.rs): place names, item and enemy descriptions. */
-export interface Lore { places: Record<string, string>; items: [string, string][]; enemies: [string, string][] }
+export interface Lore {
+  places: Record<string, string>;
+  items: [string, string][];
+  enemies: [string, string][];
+}
 
 let lorePromise: Promise<Lore | null> | null = null;
 

@@ -30,7 +30,9 @@ export function App() {
 
   useEffect(() => {
     let off: (() => void) | undefined;
-    invoke<LiveState>("get_state").then(setS).catch(() => {});
+    invoke<LiveState>("get_state")
+      .then(setS)
+      .catch(() => {});
     listen<LiveState>("live-state", (e) => setS(e.payload)).then((f) => (off = f));
     return () => off?.();
   }, []);
@@ -39,14 +41,26 @@ export function App() {
   useEffect(() => {
     let last = 0;
     const load = () =>
-      invoke<ReportFile | null>("get_report").then((r) => {
-        setRepErr(null);
-        if (r && r.modified_ms !== last) { last = r.modified_ms; setRep(r); }
-      }).catch((e) => {
-        setRepErr(typeof e === "string" ? e : "The game folder could not be read.");
-        // Plain-browser review only: a git-ignored copy of the report.
-        if (import.meta.env.DEV && !last) fetch("/dev-report.json").then((r) => r.json()).then((r: ReportFile) => { last = 1; setRep(r); }).catch(() => {});
-      });
+      invoke<ReportFile | null>("get_report")
+        .then((r) => {
+          setRepErr(null);
+          if (r && r.modified_ms !== last) {
+            last = r.modified_ms;
+            setRep(r);
+          }
+        })
+        .catch((e) => {
+          setRepErr(typeof e === "string" ? e : "The game folder could not be read.");
+          // Plain-browser review only: a git-ignored copy of the report.
+          if (import.meta.env.DEV && !last)
+            fetch("/dev-report.json")
+              .then((r) => r.json())
+              .then((r: ReportFile) => {
+                last = 1;
+                setRep(r);
+              })
+              .catch(() => {});
+        });
     load();
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
@@ -56,7 +70,8 @@ export function App() {
   const [id, arg] = route.split(/:(.*)/s);
   const report = rep?.report ?? null;
   const game = s.game;
-  const slotRupees = (s.mode === "live" && game?.rupees != null ? game.rupees : report?.slots.find((x) => x.slot === report.slot)?.rupees ?? s.saves[0]?.rupees) ?? null;
+  const slotRupees =
+    (s.mode === "live" && game?.rupees != null ? game.rupees : (report?.slots.find((x) => x.slot === report.slot)?.rupees ?? s.saves[0]?.rupees)) ?? null;
 
   // "New" dots, as in the original: a tile shows one when what it reads has changed since the player last opened it.
   const sigs = tileSignatures(report, s.journal.entries.length);
@@ -70,7 +85,18 @@ export function App() {
   let body;
   switch (id) {
     case "home":
-      body = <Home s={s} reportError={repErr} fresh={fresh} locked={locked} go={(t) => { if (sigs[t] !== undefined) setSeen({ ...seen, [t]: sigs[t] }); setRoute(t); }} />;
+      body = (
+        <Home
+          s={s}
+          reportError={repErr}
+          fresh={fresh}
+          locked={locked}
+          go={(t) => {
+            if (sigs[t] !== undefined) setSeen({ ...seen, [t]: sigs[t] });
+            setRoute(t);
+          }}
+        />
+      );
       break;
     case "map":
       body = <MapScreen report={report} game={game} connected={s.connected} onHome={home} start={arg} />;
@@ -103,7 +129,14 @@ export function App() {
       body = <Quiz onHome={home} />;
       break;
     default:
-      body = <p className="empty">Unknown screen "{id}" ({TILES.length} available). <button className="btn" onClick={home}>Home</button></p>;
+      body = (
+        <p className="empty">
+          Unknown screen "{id}" ({TILES.length} available).{" "}
+          <button className="btn" onClick={home}>
+            Home
+          </button>
+        </p>
+      );
   }
 
   return (

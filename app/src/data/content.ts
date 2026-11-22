@@ -2,15 +2,37 @@
 
 /** World layout: where each area sits on the app's own schematic Hyrule (0..100 each way). Not to scale. */
 export const WORLD: Record<string, { x: number; y: number; r?: number }> = {
-  DeathMountainCrater: { x: 78, y: 12 }, DeathMountainTrail: { x: 70, y: 22 }, GoronCity: { x: 84, y: 28 },
-  FireTemple: { x: 88, y: 10 }, DodongoCavern: { x: 62, y: 20 }, Graveyard: { x: 42, y: 28 },
-  KakarikoVillage: { x: 50, y: 34 }, ShadowTemple: { x: 36, y: 22 }, BottomOfTheWell: { x: 52, y: 44 },
-  HyruleCastle: { x: 30, y: 38 }, Market: { x: 24, y: 44 }, GanonCastle: { x: 14, y: 36 }, InsideGanonCastle: { x: 8, y: 28 },
-  HyruleField: { x: 40, y: 54 }, ZoraRiver: { x: 62, y: 40 }, ZoraDomain: { x: 74, y: 44 }, ZoraFountain: { x: 86, y: 46 },
-  IceCavern: { x: 90, y: 56 }, LostWood: { x: 20, y: 70 }, KokiriForest: { x: 14, y: 84 }, SacredForestMeadow: { x: 8, y: 66 },
-  ForestTemple: { x: 6, y: 56 }, InsideTheDekuTree: { x: 24, y: 88 }, InsideJabuJabuBelly: { x: 82, y: 58 },
-  WaterTemple: { x: 62, y: 80 }, GerudoValley: { x: 30, y: 74 }, GerudoFortress: { x: 40, y: 82 },
-  GerudoTrainingGround: { x: 50, y: 88 }, HountedWasteland: { x: 56, y: 70 }, DesertColossus: { x: 68, y: 92 }, SpiritTemple: { x: 80, y: 88 },
+  DeathMountainCrater: { x: 78, y: 12 },
+  DeathMountainTrail: { x: 70, y: 22 },
+  GoronCity: { x: 84, y: 28 },
+  FireTemple: { x: 88, y: 10 },
+  DodongoCavern: { x: 62, y: 20 },
+  Graveyard: { x: 42, y: 28 },
+  KakarikoVillage: { x: 50, y: 34 },
+  ShadowTemple: { x: 36, y: 22 },
+  BottomOfTheWell: { x: 52, y: 44 },
+  HyruleCastle: { x: 30, y: 38 },
+  Market: { x: 24, y: 44 },
+  GanonCastle: { x: 14, y: 36 },
+  InsideGanonCastle: { x: 8, y: 28 },
+  HyruleField: { x: 40, y: 54 },
+  ZoraRiver: { x: 62, y: 40 },
+  ZoraDomain: { x: 74, y: 44 },
+  ZoraFountain: { x: 86, y: 46 },
+  IceCavern: { x: 90, y: 56 },
+  LostWood: { x: 20, y: 70 },
+  KokiriForest: { x: 14, y: 84 },
+  SacredForestMeadow: { x: 8, y: 66 },
+  ForestTemple: { x: 6, y: 56 },
+  InsideTheDekuTree: { x: 24, y: 88 },
+  InsideJabuJabuBelly: { x: 82, y: 58 },
+  WaterTemple: { x: 62, y: 80 },
+  GerudoValley: { x: 30, y: 74 },
+  GerudoFortress: { x: 40, y: 82 },
+  GerudoTrainingGround: { x: 50, y: 88 },
+  HountedWasteland: { x: 56, y: 70 },
+  DesertColossus: { x: 68, y: 92 },
+  SpiritTemple: { x: 80, y: 88 },
 };
 
 /** The ocarina's five notes. The ids are the original game's buttons (A, then ▼ ▶ ◀ ▲), kept so scores saved by
@@ -31,15 +53,44 @@ export const NOTE_BUTTON: Record<Note, string> = { A: "L", D: "R", R: "A", L: "Y
 export const NOTES: Note[] = ["A", "D", "R", "L", "U"];
 /** Every note the game has a sound for, a semitone apart (Ocarina_LowB ... Ocarina_HighF) [V]: holding ♭ or ♯ plays
  *  the neighbour of the pressed note. */
-export const CHROMATIC = ["LowB", "LowC", "LowCsharp", "D", "Dsharp", "E", "F", "Fsharp", "G", "Gsharp", "A", "Asharp", "B", "C", "Csharp", "HighD", "HighDsharp", "HighE", "HighF"];
+export const CHROMATIC = [
+  "LowB",
+  "LowC",
+  "LowCsharp",
+  "D",
+  "Dsharp",
+  "E",
+  "F",
+  "Fsharp",
+  "G",
+  "Gsharp",
+  "A",
+  "Asharp",
+  "B",
+  "C",
+  "Csharp",
+  "HighD",
+  "HighDsharp",
+  "HighE",
+  "HighF",
+];
 export const NOTE_LABEL = NOTE_BUTTON;
 
 /** The game's twelve songs with their notes, as in its MelodyScoreBook [V], and the id of each song's own recording
  *  (`Ocarina_<id>.bwav`) and pouch item (`Item_Melody_<id>`). */
 export const SONG_IDS: Record<string, string> = {
-  "Zelda's Lullaby": "ZeldaLullaby", "Epona's Song": "EponaSong", "Saria's Song": "SariaSong", "Sun's Song": "SunSong",
-  "Song of Time": "TimeSong", "Song of Storms": "StormSong", "Minuet of the Forest": "ForestMinuet", "Bolero of Fire": "FireBolero",
-  "Serenade of Water": "WaterSerenade", "Requiem of Spirit": "SpiritRequiem", "Nocturne of Shadow": "ShadowNocturne", "Prelude of Light": "LightPrelude",
+  "Zelda's Lullaby": "ZeldaLullaby",
+  "Epona's Song": "EponaSong",
+  "Saria's Song": "SariaSong",
+  "Sun's Song": "SunSong",
+  "Song of Time": "TimeSong",
+  "Song of Storms": "StormSong",
+  "Minuet of the Forest": "ForestMinuet",
+  "Bolero of Fire": "FireBolero",
+  "Serenade of Water": "WaterSerenade",
+  "Requiem of Spirit": "SpiritRequiem",
+  "Nocturne of Shadow": "ShadowNocturne",
+  "Prelude of Light": "LightPrelude",
 };
 export const SONGS: Record<string, Note[]> = {
   "Zelda's Lullaby": ["L", "U", "R", "L", "U", "R"],

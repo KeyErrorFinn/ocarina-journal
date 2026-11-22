@@ -28,7 +28,12 @@ export function Compare({ report, journal, onHome, onBack }: { report: Report | 
 
   return (
     <>
-      <Header title="Slot Compare" onLeft={onHome} right={<RefreshBtn />} help="Compares your six save slots. The original app compares you with all players using Nintendo's servers; that data is not available here, so this uses only your own saves." />
+      <Header
+        title="Slot Compare"
+        onLeft={onHome}
+        right={<RefreshBtn />}
+        help="Compares your six save slots. The original app compares you with all players using Nintendo's servers; that data is not available here, so this uses only your own saves."
+      />
       <div className="scroll grain">
         {!report && <p className="empty">No save report yet.</p>}
         {slots.length > 0 && <h2 className="h2">Combat and collecting</h2>}
@@ -39,16 +44,35 @@ export function Compare({ report, journal, onHome, onBack }: { report: Report | 
           const on = openId === s.id;
           return (
             <div key={s.id} className="card" style={{ margin: ".8em 1em" }}>
-              <button style={{ display: "flex", justifyContent: "space-between", width: "100%", background: "none", border: 0, alignItems: "baseline" }} onClick={() => setOpenId(on ? null : s.id)}>
-                <b>{s.title}</b><span className="big" style={{ fontSize: "1.7em" }}>{mine}</span>
+              <button
+                style={{ display: "flex", justifyContent: "space-between", width: "100%", background: "none", border: 0, alignItems: "baseline" }}
+                onClick={() => setOpenId(on ? null : s.id)}
+              >
+                <b>{s.title}</b>
+                <span className="big" style={{ fontSize: "1.7em" }}>
+                  {mine}
+                </span>
               </button>
               {on && (
                 <>
                   <div className="hist" style={{ marginTop: "1em" }}>
-                    {slots.map((x, i) => <i key={x.slot} className={x.slot === report?.slot ? "me" : ""} style={{ height: `${Math.max(8, (vals[i] / max) * 100)}%` }} title={`${x.slot}: ${vals[i]}`} />)}
+                    {slots.map((x, i) => (
+                      <i
+                        key={x.slot}
+                        className={x.slot === report?.slot ? "me" : ""}
+                        style={{ height: `${Math.max(8, (vals[i] / max) * 100)}%` }}
+                        title={`${x.slot}: ${vals[i]}`}
+                      />
+                    ))}
                   </div>
                   <div className="hist" style={{ height: "auto", marginTop: ".4em" }}>
-                    {slots.map((x, i) => <span key={x.slot} style={{ flex: 1, textAlign: "center", fontSize: ".66em", color: "var(--muted)" }}>{x.slot.replace("slot_", "#")}<br />{vals[i]}</span>)}
+                    {slots.map((x, i) => (
+                      <span key={x.slot} style={{ flex: 1, textAlign: "center", fontSize: ".66em", color: "var(--muted)" }}>
+                        {x.slot.replace("slot_", "#")}
+                        <br />
+                        {vals[i]}
+                      </span>
+                    ))}
                   </div>
                 </>
               )}
@@ -59,13 +83,32 @@ export function Compare({ report, journal, onHome, onBack }: { report: Report | 
           <>
             <h2 className="h2">You are known for...</h2>
             <div className="card">
-              {known && <div className="rowline"><span className="muted">Most complete</span><b className="num">{known.t}</b></div>}
-              {topArea && <div className="rowline"><span className="muted">Most time this session</span><b className="num">{prettyArea(topArea[0].split("_")[0])}</b></div>}
-              {best && <div className="rowline"><span className="muted">Story</span><b className="num">{best.have}/{best.of}</b></div>}
+              {known && (
+                <div className="rowline">
+                  <span className="muted">Most complete</span>
+                  <b className="num">{known.t}</b>
+                </div>
+              )}
+              {topArea && (
+                <div className="rowline">
+                  <span className="muted">Most time this session</span>
+                  <b className="num">{prettyArea(topArea[0].split("_")[0])}</b>
+                </div>
+              )}
+              {best && (
+                <div className="rowline">
+                  <span className="muted">Story</span>
+                  <b className="num">
+                    {best.have}/{best.of}
+                  </b>
+                </div>
+              )}
             </div>
           </>
         )}
-        <button className="pillbtn" style={{ margin: "1em auto 2em", display: "flex" }} onClick={onBack}>‹ Return to My Journey</button>
+        <button className="pillbtn" style={{ margin: "1em auto 2em", display: "flex" }} onClick={onBack}>
+          ‹ Return to My Journey
+        </button>
       </div>
     </>
   );
