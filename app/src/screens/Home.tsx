@@ -5,7 +5,7 @@ import { Sheet, Sync } from "../components/chrome";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
 import homeBg from "../assets/bg/home.webp";
-import logo from "../assets/logo.svg";
+import logo from "../assets/logo.webp";
 
 /** Tile pictures drawn for this app (`assets/tiles/<tile id>.webp`), shown inside the shared gold frame. Tiles
  *  without one keep their line icon. */

@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/icon.svg" width="96" height="96" alt="Ocarina Journal icon"></p>
+<p align="center"><img src="assets/logo.png" width="128" height="128" alt="Ocarina Journal logo"></p>
 
 # Ocarina Journal
 
