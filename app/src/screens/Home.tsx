@@ -5,6 +5,7 @@ import { Sheet, Sync } from "../components/chrome";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
 import homeBg from "../assets/bg/home.webp";
+import logo from "../assets/logo.webp";
 
 /** Tile pictures drawn for this app (`assets/tiles/<tile id>.webp`), shown inside the shared gold frame. Tiles
  *  without one keep their line icon. */
@@ -118,6 +119,7 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       {/* A forest painted for this app (not a scene from the game), dimmed behind the tiles. */}
       <div className="bg home-bg" style={{ backgroundImage: `url(${homeBg})` }} aria-hidden />
       <div className="top">
+        <img className="logo-mark" src={logo} alt="" draggable={false} />
         <div className="logo">OCARINA<br />JOURNAL</div>
         <Sync on={s.connected} />
         <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}><Ic.Dots /></button>
