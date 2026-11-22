@@ -46,18 +46,46 @@ pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
     let mut by_id: BTreeMap<String, Rumor> = BTreeMap::new();
     for dir in files.list("Banc") {
         for file in files.list(&format!("Banc/{dir}")) {
-            let Some(banc) = file.strip_suffix("_Dynamic.bcett.byml.zs").or_else(|| file.strip_suffix("_Static.bcett.byml.zs")) else { continue };
-            let era = if banc.contains("_Child") { "child" } else if banc.contains("_Adult") { "adult" } else { continue };
+            let Some(banc) =
+                file.strip_suffix("_Dynamic.bcett.byml.zs").or_else(|| file.strip_suffix("_Static.bcett.byml.zs"))
+            else {
+                continue;
+            };
+            let era = if banc.contains("_Child") {
+                "child"
+            } else if banc.contains("_Adult") {
+                "adult"
+            } else {
+                continue;
+            };
             if area_of(banc) != dir {
                 continue; // grottos, shops and other rooms inside an area have no map picture of their own
             }
             let Ok(doc) = files.byml(&format!("Banc/{dir}/{file}")) else { continue };
             for a in doc.get("Actors").map(Val::as_arr).unwrap_or(&[]) {
                 let Some(kind) = a.get("Gyaml").and_then(Val::as_str).and_then(kind_of) else { continue };
-                let t: Vec<f64> = a.get("Translate").map(|t| t.as_arr().iter().filter_map(|v| match v { Val::F32(f) => Some(*f as f64), Val::F64(f) => Some(*f), _ => None }).collect()).unwrap_or_default();
+                let t: Vec<f64> = a
+                    .get("Translate")
+                    .map(|t| {
+                        t.as_arr()
+                            .iter()
+                            .filter_map(|v| match v {
+                                Val::F32(f) => Some(*f as f64),
+                                Val::F64(f) => Some(*f),
+                                _ => None,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 let [x, y, z] = t[..] else { continue };
                 let id = format!("{kind}/{dir}/{:.0}_{:.0}", (x / 2.0).round() * 2.0, (z / 2.0).round() * 2.0);
-                let r = by_id.entry(id.clone()).or_insert_with(|| Rumor { id, kind: kind.into(), area: dir.clone(), pos: [x, y, z], eras: vec![] });
+                let r = by_id.entry(id.clone()).or_insert_with(|| Rumor {
+                    id,
+                    kind: kind.into(),
+                    area: dir.clone(),
+                    pos: [x, y, z],
+                    eras: vec![],
+                });
                 if !r.eras.iter().any(|e| e == era) {
                     r.eras.push(era.into());
                 }
@@ -72,7 +100,9 @@ pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
     const MERGE: f64 = 8.0;
     let mut out: Vec<Rumor> = Vec::new();
     for r in by_id.into_values() {
-        let near = out.iter_mut().find(|o| o.kind == r.kind && o.area == r.area && (o.pos[0] - r.pos[0]).hypot(o.pos[2] - r.pos[2]) < MERGE);
+        let near = out
+            .iter_mut()
+            .find(|o| o.kind == r.kind && o.area == r.area && (o.pos[0] - r.pos[0]).hypot(o.pos[2] - r.pos[2]) < MERGE);
         match near {
             Some(o) => {
                 for e in r.eras {

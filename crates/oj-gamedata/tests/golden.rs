@@ -10,7 +10,10 @@ fn env(k: &str) -> Option<String> {
 
 #[test]
 fn matches_the_reference_tool() {
-    let (Some(game), Some(save), Some(golden)) = (env("OJ_TEST_GAME"), env("OJ_TEST_SAVE"), env("OJ_TEST_GOLDEN")) else { return };
+    let (Some(game), Some(save), Some(golden)) = (env("OJ_TEST_GAME"), env("OJ_TEST_SAVE"), env("OJ_TEST_GOLDEN"))
+    else {
+        return;
+    };
     let slot: u32 = env("OJ_TEST_SLOT").and_then(|s| s.parse().ok()).unwrap_or(1);
     let started = std::time::Instant::now();
     let g = oj_gamedata::Game::open(&PathBuf::from(game)).expect("open game");
@@ -21,7 +24,9 @@ fn matches_the_reference_tool() {
     let mut checked = 0;
     for c in mine["categories"].as_array().unwrap() {
         let id = c["id"].as_str().unwrap();
-        let Some(gc) = gold["categories"].as_array().unwrap().iter().find(|x| x["id"] == id) else { panic!("{id} missing from the reference") };
+        let Some(gc) = gold["categories"].as_array().unwrap().iter().find(|x| x["id"] == id) else {
+            panic!("{id} missing from the reference")
+        };
         assert_eq!((c["have"].as_u64(), c["of"].as_u64()), (gc["have"].as_u64(), gc["of"].as_u64()), "totals of {id}");
         let (a, b) = (c["entries"].as_array().unwrap(), gc["entries"].as_array().unwrap());
         assert_eq!(a.len(), b.len(), "entry count of {id}");

@@ -24,18 +24,36 @@ const MAX_ENTRIES: usize = 300;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Kind {
-    AreaEntered { entered: String },
+    AreaEntered {
+        entered: String,
+    },
     BattleStarted,
-    BattleEnded { secs: f64 },
-    RupeesGained { amount: i64 },
-    RupeesSpent { amount: i64 },
-    DamageTaken { quarters: i64 },
-    Healed { quarters: i64 },
-    MaxLifeUp { quarters: i64 },
+    BattleEnded {
+        secs: f64,
+    },
+    RupeesGained {
+        amount: i64,
+    },
+    RupeesSpent {
+        amount: i64,
+    },
+    DamageTaken {
+        quarters: i64,
+    },
+    Healed {
+        quarters: i64,
+    },
+    MaxLifeUp {
+        quarters: i64,
+    },
     Died,
-    AgeChanged { age: String },
+    AgeChanged {
+        age: String,
+    },
     /// An `event` window: a cutscene, text box or item pickup. The bridge cannot say which.
-    Scene { secs: f64 },
+    Scene {
+        secs: f64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -106,18 +124,20 @@ impl Journal {
 
     /// Forget what belongs to one run of the game, keep what was recorded.
     pub fn new_run(&mut self) {
-        let (started, totals, entries) = (self.started_wall_ms, std::mem::take(&mut self.totals), std::mem::take(&mut self.entries));
+        let (started, totals, entries) =
+            (self.started_wall_ms, std::mem::take(&mut self.totals), std::mem::take(&mut self.entries));
         *self = Self::default();
         (self.started_wall_ms, self.totals, self.entries) = (started, totals, entries);
     }
 
     /// Continue from a saved day (the first sample after this is a baseline).
     pub fn from_snapshot(s: Snapshot) -> Self {
-        let mut j = Self::default();
-        j.started_wall_ms = s.started_wall_ms;
-        j.totals = s.totals;
-        j.entries = s.entries.into_iter().rev().collect();
-        j
+        Self {
+            started_wall_ms: s.started_wall_ms,
+            totals: s.totals,
+            entries: s.entries.into_iter().rev().collect(),
+            ..Self::default()
+        }
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -302,7 +322,15 @@ mod tests {
     use super::*;
 
     fn g(t: f64) -> Game {
-        Game { t, map: Some("HyruleField_Adult".into()), pos: Some([0.0, 0.0, 0.0]), life: Some(20), max_life: Some(20), rupees: Some(100), ..Default::default() }
+        Game {
+            t,
+            map: Some("HyruleField_Adult".into()),
+            pos: Some([0.0, 0.0, 0.0]),
+            life: Some(20),
+            max_life: Some(20),
+            rupees: Some(100),
+            ..Default::default()
+        }
     }
 
     fn kinds(j: &Journal) -> Vec<Kind> {

@@ -76,9 +76,15 @@ pub mod known {
     /// that Longshot's save-editor report derives independently (55). Unverified beyond that one slot.
     pub const GOLD_SKULLTULAS_HASH: u32 = 0x0473_5978;
 
-    pub fn rupees() -> u32 { flag_hash(RUPEES) }
-    pub fn life() -> u32 { flag_hash(LIFE) }
-    pub fn max_life() -> u32 { flag_hash(MAX_LIFE) }
+    pub fn rupees() -> u32 {
+        flag_hash(RUPEES)
+    }
+    pub fn life() -> u32 {
+        flag_hash(LIFE)
+    }
+    pub fn max_life() -> u32 {
+        flag_hash(MAX_LIFE)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -229,7 +235,7 @@ pub fn list_slots(user_dir: &Path) -> Vec<SlotSummary> {
             out.push(SlotSummary::of(&name, modified, &save));
         }
     }
-    out.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    out.sort_by_key(|a| std::cmp::Reverse(a.modified_ms));
     out
 }
 

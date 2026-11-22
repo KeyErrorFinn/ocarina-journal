@@ -14,7 +14,10 @@ fn main() {
             let Ok(doc) = g.byml(&format!("Banc/{d}/{n}")) else { continue };
             for act in doc.get("Actors").map(Val::as_arr).unwrap_or(&[]) {
                 let gy = act.get("Gyaml").and_then(Val::as_str).unwrap_or("").to_string();
-                let t: Vec<String> = act.get("Translate").map(|t| t.as_arr().iter().map(|v| format!("{v:?}")).collect()).unwrap_or_default();
+                let t: Vec<String> = act
+                    .get("Translate")
+                    .map(|t| t.as_arr().iter().map(|v| format!("{v:?}")).collect())
+                    .unwrap_or_default();
                 let e = seen.entry(gy).or_insert((0, n.clone(), t.join(",")));
                 e.0 += 1;
             }

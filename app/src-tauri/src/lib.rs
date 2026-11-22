@@ -103,7 +103,10 @@ fn date_of(ms: u64) -> String {
 }
 
 fn load_history() -> Vec<DaySummary> {
-    data_dir().and_then(|d| std::fs::read(d.join("history.json")).ok()).and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+    data_dir()
+        .and_then(|d| std::fs::read(d.join("history.json")).ok())
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default()
 }
 
 fn save_history(h: &[DaySummary]) {
@@ -123,7 +126,9 @@ fn save_journal(day_start_ms: u64, snapshot: &Snapshot) {
 /// Resumes today's journal from disk, or archives an older one into the history.
 fn load_journal(now_ms: u64, history: &mut Vec<DaySummary>) -> (Journal, u64) {
     let today = day_start_ms(now_ms);
-    let saved: Option<JournalFile> = data_dir().and_then(|d| std::fs::read(d.join("journal.json")).ok()).and_then(|b| serde_json::from_slice(&b).ok());
+    let saved: Option<JournalFile> = data_dir()
+        .and_then(|d| std::fs::read(d.join("journal.json")).ok())
+        .and_then(|b| serde_json::from_slice(&b).ok());
     match saved {
         Some(f) if f.day_start_ms == today => (Journal::from_snapshot(f.snapshot), today),
         Some(f) => {
@@ -173,7 +178,10 @@ struct SeenSlot {
 const MAX_SAVE_EVENTS: usize = 2000;
 
 fn load_json<T: serde::de::DeserializeOwned + Default>(name: &str) -> T {
-    data_dir().and_then(|d| std::fs::read(d.join(name)).ok()).and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+    data_dir()
+        .and_then(|d| std::fs::read(d.join(name)).ok())
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default()
 }
 
 fn store_json<T: Serialize>(name: &str, v: &T) {
@@ -198,15 +206,33 @@ fn note_saves(save_dir: &std::path::Path, report: &serde_json::Value) -> Option<
             .as_object()
             .map(|t| t.iter().filter_map(|(k, v)| Some((k.clone(), v.get(0)?.as_u64()? as u32))).collect())
             .unwrap_or_default();
-        let now = SeenSlot { modified_ms, have, rupees: s["rupees"].as_i64().unwrap_or(0), place: s["place"]["name"].as_str().map(String::from) };
+        let now = SeenSlot {
+            modified_ms,
+            have,
+            rupees: s["rupees"].as_i64().unwrap_or(0),
+            place: s["place"]["name"].as_str().map(String::from),
+        };
         match seen.get(slot) {
             Some(before) if before.modified_ms < now.modified_ms => {
-                let gains: std::collections::BTreeMap<String, u32> =
-                    now.have.iter().filter_map(|(k, v)| v.checked_sub(*before.have.get(k).unwrap_or(&0)).filter(|d| *d > 0).map(|d| (k.clone(), d))).collect();
+                let gains: std::collections::BTreeMap<String, u32> = now
+                    .have
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        v.checked_sub(*before.have.get(k).unwrap_or(&0)).filter(|d| *d > 0).map(|d| (k.clone(), d))
+                    })
+                    .collect();
                 let rupees = now.rupees - before.rupees;
                 // The game rewrites untouched slots now and then; only real changes go in the log.
                 if !gains.is_empty() || rupees != 0 || now.place != before.place {
-                    added.push(SaveEvent { wall_ms: now.modified_ms, slot: slot.into(), map: s["place"]["area"].as_str().filter(|m| !m.is_empty()).map(String::from), place: now.place.clone(), age: s["age"].as_str().map(String::from), gains, rupees });
+                    added.push(SaveEvent {
+                        wall_ms: now.modified_ms,
+                        slot: slot.into(),
+                        map: s["place"]["area"].as_str().filter(|m| !m.is_empty()).map(String::from),
+                        place: now.place.clone(),
+                        age: s["age"].as_str().map(String::from),
+                        gains,
+                        rupees,
+                    });
                 }
                 seen.insert(slot.into(), now);
             }
@@ -222,7 +248,7 @@ fn note_saves(save_dir: &std::path::Path, report: &serde_json::Value) -> Option<
     }
     let mut log: Vec<SaveEvent> = load_json("save_log.json");
     log.extend(added);
-    log.sort_by(|a, b| b.wall_ms.cmp(&a.wall_ms));
+    log.sort_by_key(|a| std::cmp::Reverse(a.wall_ms));
     log.truncate(MAX_SAVE_EVENTS);
     store_json("save_log.json", &log);
     Some(log)
@@ -277,14 +303,16 @@ fn report_file() -> Option<ReportFile> {
     let path = std::env::var_os("OJ_REPORT").map(std::path::PathBuf::from).or_else(|| {
         std::env::var_os("LOCALAPPDATA").map(|p| std::path::PathBuf::from(p).join("OcarinaJournal").join("report.json"))
     })?;
-    let modified_ms = std::fs::metadata(&path).and_then(|m| m.modified()).ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
+    let modified_ms =
+        std::fs::metadata(&path).and_then(|m| m.modified()).ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
     Some(ReportFile { modified_ms, report: serde_json::from_slice(&std::fs::read(&path).ok()?).ok()? })
 }
 
 fn build_report(cache: &mut ReportCache, game_dir: Option<&str>) -> Result<Option<ReportFile>, String> {
     let saves = oj_savefile::default_save_dir().ok_or("no Longshot save folder found")?;
     let stamp = newest_save_ms(&saves);
-    let dir = find_game_dir(game_dir).ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
+    let dir =
+        find_game_dir(game_dir).ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
     if let Some((d, s, r)) = &cache.built {
         if *d == dir && *s == stamp {
             return Ok(Some(r.clone()));
@@ -342,23 +370,29 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
 #[derive(Default)]
 struct Maps(Mutex<Option<(std::path::PathBuf, Arc<oj_gamedata::files::GameFiles>, serde_json::Value)>>);
 
-fn map_source(app: &AppHandle) -> Result<(std::path::PathBuf, Arc<oj_gamedata::files::GameFiles>, serde_json::Value), String> {
+fn map_source(
+    app: &AppHandle,
+) -> Result<(std::path::PathBuf, Arc<oj_gamedata::files::GameFiles>, serde_json::Value), String> {
     let game_dir = app.state::<Shared>().0.lock().unwrap().game_dir.clone();
-    let dir = find_game_dir(game_dir.as_deref()).ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
+    let dir = find_game_dir(game_dir.as_deref())
+        .ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
     let maps = app.state::<Maps>();
     let mut slot = maps.0.lock().unwrap();
     if let Some((d, f, i)) = slot.as_ref().filter(|(d, _, _)| *d == dir) {
         return Ok((d.clone(), f.clone(), i.clone()));
     }
     let files = Arc::new(oj_gamedata::files::GameFiles::open(&dir).map_err(|e| e.to_string())?);
-    let index = serde_json::to_value(oj_gamedata::maps::map_index(&files).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let index = serde_json::to_value(oj_gamedata::maps::map_index(&files).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
     *slot = Some((dir.clone(), files.clone(), index.clone()));
     Ok((dir, files, index))
 }
 
 #[tauri::command]
 async fn get_map_index(app: AppHandle) -> Result<serde_json::Value, String> {
-    tauri::async_runtime::spawn_blocking(move || map_source(&app).map(|(_, _, i)| i)).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || map_source(&app).map(|(_, _, i)| i))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// The Threads of Time tapestry's sections, from the same game folder as the maps.
@@ -413,8 +447,16 @@ async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Respo
         let (dir, files, _) = map_source(&app)?;
         let build = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let file = data_dir()
-            .map(|d| d.join("maps").join(build.replace(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '-', "_")))
-            .map(|d| d.join(format!("{}.{}", name.replace('/', "~"), if oj_gamedata::maps::is_painting(&name) { "jpg" } else { "png" })));
+            .map(|d| {
+                d.join("maps").join(build.replace(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '-', "_"))
+            })
+            .map(|d| {
+                d.join(format!(
+                    "{}.{}",
+                    name.replace('/', "~"),
+                    if oj_gamedata::maps::is_painting(&name) { "jpg" } else { "png" }
+                ))
+            });
         if let Some(bytes) = file.as_ref().and_then(|f| std::fs::read(f).ok()) {
             return Ok(bytes);
         }
@@ -538,7 +580,19 @@ pub fn run() {
         .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
-        .invoke_handler(tauri::generate_handler![get_state, get_report, get_map_index, get_map_image, get_tapestry, get_lore, get_rumors, get_sound, preview_enable_bridge, apply_enable_bridge, launch_game])
+        .invoke_handler(tauri::generate_handler![
+            get_state,
+            get_report,
+            get_map_index,
+            get_map_image,
+            get_tapestry,
+            get_lore,
+            get_rumors,
+            get_sound,
+            preview_enable_bridge,
+            apply_enable_bridge,
+            launch_game
+        ])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
 
@@ -626,7 +680,8 @@ pub fn run() {
                                     .map(|p| p.exe().map(|e| e.to_path_buf()));
                                 let running = exe.is_some();
                                 // bin\longshot.exe lives in <game folder>in
-                                let game_dir = exe.flatten().and_then(|e| e.parent()?.parent().map(|p| p.display().to_string()));
+                                let game_dir =
+                                    exe.flatten().and_then(|e| e.parent()?.parent().map(|p| p.display().to_string()));
                                 let saves = dir.as_deref().map(oj_savefile::list_slots).unwrap_or_default();
                                 (running, saves, game_dir)
                             }

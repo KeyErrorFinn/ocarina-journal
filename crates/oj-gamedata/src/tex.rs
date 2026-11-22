@@ -32,10 +32,14 @@ fn u16_at(d: &[u8], o: usize) -> Result<u16, Error> {
     d.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]])).ok_or_else(|| Error::Game("BNTX: truncated".into()))
 }
 fn u32_at(d: &[u8], o: usize) -> Result<u32, Error> {
-    d.get(o..o + 4).map(|b| u32::from_le_bytes(b.try_into().unwrap())).ok_or_else(|| Error::Game("BNTX: truncated".into()))
+    d.get(o..o + 4)
+        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+        .ok_or_else(|| Error::Game("BNTX: truncated".into()))
 }
 fn u64_at(d: &[u8], o: usize) -> Result<u64, Error> {
-    d.get(o..o + 8).map(|b| u64::from_le_bytes(b.try_into().unwrap())).ok_or_else(|| Error::Game("BNTX: truncated".into()))
+    d.get(o..o + 8)
+        .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
+        .ok_or_else(|| Error::Game("BNTX: truncated".into()))
 }
 
 /// Every texture in a BNTX file.
@@ -82,7 +86,22 @@ enum Kind {
 }
 
 fn kind(format: u32) -> Option<Kind> {
-    let astc = [(4, 4), (5, 4), (5, 5), (6, 5), (6, 6), (8, 5), (8, 6), (8, 8), (10, 5), (10, 6), (10, 8), (10, 10), (12, 10), (12, 12)];
+    let astc = [
+        (4, 4),
+        (5, 4),
+        (5, 5),
+        (6, 5),
+        (6, 6),
+        (8, 5),
+        (8, 6),
+        (8, 8),
+        (10, 5),
+        (10, 6),
+        (10, 8),
+        (10, 10),
+        (12, 10),
+        (12, 12),
+    ];
     Some(match format >> 8 {
         t @ 0x2d..=0x3a => {
             let (w, h) = astc[(t - 0x2d) as usize];
@@ -134,8 +153,11 @@ fn unswizzle(src: &[u8], row_bytes: usize, rows: usize, tile_h: usize) -> Option
 /// Decodes the first mip of a texture to RGBA. Single-channel formats come out as grey with full alpha;
 /// two-channel ones as grey with the second channel as alpha.
 pub fn decode(d: &[u8], t: &TexInfo) -> Result<Image, Error> {
-    let k = kind(t.format).ok_or_else(|| Error::Game(format!("texture {} has an unsupported format {:#x}", t.name, t.format)))?;
-    let src = d.get(t.data_offset..t.data_offset + t.data_size).ok_or_else(|| Error::Game("BNTX: data out of range".into()))?;
+    let k = kind(t.format)
+        .ok_or_else(|| Error::Game(format!("texture {} has an unsupported format {:#x}", t.name, t.format)))?;
+    let src = d
+        .get(t.data_offset..t.data_offset + t.data_size)
+        .ok_or_else(|| Error::Game("BNTX: data out of range".into()))?;
     let (bw, bh, bpb) = match k {
         Kind::Astc(w, h) => (w, h, 16),
         Kind::Bc(_, n) => (4, 4, n),
@@ -143,7 +165,8 @@ pub fn decode(d: &[u8], t: &TexInfo) -> Result<Image, Error> {
     };
     let row_bytes = t.width.div_ceil(bw) as usize * bpb as usize;
     let rows = t.height.div_ceil(bh) as usize;
-    let linear = unswizzle(src, row_bytes, rows, t.block_height_log2 as usize).ok_or_else(|| Error::Game(format!("texture {}: too little data", t.name)))?;
+    let linear = unswizzle(src, row_bytes, rows, t.block_height_log2 as usize)
+        .ok_or_else(|| Error::Game(format!("texture {}: too little data", t.name)))?;
     let (w, h) = (t.width as usize, t.height as usize);
     let mut px = vec![0u32; w * h];
     let res = match k {

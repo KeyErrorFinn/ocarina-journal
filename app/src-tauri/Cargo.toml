@@ -24,3 +24,6 @@ oj-savefile = { path = "../../crates/oj-savefile" }
 oj-gamedata = { path = "../../crates/oj-gamedata" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+
+[lints]
+workspace = true

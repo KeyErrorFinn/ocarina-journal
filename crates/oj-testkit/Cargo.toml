@@ -15,3 +15,6 @@ futures.workspace = true
 [[bin]]
 name = "oj-fakebridge"
 path = "src/bin/oj-fakebridge.rs"
+
+[lints]
+workspace = true

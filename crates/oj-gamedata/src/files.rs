@@ -38,13 +38,25 @@ impl Val {
         }
     }
     pub fn as_str(&self) -> Option<&str> {
-        if let Val::Str(s) = self { Some(s) } else { None }
+        if let Val::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
     }
     pub fn as_arr(&self) -> &[Val] {
-        if let Val::Arr(a) = self { a } else { &[] }
+        if let Val::Arr(a) = self {
+            a
+        } else {
+            &[]
+        }
     }
     pub fn entries(&self) -> &[(Key, Val)] {
-        if let Val::Map(m) = self { m } else { &[] }
+        if let Val::Map(m) = self {
+            m
+        } else {
+            &[]
+        }
     }
     /// The integer as Python would hold it (signedness as stored), for exact comparisons and `%d` formatting.
     pub fn int(&self) -> Option<i128> {
@@ -98,7 +110,9 @@ pub fn zs_decompress(data: &[u8], dicts: &HashMap<u32, Vec<u8>>) -> Result<Vec<u
     if want == 0 {
         zstd::stream::read::Decoder::new(data)?.read_to_end(&mut out)?;
     } else {
-        let dict = dicts.get(&want).ok_or_else(|| Error::Game(format!("a game file needs zstd dictionary {want}, which Pack/ZsDic.pack.zs does not hold")))?;
+        let dict = dicts.get(&want).ok_or_else(|| {
+            Error::Game(format!("a game file needs zstd dictionary {want}, which Pack/ZsDic.pack.zs does not hold"))
+        })?;
         zstd::stream::read::Decoder::with_dictionary(data, dict)?.read_to_end(&mut out)?;
     }
     Ok(out)
@@ -223,7 +237,10 @@ impl Byml<'_> {
             }
             0xC0 => {
                 let (types, vals) = (o + 4, o + 4 + ((n + 3) & !3));
-                (0..n).map(|i| self.val(self.d[types + i], self.word(vals + 4 * i)?, depth)).collect::<Result<_, _>>().map(Val::Arr)
+                (0..n)
+                    .map(|i| self.val(self.d[types + i], self.word(vals + 4 * i)?, depth))
+                    .collect::<Result<_, _>>()
+                    .map(Val::Arr)
             }
             0xC1 => {
                 let mut m = Vec::with_capacity(n);
@@ -259,12 +276,17 @@ pub fn msbt(d: &[u8]) -> HashMap<String, String> {
             b"LBL1" => {
                 let groups = rd_u32(body, 0, le).unwrap_or(0) as usize;
                 for i in 0..groups {
-                    let (Ok(count), Ok(off)) = (rd_u32(body, 4 + 8 * i, le), rd_u32(body, 8 + 8 * i, le)) else { break };
+                    let (Ok(count), Ok(off)) = (rd_u32(body, 4 + 8 * i, le), rd_u32(body, 8 + 8 * i, le)) else {
+                        break;
+                    };
                     let mut off = off as usize;
                     for _ in 0..count {
                         let Some(&len) = body.get(off) else { break };
                         let len = len as usize;
-                        let (Some(name), Ok(idx)) = (body.get(off + 1..off + 1 + len), rd_u32(body, off + 1 + len, le)) else { break };
+                        let (Some(name), Ok(idx)) = (body.get(off + 1..off + 1 + len), rd_u32(body, off + 1 + len, le))
+                        else {
+                            break;
+                        };
                         labels.push((String::from_utf8_lossy(name).into_owned(), idx));
                         off += 1 + len + 4;
                     }
@@ -272,7 +294,8 @@ pub fn msbt(d: &[u8]) -> HashMap<String, String> {
             }
             b"TXT2" => {
                 let count = rd_u32(body, 0, le).unwrap_or(0) as usize;
-                let offs: Vec<usize> = (0..count).filter_map(|i| rd_u32(body, 4 + 4 * i, le).ok()).map(|x| x as usize).collect();
+                let offs: Vec<usize> =
+                    (0..count).filter_map(|i| rd_u32(body, 4 + 4 * i, le).ok()).map(|x| x as usize).collect();
                 for i in 0..offs.len() {
                     let end = offs.get(i + 1).copied().unwrap_or(body.len());
                     if let Some(s) = body.get(offs[i]..end) {
@@ -347,7 +370,11 @@ impl GameFiles {
 
     pub fn load(&self, rel: &str) -> Result<Vec<u8>, Error> {
         let raw = self.raw(rel)?;
-        if rel.ends_with(".zs") { zs_decompress(&raw, &self.dicts) } else { Ok(raw) }
+        if rel.ends_with(".zs") {
+            zs_decompress(&raw, &self.dicts)
+        } else {
+            Ok(raw)
+        }
     }
 
     pub fn byml(&self, rel: &str) -> Result<Val, Error> {
@@ -359,7 +386,12 @@ impl GameFiles {
     }
 
     pub fn list(&self, folder: &str) -> Vec<String> {
-        let mut v: Vec<String> = std::fs::read_dir(self.path(folder)).into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        let mut v: Vec<String> = std::fs::read_dir(self.path(folder))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
         v.sort();
         v
     }
@@ -368,7 +400,11 @@ impl GameFiles {
     pub fn versioned(&self, folder: &str, prefix: &str, suffix: &str) -> Result<String, Error> {
         self.list(folder)
             .into_iter()
-            .rfind(|n| n.strip_prefix(prefix).and_then(|r| r.strip_suffix(suffix)).is_some_and(|d| !d.is_empty() && d.bytes().all(|c| c.is_ascii_digit())))
+            .rfind(|n| {
+                n.strip_prefix(prefix)
+                    .and_then(|r| r.strip_suffix(suffix))
+                    .is_some_and(|d| !d.is_empty() && d.bytes().all(|c| c.is_ascii_digit()))
+            })
             .map(|n| format!("{folder}/{n}"))
             .ok_or_else(|| Error::Game(format!("the game folder has no {folder}/{prefix}<n>{suffix}")))
     }

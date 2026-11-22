@@ -57,13 +57,22 @@ fn finds_landmarks_for_rumours() {
     let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
     let r = oj_gamedata::rumors::rumors(&files).unwrap();
     let count = |k: &str| r.iter().filter(|x| x.kind == k).count();
-    eprintln!("{} rumours: {:?}", r.len(), ["stone", "grotto", "cow", "owl", "scarecrow", "frog", "beehive"].map(|k| (k, count(k))));
+    eprintln!(
+        "{} rumours: {:?}",
+        r.len(),
+        ["stone", "grotto", "cow", "owl", "scarecrow", "frog", "beehive"].map(|k| (k, count(k)))
+    );
     assert!(count("stone") >= 10 && count("grotto") >= 10);
     assert!(r.iter().all(|x| !x.eras.is_empty()));
     // No two rumours of a kind share a spot.
     for (i, a) in r.iter().enumerate() {
         for b in &r[i + 1..] {
-            assert!(a.kind != b.kind || a.area != b.area || (a.pos[0] - b.pos[0]).hypot(a.pos[2] - b.pos[2]) >= 8.0, "{} and {}", a.id, b.id);
+            assert!(
+                a.kind != b.kind || a.area != b.area || (a.pos[0] - b.pos[0]).hypot(a.pos[2] - b.pos[2]) >= 8.0,
+                "{} and {}",
+                a.id,
+                b.id
+            );
         }
     }
 }
@@ -74,7 +83,13 @@ fn finds_landmarks_for_rumours() {
 fn plays_the_games_ocarina_notes() {
     let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
     let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
-    for (name, hz) in [("Ocarina_D", 587.3), ("Ocarina_F", 698.5), ("Ocarina_A", 880.0), ("Ocarina_B", 987.8), ("Ocarina_HighD", 1174.7)] {
+    for (name, hz) in [
+        ("Ocarina_D", 587.3),
+        ("Ocarina_F", 698.5),
+        ("Ocarina_A", 880.0),
+        ("Ocarina_B", 987.8),
+        ("Ocarina_HighD", 1174.7),
+    ] {
         let w = oj_gamedata::sound::wav(&files, name, 2.0).unwrap();
         assert_eq!(&w[..4], b"RIFF");
         let s: Vec<f64> = w[44..].chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f64).collect();
@@ -83,7 +98,8 @@ fn plays_the_games_ocarina_notes() {
         let energy = part[..4_000].iter().map(|a| a * a).sum::<f64>();
         let corr = |lag: usize| part[..4_000].iter().zip(&part[lag..]).map(|(a, b)| a * b).sum::<f64>() / energy;
         let period = 48_000.0 / hz;
-        let best = ((period * 0.94) as usize..=(period * 1.06) as usize).max_by(|a, b| corr(*a).total_cmp(&corr(*b))).unwrap();
+        let best =
+            ((period * 0.94) as usize..=(period * 1.06) as usize).max_by(|a, b| corr(*a).total_cmp(&corr(*b))).unwrap();
         eprintln!("{name}: {:.1} Hz, correlation {:.2} (expected {hz})", 48_000.0 / best as f64, corr(best));
         assert!(corr(best) > 0.8, "{name} does not repeat at {hz} Hz");
     }

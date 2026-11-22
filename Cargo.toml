@@ -8,6 +8,14 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 rust-version = "1.80"
 
+# Lints every crate shares (each opts in with `[lints] workspace = true`); CI runs clippy with warnings as errors.
+[workspace.lints.clippy]
+# `as_chunks` needs Rust 1.88, newer than rust-version above.
+chunks_exact_to_as_chunks = "allow"
+# The bridge's events and trait objects are clearer as they are than boxed or aliased.
+large_enum_variant = "allow"
+type_complexity = "allow"
+
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

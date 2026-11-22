@@ -19,10 +19,7 @@ use std::{
 };
 
 use futures::{SinkExt, StreamExt};
-use oj_protocol::{
-    decode_line, Command, Event, Game, Incoming, MapChange, Request, Status, Subscribe,
-    MAX_LINE,
-};
+use oj_protocol::{decode_line, Command, Event, Game, Incoming, MapChange, Request, Status, Subscribe, MAX_LINE};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::mpsc,
@@ -89,12 +86,20 @@ pub enum BridgeEvent {
     /// Connected and subscribed; `Status` is the reply to the initial `status` request.
     Connected(Option<Status>),
     Disconnected,
-    Sample { frame: u64, game: Box<Game> },
+    Sample {
+        frame: u64,
+        game: Box<Game>,
+    },
     Map(MapChange),
     /// A server error reply (for example `unavailable` before the game opens its saves).
-    ServerError { error: String, message: Option<String> },
+    ServerError {
+        error: String,
+        message: Option<String>,
+    },
     /// An event kind this client does not model.
-    Other { kind: String },
+    Other {
+        kind: String,
+    },
 }
 
 /// Counters shared with the consumer.
@@ -131,12 +136,7 @@ pub fn spawn<C: Connector>(connector: C, config: Config) -> (Handle, mpsc::Recei
     (Handle { stats, task }, rx)
 }
 
-async fn supervise<C: Connector>(
-    connector: C,
-    config: Config,
-    tx: mpsc::Sender<BridgeEvent>,
-    stats: Arc<Stats>,
-) {
+async fn supervise<C: Connector>(connector: C, config: Config, tx: mpsc::Sender<BridgeEvent>, stats: Arc<Stats>) {
     let mut delay = config.backoff_initial;
     loop {
         match connector.connect().await {
@@ -199,10 +199,8 @@ async fn session(
                 tx.send(BridgeEvent::Connected(r.as_status())).await.map_err(|_| ())?;
             }
             Incoming::Response(r) if !r.ok => {
-                let ev = BridgeEvent::ServerError {
-                    error: r.error.unwrap_or_else(|| "unknown".into()),
-                    message: r.message,
-                };
+                let ev =
+                    BridgeEvent::ServerError { error: r.error.unwrap_or_else(|| "unknown".into()), message: r.message };
                 tx.send(ev).await.map_err(|_| ())?;
             }
             Incoming::Response(_) => {}

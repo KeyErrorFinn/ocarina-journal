@@ -6,10 +6,15 @@ fn main() {
     let g = GameFiles::open(std::path::Path::new(&a[1])).unwrap();
     let d = g.load(&a[3]).unwrap();
     for t in tex::bntx_textures(&d).unwrap() {
-        if a.get(4).is_some_and(|f| !t.name.contains(f.as_str())) { continue; }
+        if a.get(4).is_some_and(|f| !t.name.contains(f.as_str())) {
+            continue;
+        }
         let t0 = std::time::Instant::now();
         match tex::decode(&d, &t) {
-            Ok(img) => { std::fs::write(format!("{}/{}.png", a[2], t.name), img.png().unwrap()).unwrap(); println!("{} {:#x} {}x{} {:?}", t.name, t.format, t.width, t.height, t0.elapsed()); }
+            Ok(img) => {
+                std::fs::write(format!("{}/{}.png", a[2], t.name), img.png().unwrap()).unwrap();
+                println!("{} {:#x} {}x{} {:?}", t.name, t.format, t.width, t.height, t0.elapsed());
+            }
             Err(e) => println!("{}: {e}", t.name),
         }
     }

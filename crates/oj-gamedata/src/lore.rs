@@ -45,7 +45,11 @@ pub fn lore(files: &GameFiles) -> Result<Lore, Error> {
                     .collect();
                 list.sort();
                 list.dedup_by(|a, b| a.0 == b.0);
-                if enemy { lore.enemies = list } else { lore.items = list }
+                if enemy {
+                    lore.enemies = list
+                } else {
+                    lore.items = list
+                }
             }
             _ => {}
         }

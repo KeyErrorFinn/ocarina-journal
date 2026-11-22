@@ -26,8 +26,8 @@ impl Fixture {
     /// Parse a fixture: first line `{"fixture":"status","body":{...}}`, then one event per line.
     pub fn parse(text: &str) -> Self {
         let mut lines = text.lines().filter(|l| !l.trim().is_empty());
-        let head: Value = serde_json::from_str(lines.next().expect("fixture has a status line"))
-            .expect("status line is JSON");
+        let head: Value =
+            serde_json::from_str(lines.next().expect("fixture has a status line")).expect("status line is JSON");
         let status = head["body"].clone();
         let events = lines.map(|l| serde_json::from_str(l).expect("event line is JSON")).collect();
         Self { status, events }

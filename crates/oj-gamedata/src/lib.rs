@@ -7,11 +7,11 @@
 //! implementation, tested against that tool's output. **Nothing from the game is stored in this repository.**
 
 pub mod files;
-pub mod maps;
-pub mod tapestry;
 pub mod lore;
+pub mod maps;
 pub mod rumors;
 pub mod sound;
+pub mod tapestry;
 pub mod tex;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -91,7 +91,10 @@ impl GameData {
         self.flags.get(&h).map(|(_, e)| e)
     }
     fn enum_values(&self, h: u32) -> Vec<String> {
-        self.entry(h).and_then(|e| e.get("RawValues")).map(|v| v.as_arr().iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default()
+        self.entry(h)
+            .and_then(|e| e.get("RawValues"))
+            .map(|v| v.as_arr().iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            .unwrap_or_default()
     }
 }
 
@@ -114,7 +117,9 @@ impl Names {
                         } else if name == "EventFlowMsg/SubEvent_AllBossBattle.msbt" {
                             // the Hall of Fallen Foes gauntlets' names (`Talk_12`, `Talk_15`, `Talk_18`)
                             text.extend(msbt(&data).into_iter().map(|(k, v)| (format!("AllBossBattle/{k}"), v)));
-                        } else if let Some(q) = name.strip_prefix("ChallengeMsg/Info_").and_then(|n| n.strip_suffix(".msbt")) {
+                        } else if let Some(q) =
+                            name.strip_prefix("ChallengeMsg/Info_").and_then(|n| n.strip_suffix(".msbt"))
+                        {
                             quests.insert(q.to_string(), msbt(&data));
                         }
                     }
@@ -175,9 +180,29 @@ impl Placements {
                 out.push(Actor {
                     gyaml: a.get("Gyaml").and_then(Val::as_str).unwrap_or("").to_string(),
                     hash: a.get("Hash").cloned(),
-                    translate: a.get("Translate").map(|t| t.as_arr().iter().filter_map(|v| match v { Val::F32(f) => Some(*f as f64), Val::F64(f) => Some(*f), _ => None }).collect()).unwrap_or_default(),
+                    translate: a
+                        .get("Translate")
+                        .map(|t| {
+                            t.as_arr()
+                                .iter()
+                                .filter_map(|v| match v {
+                                    Val::F32(f) => Some(*f as f64),
+                                    Val::F64(f) => Some(*f),
+                                    _ => None,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                     dynamic: a.get("Dynamic").cloned().unwrap_or(Val::Null),
-                    links: a.get("Links").map(|l| l.as_arr().iter().map(|x| (x.get("Src").and_then(Val::int), x.get("Dst").and_then(Val::int))).collect()).unwrap_or_default(),
+                    links: a
+                        .get("Links")
+                        .map(|l| {
+                            l.as_arr()
+                                .iter()
+                                .map(|x| (x.get("Src").and_then(Val::int), x.get("Dst").and_then(Val::int)))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                 });
             }
         }
@@ -191,7 +216,13 @@ type Bags = Arc<Vec<(String, i64, u32)>>;
 
 /// The largest bag Link has in a group (none: 0).
 fn limit(bags: &Bags, group: &str, gd: &GameData, sav: &Save) -> i64 {
-    bags.iter().filter(|(g, _, get)| g == group && sav.get(*get).filter(|_| gd.flags.contains_key(get)).is_some_and(|w| w != 0)).map(|(_, n, _)| *n).max().unwrap_or(0)
+    bags.iter()
+        .filter(|(g, _, get)| {
+            g == group && sav.get(*get).filter(|_| gd.flags.contains_key(get)).is_some_and(|w| w != 0)
+        })
+        .map(|(_, n, _)| *n)
+        .max()
+        .unwrap_or(0)
 }
 
 #[derive(Debug, Clone)]
@@ -201,10 +232,27 @@ enum Kind {
     Count(u32),
     /// A quest's step flag, the values that count as done, and each value with the game's objective for it.
     Step(u32, HashSet<u32>, Vec<(String, Option<String>)>),
-    Hearts { flag: u32, of: u32 },
-    Rupees { flag: u32, bags: Bags },
-    Item { get: u32, stock: Option<u32>, group: Option<String>, fixed: Option<i64>, counted: bool, bags: Bags },
-    Keys { held: u32, found: u32, of: u32 },
+    Hearts {
+        flag: u32,
+        of: u32,
+    },
+    Rupees {
+        flag: u32,
+        bags: Bags,
+    },
+    Item {
+        get: u32,
+        stock: Option<u32>,
+        group: Option<String>,
+        fixed: Option<i64>,
+        counted: bool,
+        bags: Bags,
+    },
+    Keys {
+        held: u32,
+        found: u32,
+        of: u32,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -257,7 +305,13 @@ impl Entry {
         }
         if let Kind::Step(h, _, values) = &self.kind {
             let w = sav.get(*h).filter(|_| gd.flags.contains_key(h))?;
-            return Some(values.iter().find(|(v, _)| flag_hash(v) == w).map(|(v, t)| t.clone().unwrap_or_else(|| v.clone())).unwrap_or_else(|| format!("{w:#x}")));
+            return Some(
+                values
+                    .iter()
+                    .find(|(v, _)| flag_hash(v) == w)
+                    .map(|(v, t)| t.clone().unwrap_or_else(|| v.clone()))
+                    .unwrap_or_else(|| format!("{w:#x}")),
+            );
         }
         self.note.clone()
     }
@@ -265,7 +319,9 @@ impl Entry {
     fn step(&self, gd: &GameData, sav: &Save) -> Option<String> {
         let Kind::Step(h, _, values) = &self.kind else { return None };
         let w = sav.get(*h).filter(|_| gd.flags.contains_key(h))?;
-        Some(values.iter().find(|(v, _)| flag_hash(v) == w).map(|(v, _)| v.clone()).unwrap_or_else(|| format!("{w:#x}")))
+        Some(
+            values.iter().find(|(v, _)| flag_hash(v) == w).map(|(v, _)| v.clone()).unwrap_or_else(|| format!("{w:#x}")),
+        )
     }
     fn size(&self, gd: &GameData, sav: &Save) -> u32 {
         match &self.kind {
@@ -285,11 +341,25 @@ pub struct Category {
 }
 
 const TITLES: &[(&str, &str)] = &[
-    ("equipment", "Equipment"), ("items", "Items"), ("masks", "Masks"), ("upgrades", "Upgrades"), ("songs", "Songs"),
-    ("quest", "Quest items"), ("hearts", "Hearts"), ("heart-containers", "Heart containers"), ("heart-pieces", "Heart pieces"),
-    ("rupees", "Rupees"), ("chests", "Chests opened"), ("skulltulas", "Gold Skulltulas"),
-    ("dungeons", "Dungeon maps, compasses and boss keys"), ("small-keys", "Small keys"), ("bosses", "Bosses beaten"),
-    ("enemies", "Hall of Fallen Foes (enemies defeated)"), ("story", "Story"), ("side-quests", "Side quests"), ("mini-games", "Mini-games"),
+    ("equipment", "Equipment"),
+    ("items", "Items"),
+    ("masks", "Masks"),
+    ("upgrades", "Upgrades"),
+    ("songs", "Songs"),
+    ("quest", "Quest items"),
+    ("hearts", "Hearts"),
+    ("heart-containers", "Heart containers"),
+    ("heart-pieces", "Heart pieces"),
+    ("rupees", "Rupees"),
+    ("chests", "Chests opened"),
+    ("skulltulas", "Gold Skulltulas"),
+    ("dungeons", "Dungeon maps, compasses and boss keys"),
+    ("small-keys", "Small keys"),
+    ("bosses", "Bosses beaten"),
+    ("enemies", "Hall of Fallen Foes (enemies defeated)"),
+    ("story", "Story"),
+    ("side-quests", "Side quests"),
+    ("mini-games", "Mini-games"),
 ];
 
 /// One Hall rematch record: the game keeps `DreamWorld_TimeTrial.<enemy>` as a struct of three flags.
@@ -317,7 +387,16 @@ fn hall_slots(gd: &GameData, names: &Names, cats: &[Category]) -> Vec<HallSlot> 
     }
     for gy in candidates {
         let Some(h) = gd.find(&format!("DreamWorld_TimeTrial.{gy}")) else { continue };
-        let members: HashMap<u32, u32> = gd.entry(h).and_then(|e| e.get("DefaultValue")).map(|v| v.as_arr().iter().filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32))).collect()).unwrap_or_default();
+        let members: HashMap<u32, u32> = gd
+            .entry(h)
+            .and_then(|e| e.get("DefaultValue"))
+            .map(|v| {
+                v.as_arr()
+                    .iter()
+                    .filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32)))
+                    .collect()
+            })
+            .unwrap_or_default();
         let (Some(have), Some(best)) = (members.get(&m_have), members.get(&m_best)) else { continue };
         let other = members.iter().find(|(k, _)| **k != m_have && **k != m_best).map(|(_, v)| *v).unwrap_or(0);
         out.push(HallSlot { id: gy.clone(), label: names.of(&gy), have: *have, best: *best, other });
@@ -325,12 +404,27 @@ fn hall_slots(gd: &GameData, names: &Names, cats: &[Category]) -> Vec<HallSlot> 
     // The three gauntlets, named by the game's own text. Which save record is which trial is our reading [I]: `_01`
     // the child-era trial (three foes), `_02` the adult-era one (five), the unnumbered one all ten.
     for (best, have, msg, fallback) in [
-        ("DreamWorld_BossrushBestTime_01", "DreamBossStage_HaveRecordedTime_BossRush_01", "Talk_12", "Trial of three child-era foes"),
-        ("DreamWorld_BossrushBestTime_02", "DreamBossStage_HaveRecordedTime_BossRush_02", "Talk_15", "Trial of five adult-era foes"),
+        (
+            "DreamWorld_BossrushBestTime_01",
+            "DreamBossStage_HaveRecordedTime_BossRush_01",
+            "Talk_12",
+            "Trial of three child-era foes",
+        ),
+        (
+            "DreamWorld_BossrushBestTime_02",
+            "DreamBossStage_HaveRecordedTime_BossRush_02",
+            "Talk_15",
+            "Trial of five adult-era foes",
+        ),
         ("DreamWorld_BossRushBestTime", "DreamBossStage_HaveRecordedTime_BossRush", "Talk_18", "Trial of all ten foes"),
     ] {
         if let (Some(b), Some(h)) = (gd.find(best), gd.find(have)) {
-            let label = names.text.get(&format!("AllBossBattle/{msg}")).filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| fallback.into());
+            let label = names
+                .text
+                .get(&format!("AllBossBattle/{msg}"))
+                .filter(|s| !s.is_empty())
+                .cloned()
+                .unwrap_or_else(|| fallback.into());
             out.push(HallSlot { id: format!("trial/{best}"), label, have: h, best: b, other: 0 });
         }
     }
@@ -375,7 +469,13 @@ fn rows(files: &GameFiles, table: &str) -> Result<Val, Error> {
 /// The pouch: equipment, items, masks, upgrades, songs and quest items, and the rupee wallet.
 fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&str, Vec<Entry>>) {
     let Ok(rows) = rows(files, "PouchActorInfo") else { return };
-    const FAMILIES: [(&str, &str); 5] = [("Item_Melody_", "songs"), ("Item_Stone_", "quest"), ("Item_Medal_", "quest"), ("Item_Token_", "quest"), ("Item_AgonyStone", "quest")];
+    const FAMILIES: [(&str, &str); 5] = [
+        ("Item_Melody_", "songs"),
+        ("Item_Stone_", "quest"),
+        ("Item_Medal_", "quest"),
+        ("Item_Token_", "quest"),
+        ("Item_AgonyStone", "quest"),
+    ];
     let mut all: Vec<(String, i64, u32)> = vec![];
     for row in rows.as_arr() {
         let Some(name) = row.get("__RowId").and_then(Val::as_str) else { continue };
@@ -390,13 +490,18 @@ fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&st
     let bags: Bags = Arc::new(all);
     for row in rows.as_arr() {
         let Some(name) = row.get("__RowId").and_then(Val::as_str) else { continue };
-        if !["Item_", "Weapon_", "Armor_"].iter().any(|p| name.starts_with(p)) || name.starts_with("Item_Dungeon_") || name.starts_with("Pouch_") || name.contains("Bundle") {
+        if !["Item_", "Weapon_", "Armor_"].iter().any(|p| name.starts_with(p))
+            || name.starts_with("Item_Dungeon_")
+            || name.starts_with("Pouch_")
+            || name.contains("Bundle")
+        {
             continue;
         }
         let Some(get) = gd.find(&format!("IsGet.{name}")) else { continue };
         let mut stock = gd.find(&format!("PouchData.{name}.StockNum"));
         let family = FAMILIES.iter().find(|(p, _)| name.starts_with(p)).map(|(_, c)| *c);
-        let bottle = row.get("PouchSpecialDeal").and_then(Val::as_str) == Some("Bottle") || row.get("BottleItem").is_some_and(Val::truthy);
+        let bottle = row.get("PouchSpecialDeal").and_then(Val::as_str) == Some("Bottle")
+            || row.get("BottleItem").is_some_and(Val::truthy);
         if name == "Item_Bottle" && stock.is_none() {
             if let Some(a) = row.get("AssignableItem").filter(|v| v.truthy()).and_then(Val::as_str) {
                 stock = gd.find(&format!("PouchData.{a}.StockNum"));
@@ -405,16 +510,26 @@ fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&st
         if stock.is_none() && family.is_none() && !bottle {
             continue;
         }
-        if gd.entry(get).and_then(|e| e.get("DefaultValue")).is_some_and(Val::truthy) || name.contains("Amiibo") || name.ends_with("_Base") || name.ends_with("_Normal") {
+        if gd.entry(get).and_then(|e| e.get("DefaultValue")).is_some_and(Val::truthy)
+            || name.contains("Amiibo")
+            || name.ends_with("_Base")
+            || name.ends_with("_Normal")
+        {
             continue;
         }
         let cat = family.unwrap_or_else(|| {
             let cat_of = |k: &str| row.get(k).and_then(Val::as_str);
-            if row.get("AfterExpansionMaxNum").is_some_and(Val::truthy) || name.contains("Gauntlet") || name.contains("Scale") || name.contains("FairyBless") {
+            if row.get("AfterExpansionMaxNum").is_some_and(Val::truthy)
+                || name.contains("Gauntlet")
+                || name.contains("Scale")
+                || name.contains("FairyBless")
+            {
                 "upgrades"
             } else if name.contains("_Mask_") {
                 "masks"
-            } else if matches!(cat_of("PouchCategory"), Some("Weapon" | "Shield" | "Armor" | "Boot")) && cat_of("PouchTabCategory") == Some("Equipment") {
+            } else if matches!(cat_of("PouchCategory"), Some("Weapon" | "Shield" | "Armor" | "Boot"))
+                && cat_of("PouchTabCategory") == Some("Equipment")
+            {
                 "equipment"
             } else {
                 "items"
@@ -424,7 +539,10 @@ fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&st
         let fixed = row.get("FixedMaxNum").filter(|v| !matches!(v, Val::Null)).and_then(Val::int).map(|v| v as i64);
         let counted = row.get("PouchStockable").is_some_and(Val::truthy) && (group.is_some() || fixed.is_some());
         out.entry(cat).or_default().push(Entry {
-            area: String::new(), ident: name.to_string(), label: names.of(name), note: None,
+            area: String::new(),
+            ident: name.to_string(),
+            label: names.of(name),
+            note: None,
             kind: Kind::Item { get, stock, group, fixed, counted, bags: bags.clone() },
         });
     }
@@ -432,7 +550,13 @@ fn items(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&st
         list.sort_by_key(|e| e.label.to_lowercase());
     }
     if let Some(rupee) = gd.find("PlayerStatus.CurrentRupee") {
-        out.entry("rupees").or_default().push(Entry { area: String::new(), ident: "rupees".into(), label: "Rupees".into(), note: None, kind: Kind::Rupees { flag: rupee, bags: bags.clone() } });
+        out.entry("rupees").or_default().push(Entry {
+            area: String::new(),
+            ident: "rupees".into(),
+            label: "Rupees".into(),
+            note: None,
+            kind: Kind::Rupees { flag: rupee, bags: bags.clone() },
+        });
     }
 }
 
@@ -442,13 +566,22 @@ fn actor_fields(a: &Actor) -> (String, Option<i128>) {
 }
 
 fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, out: &mut BTreeMap<&str, Vec<Entry>>) {
-    let keyflag: HashSet<i128> = gd.flags.values().filter(|(t, _)| t == KEY_BOOL).filter_map(|(_, e)| e.get("Hash").and_then(Val::int)).collect();
+    let keyflag: HashSet<i128> = gd
+        .flags
+        .values()
+        .filter(|(t, _)| t == KEY_BOOL)
+        .filter_map(|(_, e)| e.get("Hash").and_then(Val::int))
+        .collect();
     let mut skull: BTreeMap<i128, (String, String)> = BTreeMap::new();
     let mut skull_order: Vec<i128> = vec![];
     let mut containers: BTreeMap<i128, (String, String)> = BTreeMap::new();
     // anchors: identity string (as Python's repr of the tuple, which is what the editor sorts by) -> (banc, where, ident)
     #[derive(Clone)]
-    enum Anchor { Flag(String), Actor(i128), Own(i128) }
+    enum Anchor {
+        Flag(String),
+        Actor(i128),
+        Own(i128),
+    }
     let mut anchors: Vec<(Anchor, String, String)> = vec![];
     let mut chests: BTreeMap<i128, (String, String, String, Option<i64>)> = BTreeMap::new();
     let mut dungeon: BTreeMap<String, [u32; 3]> = BTreeMap::new();
@@ -467,19 +600,24 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
             let dyn_ = &a.dynamic;
             let drop = dyn_.get("Drop__DropActor").and_then(Val::as_str).unwrap_or("");
             if let (true, Some(h)) = (gy.starts_with("Obj_TBox"), hs) {
-                if !chests.contains_key(&h) && gd.find(&format!("IsTreasureBoxOpen.{}", py_int(a.hash.as_ref()))).is_some() {
+                if !chests.contains_key(&h)
+                    && gd.find(&format!("IsTreasureBoxOpen.{}", py_int(a.hash.as_ref()))).is_some()
+                {
                     let room = dyn_.get("DefaultDungeonRoomIndex").and_then(Val::int).map(|r| r as i64);
                     chests.insert(h, (banc.clone(), where_.clone(), drop.to_string(), room));
                 }
             }
             if let Some(h) = hs {
                 if gy == "Enemy_Skulltula_Gold" && keyflag.contains(&h) {
-                    if !skull.contains_key(&h) { skull_order.push(h); }
+                    if !skull.contains_key(&h) {
+                        skull_order.push(h);
+                    }
                     skull.entry(h).or_insert((banc.clone(), where_.clone()));
                 } else if gy == "Obj_Heart_Container" && keyflag.contains(&h) {
                     containers.entry(h).or_insert((banc.clone(), where_.clone()));
                 } else if gy == "HeartPieceAnchor" {
-                    let path = dyn_.get("HeartPieceAnchor_GameDataPath").and_then(Val::as_str).filter(|s| !s.is_empty());
+                    let path =
+                        dyn_.get("HeartPieceAnchor_GameDataPath").and_then(Val::as_str).filter(|s| !s.is_empty());
                     let refd = a.links.iter().find(|(src, _)| *src == Some(h)).and_then(|(_, dst)| *dst);
                     let ident = match (path, refd) {
                         (Some(p), _) => Anchor::Flag(p.to_string()),
@@ -512,10 +650,21 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
                 }
             }
             if let Some(g) = gy.strip_prefix("Enemy_DungeonBoss_") {
-                if !g.is_empty() && g.bytes().all(|c| c.is_ascii_alphabetic()) && g != "Koume" && g != "Kotake" && !bosses_seen.contains(g) {
+                if !g.is_empty()
+                    && g.bytes().all(|c| c.is_ascii_alphabetic())
+                    && g != "Koume"
+                    && g != "Kotake"
+                    && !bosses_seen.contains(g)
+                {
                     if let Some(flag) = gd.find(&format!("DefeatedEnemyNum.{gy}")) {
                         bosses_seen.insert(g.to_string());
-                        boss_list.push(Entry { area: area_of(banc), ident: g.to_string(), label: names.of(gy), note: None, kind: Kind::Count(flag) });
+                        boss_list.push(Entry {
+                            area: area_of(banc),
+                            ident: g.to_string(),
+                            label: names.of(gy),
+                            note: None,
+                            kind: Kind::Count(flag),
+                        });
                     }
                 }
             }
@@ -532,29 +681,50 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
     for (area, mut v) in by_area {
         v.sort_by(|a, b| a.1.cmp(&b.1));
         for (i, (h, w)) in v.into_iter().enumerate() {
-            list.push(Entry { area: area.clone(), ident: (i + 1).to_string(), label: format!("Gold Skulltula {} in {} (at {w})", i + 1, humanize(&area)), note: Some(w), kind: Kind::Key(h) });
+            list.push(Entry {
+                area: area.clone(),
+                ident: (i + 1).to_string(),
+                label: format!("Gold Skulltula {} in {} (at {w})", i + 1, humanize(&area)),
+                note: Some(w),
+                kind: Kind::Key(h),
+            });
         }
     }
 
     // hearts
     let life = gd.find("PlayerStatus.MaxLife");
-    let start = life.and_then(|l| gd.entry(l)).and_then(|e| e.get("DefaultValue")).and_then(Val::int).unwrap_or(0) as u32 / 4;
+    let start =
+        life.and_then(|l| gd.entry(l)).and_then(|e| e.get("DefaultValue")).and_then(Val::int).unwrap_or(0) as u32 / 4;
     let max = start + containers.len() as u32 + anchors.len() as u32 / 4;
     if let Some(l) = life {
-        out.entry("hearts").or_default().push(Entry { area: String::new(), ident: "hearts".into(), label: "Hearts".into(), note: None, kind: Kind::Hearts { flag: l, of: max } });
+        out.entry("hearts").or_default().push(Entry {
+            area: String::new(),
+            ident: "hearts".into(),
+            label: "Hearts".into(),
+            note: None,
+            kind: Kind::Hearts { flag: l, of: max },
+        });
     }
     let mut cs: Vec<_> = containers.iter().collect();
     cs.sort_by(|a, b| (area_of(&a.1 .0), &a.1 .1).cmp(&(area_of(&b.1 .0), &b.1 .1)));
     for (i, (h, (banc, w))) in cs.into_iter().enumerate() {
         out.entry("heart-containers").or_default().push(Entry {
-            area: area_of(banc), ident: (i + 1).to_string(), label: format!("Heart container in {}", humanize(&area_of(banc))), note: Some(w.clone()), kind: Kind::Key(*h),
+            area: area_of(banc),
+            ident: (i + 1).to_string(),
+            label: format!("Heart container in {}", humanize(&area_of(banc))),
+            note: Some(w.clone()),
+            kind: Kind::Key(*h),
         });
     }
 
     // heart pieces
     let mut by_area: BTreeMap<String, Vec<(String, Anchor, String)>> = BTreeMap::new();
     for (ident, banc, w) in &anchors {
-        let repr = match ident { Anchor::Flag(p) => format!("('flag', '{p}')"), Anchor::Actor(r) => format!("('actor', {r})"), Anchor::Own(r) => format!("('anchor', {r})") };
+        let repr = match ident {
+            Anchor::Flag(p) => format!("('flag', '{p}')"),
+            Anchor::Actor(r) => format!("('actor', {r})"),
+            Anchor::Own(r) => format!("('anchor', {r})"),
+        };
         by_area.entry(area_of(banc)).or_default().push((repr, ident.clone(), w.clone()));
     }
     for (area, mut v) in by_area {
@@ -563,9 +733,27 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
             let n = i + 1;
             let label = format!("Heart piece {n} in {}", humanize(&area));
             let e = match &ident {
-                Anchor::Flag(p) if gd.find(p).is_some() => Some(Entry { area: area.clone(), ident: n.to_string(), label: format!("{label} ({})", humanize(p)), note: None, kind: Kind::Flag(gd.find(p)) }),
-                Anchor::Actor(r) if gd.find(&format!("IsTreasureBoxOpen.{r}")).is_some() => Some(Entry { area: area.clone(), ident: n.to_string(), label: format!("{label} (in a chest)"), note: Some(w.clone()), kind: Kind::Flag(gd.find(&format!("IsTreasureBoxOpen.{r}"))) }),
-                Anchor::Actor(r) if keyflag.contains(r) => Some(Entry { area: area.clone(), ident: n.to_string(), label, note: Some(w.clone()), kind: Kind::Key(*r) }),
+                Anchor::Flag(p) if gd.find(p).is_some() => Some(Entry {
+                    area: area.clone(),
+                    ident: n.to_string(),
+                    label: format!("{label} ({})", humanize(p)),
+                    note: None,
+                    kind: Kind::Flag(gd.find(p)),
+                }),
+                Anchor::Actor(r) if gd.find(&format!("IsTreasureBoxOpen.{r}")).is_some() => Some(Entry {
+                    area: area.clone(),
+                    ident: n.to_string(),
+                    label: format!("{label} (in a chest)"),
+                    note: Some(w.clone()),
+                    kind: Kind::Flag(gd.find(&format!("IsTreasureBoxOpen.{r}"))),
+                }),
+                Anchor::Actor(r) if keyflag.contains(r) => Some(Entry {
+                    area: area.clone(),
+                    ident: n.to_string(),
+                    label,
+                    note: Some(w.clone()),
+                    kind: Kind::Key(*r),
+                }),
                 _ => None,
             };
             if let Some(e) = e {
@@ -585,36 +773,74 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
             let content = if drop.is_empty() {
                 "empty".to_string()
             } else {
-                names.text(&drop).map(String::from).unwrap_or_else(|| humanize(drop.strip_prefix("TBox_").or_else(|| drop.strip_prefix("Item_")).unwrap_or(&drop)))
+                names.text(&drop).map(String::from).unwrap_or_else(|| {
+                    humanize(drop.strip_prefix("TBox_").or_else(|| drop.strip_prefix("Item_")).unwrap_or(&drop))
+                })
             };
             out.entry("chests").or_default().push(Entry {
-                area: area.clone(), ident: (i + 1).to_string(), label: format!("Chest {} in {} ({content})", i + 1, humanize(&area)),
-                note: Some(format!("room {room} at {w}")), kind: Kind::Flag(gd.find(&format!("IsTreasureBoxOpen.{h}"))),
+                area: area.clone(),
+                ident: (i + 1).to_string(),
+                label: format!("Chest {} in {} ({content})", i + 1, humanize(&area)),
+                note: Some(format!("room {room} at {w}")),
+                kind: Kind::Flag(gd.find(&format!("IsTreasureBoxOpen.{h}"))),
             });
         }
     }
 
     // dungeons: each dungeon's struct names the flags of its map, compass, boss key and keys
     let member = |n: &str| flag_hash(n);
-    let (m_map, m_compass, m_boss, m_keys, m_total) = (member("IsGetMap"), member("IsGetCompass"), member("IsGetBossKey"), member("SmallKeyNum"), member("SmallKeyTotalNum"));
-    let dnames: HashMap<u32, String> = place.folder.keys().map(|b| (flag_hash(&format!("DungeonInfo.{}", area_of(b))), area_of(b))).collect();
-    let mut structs: Vec<(u32, HashMap<u32, u32>)> = gd.flags.iter().filter(|(_, (t, _))| t == "Struct").filter_map(|(h, (_, e))| {
-        let m: HashMap<u32, u32> = e.get("DefaultValue")?.as_arr().iter().filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32))).collect();
-        m.contains_key(&m_map).then_some((*h, m))
-    }).collect();
+    let (m_map, m_compass, m_boss, m_keys, m_total) = (
+        member("IsGetMap"),
+        member("IsGetCompass"),
+        member("IsGetBossKey"),
+        member("SmallKeyNum"),
+        member("SmallKeyTotalNum"),
+    );
+    let dnames: HashMap<u32, String> =
+        place.folder.keys().map(|b| (flag_hash(&format!("DungeonInfo.{}", area_of(b))), area_of(b))).collect();
+    let mut structs: Vec<(u32, HashMap<u32, u32>)> = gd
+        .flags
+        .iter()
+        .filter(|(_, (t, _))| t == "Struct")
+        .filter_map(|(h, (_, e))| {
+            let m: HashMap<u32, u32> = e
+                .get("DefaultValue")?
+                .as_arr()
+                .iter()
+                .filter_map(|x| Some((x.get("Hash")?.int()? as u32, x.get("Value")?.int()? as u32)))
+                .collect();
+            m.contains_key(&m_map).then_some((*h, m))
+        })
+        .collect();
     structs.sort_by_key(|(h, _)| dnames.get(h).cloned().unwrap_or_else(|| format!("~{h:08x}")));
     for (h, members) in structs {
         let name = dnames.get(&h).cloned().unwrap_or_else(|| format!("Dungeon {h:08x}"));
-        for (i, (key, what, ident)) in [(m_map, "map", "map"), (m_compass, "compass", "compass"), (m_boss, "boss key", "bosskey")].into_iter().enumerate() {
+        for (i, (key, what, ident)) in
+            [(m_map, "map", "map"), (m_compass, "compass", "compass"), (m_boss, "boss key", "bosskey")]
+                .into_iter()
+                .enumerate()
+        {
             if dungeon.get(&name).is_some_and(|d| d[i] > 0) {
                 if let Some(flag) = members.get(&key) {
-                    out.entry("dungeons").or_default().push(Entry { area: name.clone(), ident: ident.into(), label: format!("{}: {what}", humanize(&name)), note: None, kind: Kind::Flag(Some(*flag)) });
+                    out.entry("dungeons").or_default().push(Entry {
+                        area: name.clone(),
+                        ident: ident.into(),
+                        label: format!("{}: {what}", humanize(&name)),
+                        note: None,
+                        kind: Kind::Flag(Some(*flag)),
+                    });
                 }
             }
         }
         let total = keys_by.get(&name).map_or(0, BTreeSet::len);
         if let (true, Some(held), Some(found)) = (total > 0, members.get(&m_keys), members.get(&m_total)) {
-            out.entry("small-keys").or_default().push(Entry { area: name.clone(), ident: "keys".into(), label: format!("{}: small keys", humanize(&name)), note: None, kind: Kind::Keys { held: *held, found: *found, of: total as u32 } });
+            out.entry("small-keys").or_default().push(Entry {
+                area: name.clone(),
+                ident: "keys".into(),
+                label: format!("{}: small keys", humanize(&name)),
+                note: None,
+                kind: Kind::Keys { held: *held, found: *found, of: total as u32 },
+            });
         }
     }
 
@@ -630,7 +856,13 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
         if let Some(base) = gy.strip_suffix("_Dictionary") {
             if !gy.starts_with("Enemy_DungeonBoss") && done.insert(base.to_string()) {
                 if let Some(flag) = gd.find(&format!("DefeatedEnemyNum.{base}")) {
-                    list.push(Entry { area: String::new(), ident: base.to_string(), label: names.of(base), note: None, kind: Kind::Count(flag) });
+                    list.push(Entry {
+                        area: String::new(),
+                        ident: base.to_string(),
+                        label: names.of(base),
+                        note: None,
+                        kind: Kind::Count(flag),
+                    });
                 }
             }
         }
@@ -650,7 +882,8 @@ fn objective(text: &HashMap<String, String>, step: &str) -> Option<String> {
     let mut lines: Vec<&str> = t.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
     if lines.last().is_some_and(|l| l.ends_with(':')) {
         let base = step.split('_').next().unwrap_or(step);
-        let items: Vec<&str> = (0..20).map_while(|i| text.get(&format!("{base}_NextActionContent_{i:02}")).map(String::as_str)).collect();
+        let items: Vec<&str> =
+            (0..20).map_while(|i| text.get(&format!("{base}_NextActionContent_{i:02}")).map(String::as_str)).collect();
         if !items.is_empty() {
             return Some(format!("{} {}", lines.join(" "), items.join(", ")));
         }
@@ -677,14 +910,32 @@ fn quests(files: &GameFiles, gd: &GameData, names: &Names, out: &mut BTreeMap<&s
             Some(c) if c == sub => "side-quests",
             _ => "mini-games",
         };
-        let final_ = row.get("Steps").and_then(|s| s.as_arr().last()).and_then(|s| s.get("Name")).and_then(Val::as_str).unwrap_or("").to_string();
-        let done: HashSet<u32> = values.iter().filter(|v| *v == "Complete" || **v == final_).map(|v| flag_hash(v)).collect();
-        let stripped = ["SubEvent_", "Minigame_", "MiniGame_"].iter().find_map(|p| name.strip_prefix(p)).unwrap_or(name);
+        let final_ = row
+            .get("Steps")
+            .and_then(|s| s.as_arr().last())
+            .and_then(|s| s.get("Name"))
+            .and_then(Val::as_str)
+            .unwrap_or("")
+            .to_string();
+        let done: HashSet<u32> =
+            values.iter().filter(|v| *v == "Complete" || **v == final_).map(|v| flag_hash(v)).collect();
+        let stripped =
+            ["SubEvent_", "Minigame_", "MiniGame_"].iter().find_map(|p| name.strip_prefix(p)).unwrap_or(name);
         // the game's own title and objectives where it has them (the Threads of Time quests)
         let text = names.quests.get(name);
-        let label = text.and_then(|t| t.get("Name")).filter(|n| !n.trim().is_empty()).cloned().unwrap_or_else(|| humanize(stripped));
+        let label = text
+            .and_then(|t| t.get("Name"))
+            .filter(|n| !n.trim().is_empty())
+            .cloned()
+            .unwrap_or_else(|| humanize(stripped));
         let values = values.iter().map(|v| (v.clone(), text.and_then(|t| objective(t, v)))).collect();
-        out.entry(kind).or_default().push(Entry { area: String::new(), ident: name.to_string(), label, note: None, kind: Kind::Step(flag, done, values) });
+        out.entry(kind).or_default().push(Entry {
+            area: String::new(),
+            ident: name.to_string(),
+            label,
+            note: None,
+            kind: Kind::Step(flag, done, values),
+        });
     }
     for k in ["story", "side-quests", "mini-games"] {
         if let Some(l) = out.get_mut(k) {
@@ -765,30 +1016,49 @@ impl Game {
     fn slot_info(&self, n: u32, sav: &Save, caption: Option<&Save>) -> RepSlot {
         let flag = |name: &str| self.data.find(name);
         let banc = flag("Sequence_CurrentBanc").and_then(|h| sav.get_string(h, 64)).unwrap_or_default();
-        let age = flag("Sequence_IsChildhood").map(|h| if sav.get(h).is_none_or(|w| w != 0) { "child" } else { "adult" }.to_string());
-        let clock = sav.get_u64(0xEF10_B80F).map(|c| format!("day {} {:02}:{:02}", c >> 32, (c & 0xFFFF_FFFF) / 3600, (c & 0xFFFF_FFFF) % 3600 / 60));
+        let age = flag("Sequence_IsChildhood")
+            .map(|h| if sav.get(h).is_none_or(|w| w != 0) { "child" } else { "adult" }.to_string());
+        let clock = sav
+            .get_u64(0xEF10_B80F)
+            .map(|c| format!("day {} {:02}:{:02}", c >> 32, (c & 0xFFFF_FFFF) / 3600, (c & 0xFFFF_FFFF) % 3600 / 60));
         let saved = caption.and_then(|c| {
-            let v: Option<Vec<u32>> = ["Year", "Month", "Day", "Hour", "Minute", "Second"].iter().map(|k| c.get(flag_hash(&format!("CaptionData.Date.{k}")))).collect();
+            let v: Option<Vec<u32>> = ["Year", "Month", "Day", "Hour", "Minute", "Second"]
+                .iter()
+                .map(|k| c.get(flag_hash(&format!("CaptionData.Date.{k}"))))
+                .collect();
             let v = v?;
             (v[0] != 0).then(|| format!("{:04}-{:02}-{:02} {:02}:{:02}", v[0], v[1], v[2], v[3], v[4]))
         });
         RepSlot {
-            slot: format!("slot_{n:02}"), number: n,
-            place: Some(serde_json::json!({ "area": banc, "name": if banc.is_empty() { None } else { Some(humanize(&area_of(&banc))) } })),
-            age, hearts: Some(sav.get(flag_hash("PlayerStatus.MaxLife")).unwrap_or(0) as f64 / 4.0),
-            rupees: Some(sav.get(flag_hash("PlayerStatus.CurrentRupee")).unwrap_or(0)), clock, saved, totals: self.totals(sav),
+            slot: format!("slot_{n:02}"),
+            number: n,
+            place: Some(
+                serde_json::json!({ "area": banc, "name": if banc.is_empty() { None } else { Some(humanize(&area_of(&banc))) } }),
+            ),
+            age,
+            hearts: Some(sav.get(flag_hash("PlayerStatus.MaxLife")).unwrap_or(0) as f64 / 4.0),
+            rupees: Some(sav.get(flag_hash("PlayerStatus.CurrentRupee")).unwrap_or(0)),
+            clock,
+            saved,
+            totals: self.totals(sav),
         }
     }
 
     /// Totals for one slot's save: `{category: [have, of]}`.
     pub fn totals(&self, sav: &Save) -> BTreeMap<String, [u32; 2]> {
-        self.catalogue.iter().map(|c| {
-            let (mut h, mut o) = (0, 0);
-            for e in &c.entries {
-                if let Some(x) = e.have(&self.data, sav) { h += x; o += e.size(&self.data, sav); }
-            }
-            (c.id.to_string(), [h, o])
-        }).collect()
+        self.catalogue
+            .iter()
+            .map(|c| {
+                let (mut h, mut o) = (0, 0);
+                for e in &c.entries {
+                    if let Some(x) = e.have(&self.data, sav) {
+                        h += x;
+                        o += e.size(&self.data, sav);
+                    }
+                }
+                (c.id.to_string(), [h, o])
+            })
+            .collect()
     }
 
     /// The report the app shows: every entry for `detail` (a slot number), and totals for every slot in `user_dir`.
@@ -808,27 +1078,74 @@ impl Game {
             saves.insert(n, (sav, mt));
         }
         let newest = saves.iter().max_by_key(|(_, (_, mt))| *mt).map(|(n, _)| *n);
-        let pick = detail.filter(|d| saves.contains_key(d)).or(newest).ok_or_else(|| Error::Game("no save slot found".into()))?;
+        let pick = detail
+            .filter(|d| saves.contains_key(d))
+            .or(newest)
+            .ok_or_else(|| Error::Game("no save slot found".into()))?;
         for (n, (sav, _)) in &saves {
             slots.push(self.slot_info(*n, sav, captions.get(n)));
         }
         let sav = &saves[&pick].0;
-        let categories = self.catalogue.iter().map(|c| {
-            let entries: Vec<RepEntry> = c.entries.iter().filter_map(|e| {
-                e.have(&self.data, sav).map(|h| RepEntry { id: e.id(c.id), label: e.label.clone(), area: e.area.clone(), have: h, of: e.size(&self.data, sav), note: e.describe(&self.data, sav), count: e.count(&self.data, sav), step: e.step(&self.data, sav) })
-            }).collect();
-            RepCategory { id: c.id.into(), title: c.title.into(), counted: c.counted, have: entries.iter().map(|e| e.have).sum(), of: entries.iter().map(|e| e.of).sum(), entries }
-        }).collect();
-        let hall: Vec<RepHall> = self.hall.iter().map(|h| {
-            let w = |f: u32| sav.get(f).filter(|_| self.data.flags.contains_key(&f));
-            RepHall { id: h.id.clone(), label: h.label.clone(), recorded: w(h.have).is_some_and(|v| v != 0), best_frames: w(h.best).map(f32::from_bits), other: w(h.other).map(f32::from_bits) }
-        }).collect();
+        let categories = self
+            .catalogue
+            .iter()
+            .map(|c| {
+                let entries: Vec<RepEntry> = c
+                    .entries
+                    .iter()
+                    .filter_map(|e| {
+                        e.have(&self.data, sav).map(|h| RepEntry {
+                            id: e.id(c.id),
+                            label: e.label.clone(),
+                            area: e.area.clone(),
+                            have: h,
+                            of: e.size(&self.data, sav),
+                            note: e.describe(&self.data, sav),
+                            count: e.count(&self.data, sav),
+                            step: e.step(&self.data, sav),
+                        })
+                    })
+                    .collect();
+                RepCategory {
+                    id: c.id.into(),
+                    title: c.title.into(),
+                    counted: c.counted,
+                    have: entries.iter().map(|e| e.have).sum(),
+                    of: entries.iter().map(|e| e.of).sum(),
+                    entries,
+                }
+            })
+            .collect();
+        let hall: Vec<RepHall> = self
+            .hall
+            .iter()
+            .map(|h| {
+                let w = |f: u32| sav.get(f).filter(|_| self.data.flags.contains_key(&f));
+                RepHall {
+                    id: h.id.clone(),
+                    label: h.label.clone(),
+                    recorded: w(h.have).is_some_and(|v| v != 0),
+                    best_frames: w(h.best).map(f32::from_bits),
+                    other: w(h.other).map(f32::from_bits),
+                }
+            })
+            .collect();
         // (`HavePlayedEvent.*` are members of a struct, so they are not in the flag table; the save keys them by the
         // hash of the whole name.)
         let set = |name: &str| sav.get(flag_hash(name)).map(|v| v != 0);
-        let signs = [set("DreamWorld_Open"), set("HavePlayedEvent.Npc_Dream_FirstTalk"), Some(hall.iter().any(|h| h.recorded))];
-        let hall_open = signs[..2].iter().any(Option::is_some).then(|| signs.iter().any(|s| *s == Some(true)));
-        Ok(Report { hall, hall_open, schema: 1, generator: "oj-gamedata".into(), game_revision: self.data.revision, slot: format!("slot_{pick:02}"), slots, categories })
+        let signs =
+            [set("DreamWorld_Open"), set("HavePlayedEvent.Npc_Dream_FirstTalk"), Some(hall.iter().any(|h| h.recorded))];
+        let hall_open = signs[..2].iter().any(Option::is_some).then(|| signs.contains(&Some(true)));
+        Ok(Report {
+            hall,
+            hall_open,
+            schema: 1,
+            generator: "oj-gamedata".into(),
+            game_revision: self.data.revision,
+            slot: format!("slot_{pick:02}"),
+            slots,
+            categories,
+        })
     }
 }
 
@@ -848,10 +1165,17 @@ mod tests {
         .into_iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
-        assert_eq!(objective(&t, "Step01_01").as_deref(), Some("Awaken the sages in the following locations: Deep forest, High mountain"));
+        assert_eq!(
+            objective(&t, "Step01_01").as_deref(),
+            Some("Awaken the sages in the following locations: Deep forest, High mountain")
+        );
         assert_eq!(objective(&t, "Step03").as_deref(), Some("Cross the Mirage Desert."));
         assert_eq!(objective(&t, "Ready"), None);
-        let no_list: HashMap<String, String> = [("Step01_NextAction".to_string(), "Rescue the captive apprentices.\nCaptive apprentices remaining:".to_string())].into();
+        let no_list: HashMap<String, String> = [(
+            "Step01_NextAction".to_string(),
+            "Rescue the captive apprentices.\nCaptive apprentices remaining:".to_string(),
+        )]
+        .into();
         assert_eq!(objective(&no_list, "Step01").as_deref(), Some("Rescue the captive apprentices."));
     }
 }

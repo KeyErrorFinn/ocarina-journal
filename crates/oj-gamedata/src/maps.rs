@@ -136,7 +136,11 @@ fn num(v: Option<&Val>) -> Option<f32> {
 }
 
 fn floor_name(n: i64) -> String {
-    if n < 0 { format!("B{}", -n) } else { format!("{}F", n + 1) }
+    if n < 0 {
+        format!("B{}", -n)
+    } else {
+        format!("{}F", n + 1)
+    }
 }
 
 fn field_texture(files: &GameFiles, name: &str) -> Option<String> {
@@ -191,7 +195,11 @@ fn mask_of(img: &Image) -> Mask {
         for gx in 0..MASK_W {
             let x = ((gx as f32 + 0.5) * img.width as f32 / MASK_W as f32) as usize;
             let y = ((gy as f32 + 0.5) * img.height as f32 / h as f32) as usize;
-            let a = img.rgba.get((y.min(img.height as usize - 1) * img.width as usize + x.min(img.width as usize - 1)) * 4 + 3).copied().unwrap_or(0);
+            let a = img
+                .rgba
+                .get((y.min(img.height as usize - 1) * img.width as usize + x.min(img.width as usize - 1)) * 4 + 3)
+                .copied()
+                .unwrap_or(0);
             bits.push(if a > 64 { '1' } else { '0' });
         }
     }
@@ -218,9 +226,18 @@ pub fn map_index(files: &GameFiles) -> Result<MapIndex, Error> {
         ) else {
             continue;
         };
-        let tex: Vec<&str> = m.get("TextureName").map(|t| t.as_arr().iter().filter_map(Val::as_str).collect()).unwrap_or_default();
+        let tex: Vec<&str> =
+            m.get("TextureName").map(|t| t.as_arr().iter().filter_map(Val::as_str).collect()).unwrap_or_default();
         let dungeon_param = param.get(id).filter(|p| p.get("Floor").is_some());
-        let mut place = Place { center: [cx, cz], span, dungeon: dungeon_param.is_some(), child: None, adult: None, floors: vec![], within: None };
+        let mut place = Place {
+            center: [cx, cz],
+            span,
+            dungeon: dungeon_param.is_some(),
+            child: None,
+            adult: None,
+            floors: vec![],
+            within: None,
+        };
         if let Some(p) = dungeon_param {
             let min = p.get("MinFloor").and_then(Val::int).unwrap_or(0) as i64;
             for (k, f) in p.get("Floor").map(|f| f.as_arr()).unwrap_or_default().iter().enumerate() {
@@ -230,18 +247,24 @@ pub fn map_index(files: &GameFiles) -> Result<MapIndex, Error> {
             }
         } else {
             if !has_banc(id) {
-                place.within = Some("HyruleField".into()).filter(|_| has_banc("HyruleField") && id != "HyruleField");
+                place.within = (has_banc("HyruleField") && id != "HyruleField").then(|| "HyruleField".into());
             }
             for (age, slot) in [("Child", 0usize), ("Adult", 1)] {
                 let Some(t) = tex.get(slot).and_then(|t| field_texture(files, t)) else { continue };
                 let banc = m.get("BancName").and_then(|b| b.as_arr().get(slot)).and_then(Val::as_str).unwrap_or("");
                 let p = param.get(banc).or_else(|| param.get(&format!("{id}_{age}")));
                 let mask = match place.within {
-                    Some(_) => Some(mask_of(&decode_named(files, &format!("UI/CustomTex/Map/Field/{t}.bntx.zs"), None)?)),
+                    Some(_) => {
+                        Some(mask_of(&decode_named(files, &format!("UI/CustomTex/Map/Field/{t}.bntx.zs"), None)?))
+                    }
                     None => None,
                 };
                 let era = Era { image: format!("field/{t}"), exits: exits(p), mask };
-                if slot == 0 { place.child = Some(era) } else { place.adult = Some(era) }
+                if slot == 0 {
+                    place.child = Some(era)
+                } else {
+                    place.adult = Some(era)
+                }
             }
         }
         places.insert(id.to_string(), place);
@@ -294,7 +317,14 @@ fn boss_title(files: &GameFiles, boss: &str) -> Result<Image, Error> {
     let layer = |kind: &str| {
         ["USen", "EUen"]
             .iter()
-            .find_map(|lang| decode_named(files, &format!("UI/CustomTex/BossName/Enemy_DungeonBoss_{boss}{kind}_{lang}.bntx.zs"), None).ok())
+            .find_map(|lang| {
+                decode_named(
+                    files,
+                    &format!("UI/CustomTex/BossName/Enemy_DungeonBoss_{boss}{kind}_{lang}.bntx.zs"),
+                    None,
+                )
+                .ok()
+            })
             .ok_or_else(|| Error::Game(format!("no title card for {boss}")))
     };
     let text = layer("")?;
@@ -304,7 +334,15 @@ fn boss_title(files: &GameFiles, boss: &str) -> Result<Image, Error> {
         if mask.width != out.width || mask.height != out.height {
             return;
         }
-        let top = Image { width: mask.width, height: mask.height, rgba: mask.rgba.chunks_exact(4).flat_map(|p| [colour[0], colour[1], colour[2], (p[0] as f32 * strength) as u8]).collect() };
+        let top = Image {
+            width: mask.width,
+            height: mask.height,
+            rgba: mask
+                .rgba
+                .chunks_exact(4)
+                .flat_map(|p| [colour[0], colour[1], colour[2], (p[0] as f32 * strength) as u8])
+                .collect(),
+        };
         over(&mut out, &top, 1.0);
     };
     if let Some(s) = &shadow {

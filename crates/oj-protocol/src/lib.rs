@@ -39,11 +39,7 @@ impl Subscribe {
             events: vec!["oot".into(), "map".into()],
             every: 6,
             changes: true,
-            flags: vec![
-                "PlayerStatus.Life".into(),
-                "PlayerStatus.CurrentRupee".into(),
-                "PlayerStatus.MaxLife".into(),
-            ],
+            flags: vec!["PlayerStatus.Life".into(), "PlayerStatus.CurrentRupee".into(), "PlayerStatus.MaxLife".into()],
         }
     }
 }
@@ -158,10 +154,16 @@ pub struct MapChange {
 /// An unsolicited event line (`{"event": ...}`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
-    Oot { frame: u64, game: Game },
+    Oot {
+        frame: u64,
+        game: Game,
+    },
     Map(MapChange),
     /// Any event kind this client does not model; kept raw for logging.
-    Other { kind: String, raw: Value },
+    Other {
+        kind: String,
+        raw: Value,
+    },
 }
 
 /// One decoded inbound line.
@@ -185,10 +187,9 @@ pub fn decode_line(line: &str) -> Result<Incoming, DecodeError> {
     if let Some(kind) = v.get("event").and_then(Value::as_str).map(str::to_owned) {
         let ev = match kind.as_str() {
             "oot" => match v.get("game").cloned().map(serde_json::from_value::<Game>) {
-                Some(Ok(game)) => Event::Oot {
-                    frame: v.get("frame").and_then(Value::as_u64).unwrap_or(game.frame),
-                    game,
-                },
+                Some(Ok(game)) => {
+                    Event::Oot { frame: v.get("frame").and_then(Value::as_u64).unwrap_or(game.frame), game }
+                }
                 _ => Event::Other { kind, raw: v },
             },
             "map" => match serde_json::from_value::<MapChange>(v.clone()) {
@@ -239,16 +240,15 @@ mod tests {
         let Incoming::Response(r) = decode_line(ok).unwrap() else { panic!() };
         assert!(r.ok);
         assert_eq!(r.as_status().unwrap().protocol, Some(1));
-        let err = r#"{"id": 3, "ok": false, "error": "unavailable", "message": "the game has not opened its saves yet"}"#;
+        let err =
+            r#"{"id": 3, "ok": false, "error": "unavailable", "message": "the game has not opened its saves yet"}"#;
         let Incoming::Response(r) = decode_line(err).unwrap() else { panic!() };
         assert_eq!(r.error.as_deref(), Some("unavailable"));
     }
 
     #[test]
     fn unknown_events_and_fields_are_tolerated() {
-        let Incoming::Event(Event::Other { kind, .. }) =
-            decode_line(r#"{"event":"future","x":1}"#).unwrap()
-        else {
+        let Incoming::Event(Event::Other { kind, .. }) = decode_line(r#"{"event":"future","x":1}"#).unwrap() else {
             panic!()
         };
         assert_eq!(kind, "future");

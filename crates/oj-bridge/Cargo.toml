@@ -16,3 +16,6 @@ thiserror.workspace = true
 [dev-dependencies]
 oj-testkit = { path = "../oj-testkit" }
 tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

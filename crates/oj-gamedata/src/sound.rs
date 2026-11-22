@@ -49,7 +49,8 @@ pub fn decode(d: &[u8]) -> Result<(u32, Vec<Vec<i16>>), Error> {
         }
         rate = u32_at(rec + 4)?;
         let samples = u32_at(rec + 8)? as usize;
-        let coefs: Vec<i32> = (0..16).map(|i| u16_at(rec + 0x10 + 2 * i).map(|v| v as i16 as i32)).collect::<Result<_, _>>()?;
+        let coefs: Vec<i32> =
+            (0..16).map(|i| u16_at(rec + 0x10 + 2 * i).map(|v| v as i16 as i32)).collect::<Result<_, _>>()?;
         let start = u32_at(rec + 0x30)? as usize;
         out.push(dsp_adpcm(d.get(start..).ok_or_else(bad)?, &coefs, samples));
     }

@@ -58,13 +58,16 @@ pub fn tapestry_index(files: &GameFiles) -> Result<Tapestry, Error> {
     let (w, h) = (t.width as f32, t.height as f32);
     let mut sections = vec![];
     for file in files.list("Model") {
-        let Some(name) = file.strip_prefix(MODEL_PREFIX).and_then(|n| n.strip_suffix("_Complete.bfres.zs")) else { continue };
+        let Some(name) = file.strip_prefix(MODEL_PREFIX).and_then(|n| n.strip_suffix("_Complete.bfres.zs")) else {
+            continue;
+        };
         let (path, bounds) = outline(&section_triangles(&files.load(&format!("Model/{file}"))?)?, w, h);
         if path.is_empty() {
             continue;
         }
         let plain = format!("Model/{MODEL_PREFIX}{name}.bfres.zs");
-        let shadow = if files.exists(&plain) { Some(outline(&section_triangles(&files.load(&plain)?)?, w, h).0) } else { None };
+        let shadow =
+            if files.exists(&plain) { Some(outline(&section_triangles(&files.load(&plain)?)?, w, h).0) } else { None };
         sections.push(Section { name: name.to_string(), path, shadow, bounds });
     }
     if sections.is_empty() {
@@ -90,7 +93,10 @@ fn outline(tris: &[[(f32, f32); 3]], w: f32, h: f32) -> (String, [u32; 4]) {
 
 /// One of the three tapestry pictures: `base`, `shadow` or `woven`.
 pub fn tapestry_image(files: &GameFiles, layer: &str) -> Result<Image, Error> {
-    let (_, tex) = LAYERS.iter().find(|(l, _)| *l == layer).ok_or_else(|| Error::Game(format!("unknown tapestry layer {layer:?}")))?;
+    let (_, tex) = LAYERS
+        .iter()
+        .find(|(l, _)| *l == layer)
+        .ok_or_else(|| Error::Game(format!("unknown tapestry layer {layer:?}")))?;
     let d = files.load(&format!("Tex/{tex}.bntx.zs"))?;
     let t = bntx_textures(&d)?.into_iter().next().ok_or_else(|| Error::Game(format!("{tex} has no texture")))?;
     decode(&d, &t)
@@ -115,7 +121,13 @@ fn section_triangles(d: &[u8]) -> Result<Vec<[(f32, f32); 3]>, Error> {
         if d.get(vb..vb + 4) != Some(b"FVTX") {
             return Err(bad());
         }
-        let (attrs, stride, voff, nattr, nvert) = (ptr(vb + 8)?, u32_(ptr(vb + 0x38)?)? as usize, u32_(vb + 0x48)? as usize, *d.get(vb + 0x4C).ok_or_else(bad)? as usize, u32_(vb + 0x50)? as usize);
+        let (attrs, stride, voff, nattr, nvert) = (
+            ptr(vb + 8)?,
+            u32_(ptr(vb + 0x38)?)? as usize,
+            u32_(vb + 0x48)? as usize,
+            *d.get(vb + 0x4C).ok_or_else(bad)? as usize,
+            u32_(vb + 0x50)? as usize,
+        );
         let mut uv_at = None;
         for k in 0..nattr {
             let a = attrs + 0x10 * k;
@@ -139,7 +151,8 @@ fn section_triangles(d: &[u8]) -> Result<Vec<[(f32, f32); 3]>, Error> {
             return Err(Error::Game("tapestry mesh is not u16 triangles".into()));
         }
         let (ioff, count) = (u32_(mesh + 0x20)? as usize, u32_(mesh + 0x2C)? as usize);
-        let idx = (0..count).map(|k| u16_(base + ioff + 2 * k).map(|i| i as usize)).collect::<Result<Vec<_>, Error>>()?;
+        let idx =
+            (0..count).map(|k| u16_(base + ioff + 2 * k).map(|i| i as usize)).collect::<Result<Vec<_>, Error>>()?;
         for t in idx.chunks_exact(3) {
             let p = |i: usize| uv.get(i).copied().ok_or_else(bad);
             out.push([p(t[0])?, p(t[1])?, p(t[2])?]);
