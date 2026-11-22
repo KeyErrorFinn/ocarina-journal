@@ -3,11 +3,12 @@
 Ocarina Journal (KeyErrorFinn/ocarina-journal) is an unofficial, read-only Windows companion for the Longshot PC
 recompilation of Ocarina of Time: a Tauri 2 app (React + TypeScript) with Rust crates that read the player's own
 saves and game files and follow the game live over a read-only local bridge. This page is the review policy for
-people and for any review bot. Contributors don't need to read it; it explains the verdicts they get.
+people and for AI review sessions. Contributors don't need to read it; it explains the verdicts they get.
 
-## The policy: a focused app, a well-indexed hub
+## The policy: build Ocarina Journal together
 
-The app stays one coherent journal. Bigger or more personal ideas still get a home:
+Contributions improve this app. Welcome larger ideas and agree on scope before implementation, then split
+the work into focused pull requests that can be reviewed and merged here.
 
 | The pull request | Where it goes | Verdict |
 |---|---|---|
@@ -15,7 +16,7 @@ The app stays one coherent journal. Bigger or more personal ideas still get a ho
 | A quiz question, medal, marker kind, landmark kind or save flag that follows `docs/workflows/` | merged here | merge / merge-with-fix |
 | A new screen or a bigger feature that was agreed in an issue | merged here | merge / rework |
 | The same without an agreed issue | an issue first | hold |
-| A restyle of the whole app, a port, a fork with other goals | the author's repository plus a row in SHOWCASE.md | showcase |
+| A larger redesign, platform port or integration | an issue to agree on scope, then focused pull requests here | hold / rework / merge |
 | Anything touching the rules below, CI or workflows, the bridge protocol, licensing, or new art direction | the maintainer | hold |
 
 ## Hard rules (a pull request that breaks one is a rework or a close, never a merge)
@@ -38,7 +39,6 @@ From `docs/RULES.md`:
   run, a missing [V]/[I]/[U] mark, a stray file). Say exactly what; the maintainer may push it.
 - **rework**: worth having, but the author must change something real. One clear ask.
 - **close**: duplicate, superseded, out of scope or against the rules. Be kind; point at what landed instead.
-- **showcase**: belongs in the author's own repository plus a SHOWCASE row. Thank them for something specific.
 - **hold**: needs a maintainer decision, or must first be checked against a real game install.
 
 ## What to check
@@ -54,8 +54,7 @@ From `docs/RULES.md`:
 
 Thank the author for something specific. Ask for one thing at a time. Prefer merge-with-fix to another round.
 
-## Automation
+## Review process
 
-The optional review app is configured in `.coderabbit.yaml`; follow [PR-BOT.md](PR-BOT.md) to install it.
-[SETUP.md](SETUP.md) records GitHub activation, branch protection and release gates. A bot's verdict is advisory;
+[SETUP.md](SETUP.md) records GitHub activation, branch protection and release gates. An AI's verdict is advisory;
 only a maintainer decides to merge. Required checks and code-owner approval are enforced by GitHub settings.

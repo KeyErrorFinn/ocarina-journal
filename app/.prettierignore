@@ -3,4 +3,5 @@ node_modules
 src-tauri
 pnpm-lock.yaml
 public/dev-report.json
+.local
 *.css

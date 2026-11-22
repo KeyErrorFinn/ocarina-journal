@@ -70,7 +70,9 @@ uploaded anywhere.
 - To build: [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org) 20+, [pnpm](https://pnpm.io), and the
   [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for Windows (WebView2, MSVC build tools)
 
-There are no release builds yet; build from source.
+Windows installers are published under [Releases](https://github.com/KeyErrorFinn/ocarina-journal/releases)
+when available. This early prototype is unsigned. It installs for the current Windows user and requires
+WebView2; your game files and saves are supplied separately and are never bundled. Build from source below.
 
 ## Build and run
 
@@ -97,7 +99,7 @@ crates/oj-bridge      Named-pipe client with reconnect
 crates/oj-journal     Turns live samples into a timeline and daily totals
 crates/oj-savefile    Reader for the game's save files (progress.sav flag table)
 crates/oj-gamedata    Reads names, categories and maps from your game files (zstd, SARC, BYML, MSBT, BNTX)
-crates/oj-testkit     Fake bridge and recorded fixtures for tests
+crates/oj-testkit     Fake bridge and synthetic fixtures for tests
 docs/research/        Investigation notes, formats, architecture, risks and open questions
 docs/workflows/       Step-by-step guides for common contributions
 ```
@@ -158,16 +160,18 @@ wrong. Open an issue and say which game revision and Longshot version you used.
 Small fixes, original art and documented research are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), the
 [project rules](docs/RULES.md) and [do's and don'ts](docs/DOS-AND-DONTS.md) before starting. The
 [workflow guides](docs/workflows/README.md) cover quiz questions, medals, save flags, map kinds, landmarks and
-screen fixes. Forks, ports and larger redesigns have a home in [SHOWCASE.md](SHOWCASE.md).
+screen fixes. For larger features, redesigns or platform ports, open an issue to agree on scope before
+building them, then contribute through focused pull requests.
 
-Maintainers: [repository activation and release checklist](.github/maintainer/SETUP.md),
-[review policy](.github/maintainer/MAINTAINER.md), and [PR bot setup](.github/maintainer/PR-BOT.md).
+Maintainers: [repository activation and release checklist](.github/maintainer/SETUP.md) and
+[review policy](.github/maintainer/MAINTAINER.md).
 
 ## Legal
 
 This is an unofficial fan project. It is not licensed by Nintendo. The code is declared **GPL-3.0-or-later**
-in the Cargo manifests. Parts of the category rules were ported from an unmerged Longshot pull request; the
-licensing of that port still needs review. See `docs/research/RISKS_AND_LIMITATIONS.md`. Nothing here is legal
-advice.
+in the Cargo manifests. The save catalogue rules are conservatively treated as adapted GPL work from the
+Longshot save-editor contributions, with attribution and source supplied under the same licence. See
+[third-party notices](THIRD_PARTY_NOTICES.md) and the [provenance review](docs/research/LICENSING_PROVENANCE.md).
+Nothing here is legal advice.
 
 Created in [T3 Code](https://t3.codes).

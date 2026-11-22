@@ -20,7 +20,7 @@ Pick the smallest home that fits:
 | A new save flag, file format detail or game fact you worked out | [`docs/research/`](docs/research), with every claim marked (see below), plus the code that uses it |
 | A new quiz question, medal, map marker kind or Rumor Hunt landmark | A pull request following the guide in [`docs/workflows/`](docs/workflows) |
 | A new screen or a bigger feature | An issue first, so we can agree on it before you build it |
-| Your own fork, theme, tool or port built on this | Your own repository, plus one row in [`SHOWCASE.md`](SHOWCASE.md) |
+| A larger redesign, platform port or integration that improves Ocarina Journal | An issue first to agree on scope, then focused pull requests here |
 | A question, or "does this work with my setup?" | [Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions) |
 
 ## Setting up
@@ -39,6 +39,11 @@ pnpm tauri dev        # the app, with hot reload for the interface
 
 The app finds the game in the usual Longshot folders and picks up the folder of a running `longshot.exe`. Without
 a game it still opens, with the screens that need game data showing what is missing.
+
+For browser-only layout review, an optional private report can live at `app/.local/dev-report.json`; it is
+ignored by Git and read only in development. Never share or commit reports made from real saves/game data.
+Vite's public-directory copying is disabled so private preview files cannot enter production builds. The
+favicon is an explicitly bundled source asset.
 
 ## Checking your change
 
@@ -83,6 +88,10 @@ Facts about the game, its files and the original companion app are marked where 
 Never invent an offset, a flag name or a file structure. "Unknown" is a fine answer.
 
 ## Pull requests
+
+Contributions build Ocarina Journal itself: fixes, features, research, accessibility, original art and
+documentation. Larger ideas are welcome; agree on their scope in an issue before implementation so they can
+be developed and reviewed as manageable changes to this app.
 
 - One topic per pull request. Small is good.
 - Fill in the template: what changed, what you tested it with (Longshot version, game revision, bridge on or

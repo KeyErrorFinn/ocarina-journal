@@ -37,7 +37,7 @@ crates/oj-bridge      Named-pipe client with reconnect
 crates/oj-journal     Turns live samples into a timeline and daily totals
 crates/oj-savefile    Reader for progress.sav (flag table, murmur3 name hashes)
 crates/oj-gamedata    Reads names, categories, maps, sounds and landmarks from the player's game files
-crates/oj-testkit     Fake bridge and recorded fixtures for tests
+crates/oj-testkit     Fake bridge and synthetic fixtures for tests
 docs/research/        Investigation notes; read before changing game-data code
 docs/workflows/       Step-by-step guides for common changes
 ```

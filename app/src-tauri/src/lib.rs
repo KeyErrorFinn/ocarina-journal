@@ -88,18 +88,26 @@ fn write_atomic(path: &std::path::Path, bytes: &[u8]) {
 
 /// Start of the journal day containing `now_ms`, in local time.
 fn day_start_ms(now_ms: u64) -> u64 {
-    use chrono::{Duration as D, Local, TimeZone};
-    let now = Local.timestamp_millis_opt(now_ms as i64).single().unwrap_or_else(Local::now);
-    let mut start = now.date_naive().and_hms_opt(5, 0, 0).unwrap();
-    if now.naive_local() < start {
-        start -= D::days(1);
-    }
-    Local.from_local_datetime(&start).earliest().map_or(now_ms, |t| t.timestamp_millis() as u64)
+    day_start_in(now_ms, jiff::tz::TimeZone::system())
+}
+
+fn day_start_in(now_ms: u64, zone: jiff::tz::TimeZone) -> u64 {
+    let Some(now) = i64::try_from(now_ms).ok().and_then(|ms| jiff::Timestamp::from_millisecond(ms).ok()) else {
+        return now_ms;
+    };
+    let now = now.to_zoned(zone.clone());
+    let date = if now.hour() < 5 { now.date().yesterday().ok() } else { Some(now.date()) };
+    date.and_then(|d| zone.to_ambiguous_zoned(d.at(5, 0, 0, 0)).compatible().ok())
+        .and_then(|start| u64::try_from(start.timestamp().as_millisecond()).ok())
+        .unwrap_or(now_ms)
 }
 
 fn date_of(ms: u64) -> String {
-    use chrono::{Local, TimeZone};
-    Local.timestamp_millis_opt(ms as i64).single().map(|t| t.format("%Y-%m-%d").to_string()).unwrap_or_default()
+    i64::try_from(ms)
+        .ok()
+        .and_then(|ms| jiff::Timestamp::from_millisecond(ms).ok())
+        .map(|t| t.to_zoned(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d").to_string())
+        .unwrap_or_default()
 }
 
 fn load_history() -> Vec<DaySummary> {
@@ -518,7 +526,7 @@ fn apply_enable_bridge(state: State<'_, Shared>, confirm: bool) -> Result<String
     }
     let path = std::path::PathBuf::from(&preview.path);
     if preview.exists {
-        let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let stamp = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S").to_string();
         let backup = path.with_file_name(format!("longshot_env.txt.oj-backup-{stamp}"));
         std::fs::copy(&path, &backup).map_err(|e| format!("could not back up the file: {e}"))?;
     }
@@ -715,6 +723,20 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn journal_days_follow_local_calendar_across_daylight_saving() {
+        let zone = jiff::tz::TimeZone::get("Europe/London").unwrap();
+        for (month, day, hours) in [(3, 29, 23), (10, 25, 25)] {
+            let date = jiff::civil::date(2026, month, day);
+            let before = zone.to_ambiguous_zoned(date.at(4, 59, 0, 0)).compatible().unwrap();
+            let after = zone.to_ambiguous_zoned(date.at(5, 0, 0, 0)).compatible().unwrap();
+            let previous = day_start_in(before.timestamp().as_millisecond() as u64, zone.clone());
+            let current = day_start_in(after.timestamp().as_millisecond() as u64, zone.clone());
+            assert_eq!(current, after.timestamp().as_millisecond() as u64);
+            assert_eq!(current - previous, hours * 60 * 60 * 1_000);
+        }
+    }
 
     /// Builds the report from the real install on this PC. Opt in with `OJ_TEST_REAL=1` (it reads your game and saves,
     /// read-only, and needs them to exist).

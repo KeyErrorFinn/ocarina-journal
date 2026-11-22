@@ -57,9 +57,10 @@ game's files; they belong to the phone app.
 
 ## Provenance and legal
 
-The catalogue rules follow the behaviour of Longshot's save editor (PR #1655, author mooki, unmerged); this is an
-independent Rust implementation written from reading that logic and checked against its output, not a copy of its code.
-Its licence and whether a port needs the same terms are **not settled** and belong with the legal review in
+The catalogue rules follow mooki's save-editor work (PR #1401), included in TrashPanda's live-map work (PR #1655).
+The Rust implementation was written from that logic and checked against its output. For distribution it is
+conservatively treated as adapted GPL-3.0-or-later work, with attribution and source; see
+[the provenance review](LICENSING_PROVENANCE.md). General legal limitations remain in
 `RISKS_AND_LIMITATIONS.md`. If the PR changes before it merges, this crate's rules may need to follow.
 
 ## Kill counters and the daily stats

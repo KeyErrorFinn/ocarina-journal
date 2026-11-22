@@ -1,8 +1,8 @@
 # Activate the contributor setup
 
-The contributor files, CI, draft-release workflow and bot configuration are local until pushed. This page is a
-maintainer checklist, not evidence that GitHub settings have been enabled. No installer has been published and
-the licensing review below is still open.
+The contributor files, CI and draft-release workflow are local until pushed. This page is a
+maintainer checklist, not evidence that GitHub settings have been enabled. The provenance basis and remaining
+release checks are recorded below.
 
 ## Activation recorded on 2026-11-22
 
@@ -19,10 +19,16 @@ Starter issues: [clean Windows setup (#1)](https://github.com/KeyErrorFinn/ocari
 [Hall time units (#3)](https://github.com/KeyErrorFinn/ocarina-journal/issues/3), and
 [Tapestry states (#4)](https://github.com/KeyErrorFinn/ocarina-journal/issues/4).
 
-Still pending: pushing these files (not requested), the first hosted CI run, installing the review app,
-uploading a social preview, resolving the licensing gate, and tagging/building/publishing the first release.
+Still pending: pushing these files (not requested), the first hosted CI run,
+uploading a social preview, and tagging/building/publishing the first release.
 Social-preview upload could not be completed because the browser access host was unavailable.
 The README still needs a sanitized no-game/synthetic UI screenshot; no gameplay screenshot has been committed.
+
+The owner chose on-demand AI-session reviews instead of an installed review bot. The unmerged bot setup PR
+was closed and its branch deleted; no bot configuration reached `master`. App-installation removal could not
+be verified: the available API credential cannot manage installations and the browser is signed out. If the
+app was installed, remove it under GitHub Settings > Applications > Installed GitHub Apps. Closing its PR or
+deleting its configuration does not revoke an app's repository access.
 
 ## Publish the foundation first
 
@@ -51,7 +57,7 @@ these; committing files does not activate them.
    "Unofficial, local, read-only Windows companion for Longshot: maps, journals, progress and ocarina."
    Suggested topics: `tauri`, `rust`, `react`, `typescript`, `windows`, `companion-app`, `ocarina-of-time`.
 6. **General / Social preview:** upload `assets/logo.png`. This is an original logo, not a screenshot.
-7. Install the optional review bot using [PR-BOT.md](PR-BOT.md). Keep merge decisions with a person.
+7. Review contributions against [MAINTAINER.md](MAINTAINER.md). Keep merge decisions with a person.
 
 See GitHub's documentation for [branch protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule)
 and [private reporting](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository).
@@ -80,8 +86,10 @@ Issue form labels only apply if those labels exist on GitHub.
 
 ## First release
 
-1. Resolve the provenance/licensing gate below. Run the contributor checks, including real-install tests, and
+1. Complete the privacy gate and resolve the provenance/licensing gate below. Run the contributor checks, including real-install tests, and
    manually check narrow and wide windows, bridge on/off and offline operation. Record the game/Longshot versions.
+   Review dependency advisories for the actual Windows build, separating vulnerabilities from maintenance
+   notices and target-specific dependencies. Record accepted maintenance risks or replace affected dependencies.
 2. Confirm `Cargo.toml` workspace version, `app/package.json` and `app/src-tauri/tauri.conf.json` agree. Move
    release notes from Unreleased into a dated version section in `CHANGELOG.md`.
 3. Commit and push the reviewed release source. Create and push `v0.1.0` only when ready to make that release.
@@ -91,17 +99,29 @@ Issue form labels only apply if those labels exist on GitHub.
    no signing certificate is supplied by this setup. Check that no game data or personal files are bundled.
 5. Publish the draft after acceptance. The latest-release badge will have no release to display until then.
 
+## Privacy gate
+
+Scan both the current publishable files and reachable Git history, not just the latest source tree. Check
+commit author/committer metadata, image metadata and built assets as well as source text. Ignored files can
+still enter a bundle through build tooling; Git exclusions alone are not a packaging boundary.
+
+Private browser reports belong in ignored `app/.local/` and are loaded only during development. Public-directory
+copying is disabled in Vite; the favicon is bundled explicitly. After `pnpm build`, verify that `app/dist`
+contains no development report, save data or personal paths. Replay fixtures must stay synthetic.
+
+Before publishing installers, inspect the exact installer/executable artifacts and any archives or debug
+symbols for personal paths, report data and unintended bundled files. Check the source archive separately.
+Do not claim that a source scan alone proves an installer is clean. Previously published history and closed
+PR commit references require separate cleanup; a clean current tree does not remove earlier disclosures.
+Rewriting published history needs an explicit maintainer decision and a coordinated force-push.
+
 ## Licensing gate
 
-The repository declares GPL-3.0-or-later and now includes the full GPL text. That does **not** settle provenance
-of the category rules implemented with reference to Longshot save-editor PR #1655 (older investigation notes
-also cite PR #1401). `crates/oj-gamedata/src/lib.rs` describes an independent Rust implementation checked against
-the tool's output; the exact boundary between copied expression and independently implemented behaviour needs
-review. Do not claim upstream has granted permission or that the review is complete.
-
-Before the first release, record in `docs/research/RISKS_AND_LIMITATIONS.md`: exact source revision/files,
-the licence applying at that revision, whether any code/expression was copied, required copyright/notices,
-and the maintainer's conclusion or permission evidence. If unresolved, keep the release on hold and say so.
+The release treats the save catalogue rules conservatively as GPL-adapted work, credits the upstream authors,
+and supplies source, the GPL text and dependency notices. The inspected source snapshots and exact checksums
+are in [LICENSING_PROVENANCE.md](../../docs/research/LICENSING_PROVENANCE.md). Do not claim independent-language
+implementation removes GPL obligations or that new permission/endorsement was obtained. Review new upstream
+reuse and contrary evidence before later releases; Nintendo game data is never included.
 
 ## README preview
 

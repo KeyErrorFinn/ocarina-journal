@@ -1,17 +1,17 @@
-# Spike S1: control bridge on the user's Windows machine (2026-11-19)
+# Spike S1: control bridge on Windows (2026-11-19)
 
-Build: Longshot `v3.0.0-rc.5` (source `013b1d3a`), test GPU, Windows 11. Game started with `HOS_CONTROL=zn-spike` set **only in the launched process's environment** (no config file written) and `--user` pointing at a scratch copy of the six real save slots. Real saves under `%APPDATA%\Longshot\save` were not touched (slot_01 mtime unchanged). A read-only Python client subscribed to `oot` and `map` events (`every:6`, `changes:true`). A second connection drove input (`press`, `stick`, `shot`) to load a save and walk: this used the bridge's write-capable commands, on a scratch copy, at the user's request. Raw logs are local (`<scratch>\spike\`), not committed.
+Build: Longshot `v3.0.0-rc.5` (source `013b1d3a`), Windows 11. Game started with `HOS_CONTROL=zn-spike` set **only in the launched process's environment** (no config file written) and `--user` pointing at a scratch copy of test saves. Original saves under `%APPDATA%\Longshot\save` were not touched (modification times unchanged). A read-only Python client subscribed to `oot` and `map` events (`every:6`, `changes:true`). A second connection drove input (`press`, `stick`, `shot`) to load a save and walk: this used the bridge's write-capable commands, on a scratch copy, with explicit consent. Raw logs remain private and are not committed. The replay fixture is synthetic and does not distribute these recordings.
 
 ## Results
 
 | Question | Result |
 |---|---|
 | Does the Windows named pipe work? | **Yes.** `\.\pipe\zn-spike`; two simultaneous clients (`clients:2` in `status`); 0 EOFs, 0 I/O errors, 0 bad JSON over ~14 minutes. **GATE 1 passed** for this build. |
-| Handshake | `status` reported `protocol:1`, `version:"v3.0.0-rc.5 (source 013b1d3a)"`, `renderer:"test GPU"`. While loading: `state:"boot"`, `game:null`, `saves` replied `unavailable` ("the game has not opened its saves yet"), as documented. |
+| Handshake | `status` reported `protocol:1`, `version:"v3.0.0-rc.5 (source 013b1d3a)"`, and a native Vulkan renderer. While loading: `state:"boot"`, `game:null`, `saves` replied `unavailable` ("the game has not opened its saves yet"), as documented. |
 | Sample rate | 2,027 `oot` samples; gap median **6 frames**, p95 6, 100% of gaps <= 12 except loads (max 210 frames); `more` never > 0; `pos` never null. At 60 fps that is ~10 Hz. |
 | Change-scan latency | The game logged `control: oot changes scan: Bool=22584 Int=2518 Enum=260 UInt=194 slots=25556 slice=4096 presents=7`. A full pass = **7 presents (~117 ms at 60 fps)**. Resolves risk T2. |
 | `map` event | Fired correctly: `KakarikoVillage_Adult_Alternative` -> `DeathMountainTrail_Adult` on walking through the exit. |
-| Live fields | Adult Link: `life` 56 / `max_life` 56 (14 hearts, matches the HUD), `rupees` 944, `pos` metres, `facing`, `camera`, `prompt`, `music` (`BGM_KakarikoVillage_Adult`, then `BGM_HyruleField` on Death Mountain Trail). |
+| Live fields | `life`, `max_life` and `rupees` matched the HUD; `pos` was in metres. `facing`, `camera`, `prompt` and `music` were present, with music changing on an area transition. Personal save values are omitted. |
 | `changed` flags | 16 distinct hashes changed in the session (loading a save, a map change, NPC proximity). Three were named by hashing every string in the player's own `Logic`/`RSDB`/`GameData`/`Game`/`Component`/`AI`/`Life`/`Env` data: NPC-proximity flags in Kakariko. **13 stay unnamed.** |
 | Two once-per-second counters | `0xe53eb6d1` (792, 793, ...) and `0xe573f564` (86804, 86805, ...) rose by 1 every 60 frames (132 samples). They look like play-time-style counters but **are not named in the scanned data and I did not verify what they are.** Candidate names tried (PlayTime variants etc.) did not match. Do not assume play time is available until identified. |
 | Save layout | Checked on all six real slots: magic `0x01020304`; revision `2982123` = the `GameDataList.Product.110.revision.txt` value; flag table of 11,958 entries; data offset 95,704; tail hash `0xA3DB7114` present; key table sorted and 0-terminated with 383-387 true keys; sizes 223,968-224,512. **The documented layout holds on real files.** (The ~224 KB size vs upstream's 120 KB example is explained by the table size.) |

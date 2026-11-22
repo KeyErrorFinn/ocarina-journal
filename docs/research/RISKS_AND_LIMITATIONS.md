@@ -42,15 +42,13 @@ Tags: **[C]** confirmed in source, **[S]** secondary, **[I]** inference, **[U]**
 
 ### 3.1 Longshot licence and our relationship to it
 
-**Contributor-setup review, 2026-11-22:** the repository now includes the full GPL-3.0 text and declares
-GPL-3.0-or-later. The category-rule provenance review remains **[U] unresolved**. The current crate header
-(`crates/oj-gamedata/src/lib.rs`) describes an independent Rust implementation following save-editor PR #1655;
-`IN_APP_NAME_READER.md` records the comparison against that tool. Earlier investigation notes reference PR #1401.
-Adding a licence file does not establish the licence of every upstream contribution or settle whether any
-copyrightable expression was ported. Before a public release, record the exact upstream revision/files,
-applicable licence and notices, any copied expression, and the maintainer's conclusion or permission evidence.
-The release remains on hold until that review is completed; see
-[the release checklist](../../.github/maintainer/SETUP.md#licensing-gate).
+**Release provenance review, 2026-11-22:** the repository includes the full GPL-3.0 text and distributes under
+GPL-3.0-or-later. The catalogue rules are conservatively treated as adapted GPL work from mooki's save-editor
+contribution and TrashPanda's live-map work, rather than relying on an independent-language exemption. The
+retained source evidence, exact snapshot checksums, attribution and distribution basis are recorded in
+[LICENSING_PROVENANCE.md](LICENSING_PROVENANCE.md), with notices in
+[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md). No new permission or upstream endorsement is claimed.
+General Nintendo IP risks below remain; this review does not authorise distributing game data.
 
 - Longshot: **GPL-3.0-or-later** for the whole project **[C]** (`LICENSE`, README). Contains GPL third-party code (suyu GPL-2.0-or-later, Eden GPL-3.0) **[C]** `docs/design.md` s.8.
 - **Our companion is a separate process** that talks to Longshot over a pipe using a documented protocol. Under the common reading of the GPL, communicating over a socket/pipe with a separate program does not by itself make our program a derivative work **[I]**. This is a legal judgement, not a settled fact.

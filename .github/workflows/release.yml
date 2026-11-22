@@ -44,13 +44,21 @@ jobs:
         working-directory: app
       - run: pnpm check
         working-directory: app
+      - name: Remap source paths in release binaries
+        shell: pwsh
+        run: |
+          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $env:USERPROFILE '.cargo' }
+          $flags = @("--remap-path-prefix=$env:GITHUB_WORKSPACE=/source", "--remap-path-prefix=$cargoHome=/cargo")
+          $encoded = $flags -join [char]31
+          "CARGO_ENCODED_RUSTFLAGS=$encoded" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: app
+          args: --bundles nsis
           tagName: ${{ github.ref_name }}
           releaseName: Ocarina Journal ${{ github.ref_name }}
-          releaseBody: See CHANGELOG.md for what changed. Unofficial fan app; it contains no game files.
+          releaseBody: Unofficial read-only Windows companion. See CHANGELOG.md, THIRD_PARTY_NOTICES.md and the corresponding source for details. No game files or saves are included. The Windows installer is unsigned.
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}

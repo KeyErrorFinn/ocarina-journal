@@ -1,4 +1,4 @@
-//! A fake Longshot control bridge that replays a recorded session.
+//! A fake Longshot control bridge that replays a synthetic session.
 //!
 //! `serve` speaks the server side of protocol 1 over any async stream: it answers `status`,
 //! acknowledges `subscribe`, then streams the fixture's `oot`/`map` events at a fixed pace.
@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{Framed, LinesCodec};
 
-/// Recorded session shipped with the crate (derived from spike S1 run 1/2; no game assets).
+/// Hand-made protocol samples with invented maps, positions and counters; no recorded player data.
 pub const SESSION_FIXTURE: &str = include_str!("../fixtures/session.jsonl");
 
 #[derive(Debug, Clone)]

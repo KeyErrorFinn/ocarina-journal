@@ -53,7 +53,7 @@ export function App() {
           setRepErr(typeof e === "string" ? e : "The game folder could not be read.");
           // Plain-browser review only: a git-ignored copy of the report.
           if (import.meta.env.DEV && !last)
-            fetch("/dev-report.json")
+            fetch("/.local/dev-report.json")
               .then((r) => r.json())
               .then((r: ReportFile) => {
                 last = 1;

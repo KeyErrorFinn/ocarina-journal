@@ -504,9 +504,9 @@ mod tests {
         assert_eq!(back.snapshot().entries.len(), 1);
     }
 
-    /// The recorded session replays without panicking and yields plausible totals.
+    /// Synthetic movement and map changes replay without panicking and yield plausible totals.
     #[test]
-    fn replays_the_recorded_fixture() {
+    fn replays_the_synthetic_fixture() {
         let fx = oj_testkit::Fixture::session();
         let mut j = Journal::new();
         let mut n = 0;

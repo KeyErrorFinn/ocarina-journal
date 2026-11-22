@@ -232,8 +232,6 @@ mod tests {
         }
     }
 
-
-
     #[test]
     fn decodes_status_and_error_responses() {
         let ok = r#"{"id": 1, "ok": true, "frame": 0, "protocol": 1, "state": "boot", "version": "v3.0.0-rc.5 (source 013b1d3a)", "game": null}"#;

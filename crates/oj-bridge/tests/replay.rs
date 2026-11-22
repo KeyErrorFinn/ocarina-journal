@@ -45,7 +45,7 @@ fn fast_config(channel: usize) -> Config {
 }
 
 #[tokio::test]
-async fn connects_subscribes_and_streams_recorded_session() {
+async fn connects_subscribes_and_streams_synthetic_session() {
     let attempts = Arc::new(AtomicUsize::new(0));
     let conn = FakeConnector { fail: 0, attempts: attempts.clone(), pace: Duration::from_millis(1) };
     let (_h, mut rx) = spawn(conn, fast_config(64));

@@ -1,4 +1,4 @@
-//! `oj-fakebridge [pipe-name] [ms-per-event]`: replay the recorded session on a local pipe so the
+//! `oj-fakebridge [pipe-name] [ms-per-event]`: replay a synthetic session on a local pipe so the
 //! app can be developed without launching the game. Windows only (the real bridge uses a pipe).
 
 #[cfg(windows)]
