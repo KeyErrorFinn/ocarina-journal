@@ -19,16 +19,15 @@ Starter issues: [clean Windows setup (#1)](https://github.com/KeyErrorFinn/ocari
 [Hall time units (#3)](https://github.com/KeyErrorFinn/ocarina-journal/issues/3), and
 [Tapestry states (#4)](https://github.com/KeyErrorFinn/ocarina-journal/issues/4).
 
-Still pending: pushing these files (not requested), the first hosted CI run,
-uploading a social preview, and tagging/building/publishing the first release.
+At this initial snapshot, publishing source/workflows and building the first release were still pending.
+See [0.1.0 validation](../../docs/releases/0.1.0-validation.md) for the subsequent source publication, privacy
+cleanup, installer tests and release gates. Uploading a social preview remains optional.
 Social-preview upload could not be completed because the browser access host was unavailable.
 The README still needs a sanitized no-game/synthetic UI screenshot; no gameplay screenshot has been committed.
 
 The owner chose on-demand AI-session reviews instead of an installed review bot. The unmerged bot setup PR
-was closed and its branch deleted; no bot configuration reached `master`. App-installation removal could not
-be verified: the available API credential cannot manage installations and the browser is signed out. If the
-app was installed, remove it under GitHub Settings > Applications > Installed GitHub Apps. Closing its PR or
-deleting its configuration does not revoke an app's repository access.
+was closed and its branch deleted; no bot configuration reached `master`. The owner subsequently confirmed
+that the app's repository access was removed through GitHub's installation settings.
 
 ## Publish the foundation first
 
