@@ -40,8 +40,8 @@ export function preload(voice: Voice) {
   }
 }
 
-/** A sounding note; `stop` lets it fade out like a released button. */
-export interface Held { stop: () => void }
+/** A sounding note; `stop` lets it fade out like a released button, `bend` slides it to another semitone offset. */
+export interface Held { stop: () => void; bend: (b: number) => void }
 
 /** Starts a note now. Holding it sustains the game's recording (up to four seconds); `stop` releases it. */
 export function startNote(voice: Voice, n: Note, bend = 0): Held {
@@ -76,6 +76,12 @@ export function startNote(voice: Voice, n: Note, bend = 0): Held {
   const began = t;
   let done = false;
   return {
+    bend: (b: number) => {
+      if (done || !src) return;
+      const now = a.currentTime;
+      if (src instanceof AudioBufferSourceNode) src.playbackRate.setTargetAtTime(2 ** ((b - bend) / 12), now, 0.03);
+      else if (src instanceof OscillatorNode) src.frequency.setTargetAtTime(NOTE_PITCH[n] * 2 ** (b / 12), now, 0.03);
+    },
     stop: () => {
       if (done) return;
       done = true;

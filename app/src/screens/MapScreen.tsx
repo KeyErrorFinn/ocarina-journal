@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Back, Chevron, Close, Filter, Gear, Locate } from "../components/icons";
 import { LandIcon, LinkArrow, Marker } from "../components/art";
 import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
@@ -9,7 +9,7 @@ import { useLocal } from "../store";
 import {
   areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report,
 } from "../report";
-import { floorOf, placeAt, placeOfLive, project, regroup, useMapImage, useMapIndex, type MapIndex, type MapPlace } from "../maps";
+import { floorOf, placeAt, placeOfLive, preloadMapImages, project, regroup, useMapImage, useMapIndex, useMapIndexPending, type MapIndex, type MapPlace } from "../maps";
 
 type Era = "child" | "adult";
 
@@ -59,9 +59,10 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
   const [t, setT] = useState({ x: 0, y: 0 });
   const drag = useRef<{ pts: Map<number, { x: number; y: number }>; moved: number; pinch?: number }>({ pts: new Map(), moved: 0 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = view.current;
     if (!el) return;
+    setVw(el.clientWidth); setVh(el.clientHeight);
     const ro = new ResizeObserver(() => { setVw(el.clientWidth); setVh(el.clientHeight); });
     ro.observe(el);
     return () => ro.disconnect();
@@ -74,7 +75,8 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
     x: w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, x)),
     y: h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, y)),
   });
-  useEffect(() => {
+  // (before paint, so a new picture never shows a frame at the old one's position)
+  useLayoutEffect(() => {
     const f = focus ?? { x: 0.5, y: 0.5 };
     setT(clamp(vw / 2 - f.x * cw, vh / 2 - f.y * ch));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,6 +158,7 @@ const MAP_DEFAULTS: Prefs = {
 
 export function MapScreen({ report: raw, game, connected, onHome, start }: Props) {
   const idx = useMapIndex();
+  const pending = useMapIndexPending();
   const [area, setArea] = useState<string | null>(start ?? null);
   const [sheet, setSheet] = useState<null | "progress" | "completion" | "filter" | "settings">(null);
   const [sel, setSel] = useState<string | null>(null);
@@ -181,6 +184,7 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
 
   const go = (a: string | null) => { setArea(a); setSel(null); setSheet(null); };
 
+  if (pending && p.gamePictures) return <div className="mapwrap" />;
   if (!report || rows.length === 0) {
     return (
       <div className="mapwrap" style={{ background: "#0f0b08" }}>
@@ -268,12 +272,56 @@ function Counts({ kinds }: { kinds: AreaRow["kinds"] }) {
   );
 }
 
+/** What one of each kind is called in the hover card's "still to find" line. */
+const ONE: Record<MapKind, [string, string]> = {
+  chests: ["chest", "chests"], skulltulas: ["Skulltula token", "Skulltula tokens"],
+  "heart-pieces": ["Piece of Heart", "Pieces of Heart"], "heart-containers": ["Heart Container", "Heart Containers"],
+};
+
+/** A place's name on the world map: a small plaque with a ring for how much of it is found. Hovering it (or focusing it
+ *  with the keyboard) opens a card of what has been found there and what is still missing. */
+function Plaque({ name, row, dungeon, dot, side, left, top, onPick }: {
+  name: string; row?: AreaRow; dungeon: boolean; dot: boolean; side: string; left: number; top: number; onPick: () => void;
+}) {
+  const p = row ? pct(row.have, row.of) : 0, done = !!row && row.have >= row.of;
+  const kinds = row ? MAP_KINDS.filter((k) => row.kinds[k]) : [];
+  const missing = kinds.map((k) => [k, row!.kinds[k]![1] - row!.kinds[k]![0]] as const).filter(([, n]) => n > 0);
+  return (
+    <button className={`plaque ${dot ? "dot" : ""} ${dungeon ? "dun" : ""} ${done ? "done" : ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={onPick}
+      aria-label={row ? `${name}, ${p}% found` : name}>
+      {!dot && (
+        <>
+          {row && <span className="ring" style={{ "--p": p } as CSSProperties}>{done && "✓"}</span>}
+          <span className="nm">{name}</span>
+          {row && !done && <span className="pc">{p}%</span>}
+        </>
+      )}
+      <span className={`acard ${side}`} role="tooltip">
+        <b className="acard-t">{name}<span>{row ? `${p}%` : ""}</span></b>
+        {kinds.map((k) => {
+          const [h, o] = row!.kinds[k]!;
+          return (
+            <span key={k} className={`acard-row ${h >= o ? "full" : ""}`}>
+              <span className="ic"><Marker kind={k} done={h >= o} /></span>
+              <span className="k">{KIND_NAME[k]}</span>
+              <span className="v">{h}/{o}</span>
+              <i className="bar"><i style={{ width: `${(100 * h) / o}%` }} /></i>
+            </span>
+          );
+        })}
+        <small>{!row ? "Nothing to collect here." : missing.length ? `Still to find: ${missing.map(([k, n]) => `${n} ${ONE[k][n === 1 ? 0 : 1]}`).join(", ")}` : "Everything here is found."}</small>
+      </span>
+    </button>
+  );
+}
+
 /** The game's world map with each place's name where the game puts it. */
 function WorldMap({ index, rows, linkPlace, showLink, onPick }: {
   index: MapIndex | null; rows: ReturnType<typeof areaRows>; linkPlace: string | null; showLink: boolean; onPick: (a: string) => void;
 }) {
   const img = useMapImage(index ? index.world.image : null);
   const byArea = new Map(rows.map((r) => [r.area, r]));
+  if (index && !img) return null; // (the picture is still being read: plain paper rather than a stand-in map)
   if (!index || !img) {
     // (no game pictures: the app's own schematic)
     return (
@@ -301,23 +349,12 @@ function WorldMap({ index, rows, linkPlace, showLink, onPick }: {
         <>
           <img className="pz-img" src={img.url} alt="" draggable={false} />
           {Object.keys(labels).map((id) => {
-            const p = at(id)!, r = byArea.get(id), done = r && r.have >= r.of;
-            // A place on screen whose name would run off its edge slides in, so the name is never cut off (its
-            // half-width estimated from its length). Places further off screen stay where they are.
-            const half = (prettyArea(id).length * 7.6 + 26) / 2 / view.px * 100;
-            const seen = p.left >= view.x0 * 100 - half && p.left <= view.x1 * 100 + half;
-            const q = { left: seen ? Math.min(Math.max(p.left, view.x0 * 100 + half), view.x1 * 100 - half) : p.left, top: p.top };
+            const p = at(id)!, dungeon = !!index.places[id]?.dungeon;
+            // (the hover card opens toward the middle of the screen so it stays in view)
+            const fx = (p.left / 100 - view.x0) / (view.x1 - view.x0), fy = (p.top / 100 - view.y0) / (view.y1 - view.y0);
+            const side = `${fy < 0.42 ? "below" : "above"} ${fx < 0.3 ? "from-left" : fx > 0.7 ? "from-right" : ""}`;
             // (dungeons sit close to their areas: a small badge until zoomed in, then their name too)
-            if (index.places[id]?.dungeon && zoom < 1.6) {
-              return <button key={id} className={`dun-dot ${done ? "done" : ""}`} style={{ left: `${p.left}%`, top: `${p.top}%` }} onClick={() => onPick(id)} aria-label={prettyArea(id)} title={prettyArea(id)} />;
-            }
-            return (
-              <button key={id} className={`banner ${index.places[id]?.dungeon ? "dun" : ""} ${done ? "done" : ""}`} style={{ left: `${q.left}%`, top: `${q.top}%` }} onClick={() => onPick(id)}>
-                {r && zoom >= 1.4 && <Counts kinds={r.kinds} />}
-                {prettyArea(id)}
-                {r && <small>{pct(r.have, r.of)}%</small>}
-              </button>
-            );
+            return <Plaque key={id} name={prettyArea(id)} row={byArea.get(id)} dungeon={dungeon} dot={dungeon && zoom < 1.6} side={side} left={p.left} top={p.top} onPick={() => onPick(id)} />;
           })}
           {here && showLink && <div className="link" style={{ left: `${here.left}%`, top: `calc(${here.top}% - 1.9em)` }}><LinkArrow /></div>}
         </>
@@ -398,19 +435,19 @@ function AreaMap(props: {
     : null;
   const openOn = (k: number) => all.some((e) => e.pos && e.have < e.of && floorOf(place!, e.pos[1]) === k);
 
-  const layer = (view?: View) => (
+  // Read the other era's or floors' pictures now, so switching to them is instant.
+  useEffect(() => { if (place) preloadMapImages([place.child?.image, place.adult?.image, ...floors.map((f) => f.image)]); }, [place]);
+
+  const layer = () => (
     <>
       {usePicture && img && <img className="pz-img" src={img.url} alt="" draggable={false} />}
       {exits.map((x, i) => {
         const q = proj(x.x, x.z);
         const ang = (Math.atan2(q.top - 50, (q.left - 50) / aspect) * 180) / Math.PI + 90;
-        // (the exit's name slides along so it stays on screen, as on the world map)
-        const half = (prettyArea(x.to).length * 5.6 + 14) / 2, at = view ? (q.left / 100) * view.px : 0;
-        const shift = view ? Math.max(0, view.x0 * view.px + 4 - (at - half)) - Math.max(0, at + half - (view.x1 * view.px - 4)) : 0;
         return (
           <button key={i} className="exit" style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => onGo(x.to)} aria-label={`To ${prettyArea(x.to)}`}>
             <span className="chev" style={{ transform: `rotate(${ang}deg)` }}><Chevron /></span>
-            <small style={shift ? { transform: `translateX(${shift}px)` } : undefined}>{prettyArea(x.to)}</small>
+            <small>{prettyArea(x.to)}</small>
           </button>
         );
       })}
@@ -418,7 +455,7 @@ function AreaMap(props: {
         if (!e.pos) return null;
         const q = proj(e.pos[0], e.pos[2]);
         return (
-          <button key={e.id} className={`mk ${e.id === sel ? "sel" : ""}`} style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => setSel(e.id)} aria-label={e.label}>
+          <button key={e.id} className={`mk ${e.id === sel ? "sel" : ""} ${e.have >= e.of ? "done" : ""}`} style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => setSel(e.id)} aria-label={e.label}>
             <Marker kind={e.kind} done={e.have >= e.of} />
           </button>
         );
@@ -426,7 +463,7 @@ function AreaMap(props: {
       {usePicture && !place!.dungeon && (landmarks ?? []).filter((m) => (prefs.marks ?? MAP_DEFAULTS.marks)[m.kind] && m.eras.includes(era) && placeAt(idx, m.area, m.pos[0], m.pos[2]) === area).map((m) => {
         const q = proj(m.pos[0], m.pos[2]);
         return (
-          <button key={m.id} className={`mk land ${m.id === mark ? "sel" : ""}`} style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => { setSel(null); setMark(m.id); }} aria-label={LANDMARK[m.kind].name}>
+          <button key={m.id} className={`mk land ${m.id === mark ? "sel" : ""} ${found[m.id] ? "done" : ""}`} style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => { setSel(null); setMark(m.id); }} aria-label={LANDMARK[m.kind].name}>
             <LandIcon kind={m.kind} done={!!found[m.id]} />
           </button>
         );
@@ -441,7 +478,7 @@ function AreaMap(props: {
     <div className="mapwrap">
       {usePicture ? (
         img ? (
-          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{(_z, view) => layer(view)}</PanZoom>
+          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{layer()}</PanZoom>
         ) : (
           <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>Reading the map from your game files…</p>
         )

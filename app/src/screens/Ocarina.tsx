@@ -37,8 +37,9 @@ type Ocarina = (typeof OCARINAS)[number];
 
 interface Take { id: string; name: string; at: number; notes: { n: Note; dt: number }[] }
 
-/** The six finger holes on the painted ocarinas (percent of the picture, measured on them), from left to right. */
-const HOLES: [number, number][] = [[22.2, 35.3], [30.4, 57.2], [37.5, 26.3], [47, 54.8], [53.9, 26.8], [67.5, 45.4]];
+/** The six finger holes on the painted ocarinas (percent of the picture, measured on them), from the round end to the
+ *  narrow one. The pictures hold the ocarina mouthpiece up, as Link does. */
+const HOLES: [number, number][] = [[77.8, 64.7], [69.6, 42.8], [62.5, 73.7], [53, 45.2], [46.1, 73.2], [32.5, 54.6]];
 /** Which holes light for each note: more open holes, higher note, opening from the narrow end. */
 const OPEN: Record<Note, number[]> = { A: [5], D: [5, 4], R: [5, 4, 3], L: [5, 4, 3, 2], U: [0, 1, 2, 3, 4, 5] };
 
@@ -59,12 +60,13 @@ function Instrument({ lit, ocarina }: { lit: Note | null; ocarina: Ocarina }) {
   );
 }
 
-/** The five note buttons in pitch order, with ♭ and ♯ to hold while pressing one. */
+/** The five note buttons in pitch order, with ♭ and ♯: click one to bend the notes you play a semitone (click again to
+ *  stop), as tilting the stick does in the game. A note already sounding bends at once. */
 function Keys({ lit, onDown, onUp, bend, setBend }: { lit: Note | null; onDown: (n: Note) => void; onUp: (n: Note) => void; bend: number; setBend: (b: number) => void }) {
-  const hold = (b: number) => ({ onPointerDown: () => setBend(b), onPointerUp: () => setBend(0), onPointerLeave: () => setBend(0), onPointerCancel: () => setBend(0) });
+  const toggle = (b: number) => ({ "aria-pressed": bend === b, onClick: () => setBend(bend === b ? 0 : b) });
   return (
     <div className="oc-keys">
-      <button className={`oc-bend ${bend < 0 ? "on" : ""}`} aria-label="Hold for flat" {...hold(-1)}>♭</button>
+      <button className={`oc-bend ${bend < 0 ? "on" : ""}`} aria-label="Flat: lower the notes a semitone" title="Flat (hold Q)" {...toggle(-1)}>♭</button>
       {NOTES.map((n) => (
         <button key={n} className={`oc-key ${lit === n ? "on" : ""}`} aria-label={`Note ${NOTE_NAME[n]} (${NOTE_BUTTON[n]})`}
           onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); onDown(n); }}
@@ -73,7 +75,7 @@ function Keys({ lit, onDown, onUp, bend, setBend }: { lit: Note | null; onDown: 
           <small>{NOTE_NAME[n]}{n === "U" ? "'" : ""}</small>
         </button>
       ))}
-      <button className={`oc-bend ${bend > 0 ? "on" : ""}`} aria-label="Hold for sharp" {...hold(1)}>♯</button>
+      <button className={`oc-bend ${bend > 0 ? "on" : ""}`} aria-label="Sharp: raise the notes a semitone" title="Sharp (hold E)" {...toggle(1)}>♯</button>
     </div>
   );
 }
@@ -222,6 +224,8 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
     raf.current = requestAnimationFrame(step);
   };
   useEffect(() => { preload(ocarina.voice); }, [ocarina.voice]);
+  // Bending while a note sounds slides it, as in the game.
+  useEffect(() => { held.current.forEach((h) => h.bend(bend)); }, [bend]);
   useEffect(() => stopAll, []);
   useEffect(() => {
     if (!playing) return;
@@ -394,7 +398,7 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
   return (
     <>
       <Header title="Ocarina" onLeft={onHome}
-        help="Play the game's own ocarina sounds with its buttons: L R A Y X (D F A B D) on the keyboard too, or Enter and the arrow keys as in the original. Hold ♭ or ♯ (keyboard Q or E) to bend a note by a semitone, as in the game. Record a performance and name it, learn the songs you have found, and share your own scores as a QR card or a code. More ocarinas can be bought with Rumor Hunt points." />
+        help="Play the game's own ocarina sounds with its buttons: L R A Y X (D F A B D) on the keyboard too, or Enter and the arrow keys as in the original. Turn on ♭ or ♯ (or hold Q or E) to bend notes by a semitone, as tilting the stick does in the game; a held note slides. Record a performance and name it, learn the songs you have found, and share your own scores as a QR card or a code. More ocarinas can be bought with Rumor Hunt points." />
       <Tabs tabs={TABS} value={tab} onChange={setTab} icons={TAB_ICONS} />
       <div className="scroll grain">
         {tab === "Play" && (
@@ -402,11 +406,11 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
             <Instrument lit={lit} ocarina={ocarina} />
             {keys}
             <div className="oc-actions">
-              {rec ? <button className="btn" onClick={stopRec}>■ Stop ({rec.length})</button> : <button className="btn ghost" onClick={() => setRec([])}>● Record Performance</button>}
+              {rec ? <button className="pillbtn lit" onClick={stopRec}>■ Stop ({rec.length})</button> : <button className="pillbtn" onClick={() => setRec([])}><i className="rec-dot" /> Record Performance</button>}
               <button className="pillbtn" onClick={() => setChoosing(true)}>⇄ Change Ocarina</button>
             </div>
             {rec && <Roll notes={rec.map((x) => ({ n: x.n, t: x.t - rec[0].t }))} />}
-            <p className="note">Playing the {ocarina.name}. Keyboard: L R A Y X, or Enter and the arrows; hold Q or E for ♭ or ♯.</p>
+            <p className="note">Playing the {ocarina.name}. Keyboard: L R A Y X, or Enter and the arrows; ♭ and ♯ (or holding Q or E) bend the notes a semitone.</p>
           </>
         )}
         {tab === "Game Scores" && (

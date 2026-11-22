@@ -5,6 +5,8 @@
 @import "@fontsource/nunito-sans/800.css";
 /* Pictures are never dragged out of the app (a drag would also swallow the click that started it). */
 img { -webkit-user-drag: none; user-select: none; }
+#root { user-select: none; -webkit-user-select: none; }
+input, textarea, pre, .selectable { user-select: text; -webkit-user-select: text; }
 
 /* Original design system: a dark adventurer's journal with parchment maps, bark headers and gold numerals. */
 :root {
@@ -190,6 +192,19 @@ h1, h2, h3, p { margin: 0; }
 .mk.land { width: 1.7em; height: 1.7em; z-index: 3; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
 .mk-pic { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+/* Secrets still to find glow softly so they stand out on the paper; found ones stay plain and dimmer. */
+.mk:not(.done) > svg, .mk:not(.done) > .mk-pic, .mk:not(.done) > * > .mk-pic { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 2px 3px #0009); }
+.mk:not(.done)::after { content: ""; position: absolute; z-index: -1; inset: -32%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fffdf0 0 30%, #fff1b0e0 42%, #ffd24a80 56%, transparent 72%); animation: mk-glow 2.4s ease-in-out infinite; }
+.mk:not(.done):not(.sel)::before { content: ""; position: absolute; z-index: -1; inset: -10%; border-radius: 50%; border: 2px solid #fff8dc; pointer-events: none; animation: mk-ping 2.4s ease-out infinite; }
+/* (Rumor Hunt landmarks get a quieter, still halo, so the secrets to collect stand out more) */
+.mk.land:not(.done)::after { inset: -18%; animation: none; background: radial-gradient(circle, #f4fdffd0 0 35%, #bfefff70 52%, transparent 70%); }
+.mk.land::before { display: none; }
+.mk.done { opacity: .72; }
+.mk:hover { z-index: 6; }
+@keyframes mk-glow { 0%, 100% { transform: scale(.85); opacity: .75; } 50% { transform: scale(1.12); opacity: 1; } }
+@keyframes mk-ping { 0% { transform: scale(.9); opacity: .9; } 70%, 100% { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mk:not(.done)::after, .mk:not(.done)::before { animation: none; } }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
 .link { position: absolute; z-index: 5; width: 1.25em; height: 1.25em; transform: translate(-50%, -50%); pointer-events: none; }
 .wisp { position: relative; display: block; width: 100%; height: 100%; }
@@ -202,27 +217,51 @@ h1, h2, h3, p { margin: 0; }
 .pz:active { cursor: grabbing; }
 .pz-in { position: absolute; left: 0; top: 0; will-change: transform; }
 .pz-img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-.banner { position: absolute; z-index: 4; transform: translate(-50%, -50%); border: 0; padding: .22em 1em .24em; color: #fdf3d6; font: 800 .66em var(--body); white-space: nowrap; letter-spacing: .01em;
-  background: linear-gradient(180deg, #7a5326, #5a3a18); clip-path: polygon(0 0, 100% 0, 94% 50%, 100% 100%, 0 100%, 6% 50%); box-shadow: 0 2px 0 #0004; text-shadow: 0 1px 0 #0008; }
+/* A place's name on the world map: a dark ink plaque with a gold rim, a ring for how much is found, and a card of
+   what's found and missing on hover. */
+.plaque { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .4em; padding: .28em .7em .28em .32em; border-radius: 99px;
+  background: linear-gradient(180deg, #2e2014f2, #1c130bf2); border: 1.5px solid #c9a24f; box-shadow: 0 2px 5px #0007, inset 0 1px 0 #fff2; color: #fbf0d4; font: 800 .7em var(--body); white-space: nowrap; transition: transform .12s, border-color .12s; }
+.plaque:hover, .plaque:focus-visible { z-index: 9; transform: translate(-50%, -50%) scale(1.06); border-color: #f3d68a; outline: none; }
+.plaque .nm { text-shadow: 0 1px 0 #000a; }
+.plaque .pc { font-size: .86em; font-weight: 700; color: #e9c46a; }
+.plaque .ring { flex: none; width: 1.45em; height: 1.45em; border-radius: 50%; display: grid; place-items: center; font-size: .9em; color: #1b130b;
+  background: radial-gradient(closest-side, #241810 66%, transparent 70%), conic-gradient(#e9c46a calc(var(--p) * 1%), #ffffff24 0); }
+.plaque.done { border-color: #7fb069; }
+.plaque.done .ring { background: radial-gradient(circle at 40% 35%, #b6e39a, #5f9a45); font-weight: 900; }
+.plaque.dun { background: linear-gradient(180deg, #3c2f58f2, #241b38f2); border-color: #b9a6e6; }
+.plaque.dun .ring { background: radial-gradient(closest-side, #241b38 66%, transparent 70%), conic-gradient(#c9b8ff calc(var(--p) * 1%), #ffffff24 0); }
+/* (dungeons when zoomed out: a round doorway badge) */
+.plaque.dot { width: 1.7em; height: 1.7em; padding: 0; font-size: 1em; border: 2px solid #d9b25f; justify-content: center;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23140d07' stroke='%23f1dfb4' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23f1dfb4' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #5b4228, #24170c); }
+.plaque.dot.done { border-color: #7fb069; }
+.acard { position: absolute; left: 50%; bottom: calc(100% + .6em); transform: translateX(-50%); display: none; width: 15.5em; padding: .7em .8em .65em; border-radius: 10px; text-align: left; white-space: normal; cursor: default;
+  background: linear-gradient(180deg, #2a1d12, #19110a); border: 1.5px solid #c9a24f; box-shadow: 0 8px 22px #000b; color: #f1e8d6; font: 600 .82rem var(--body); pointer-events: none; }
+.plaque:hover .acard, .plaque:focus-visible .acard { display: block; }
+.acard.below { bottom: auto; top: calc(100% + .6em); }
+.acard.from-left { left: -.4em; transform: none; }
+.acard.from-right { left: auto; right: -.4em; transform: none; }
+.acard-t { display: flex; justify-content: space-between; gap: .6em; font-weight: 800; font-size: 1.02em; padding-bottom: .45em; margin-bottom: .35em; border-bottom: 1px solid #4a3a28; }
+.acard-t span { color: #e9c46a; }
+.acard-row { display: grid; grid-template-columns: 1.6em 1fr auto; align-items: center; column-gap: .5em; padding: .22em 0; }
+.acard-row .ic { width: 1.6em; height: 1.6em; grid-row: span 2; }
+.acard-row .ic svg, .acard-row .ic .mk-pic { width: 100%; height: 100%; }
+.acard-row .v { font-weight: 800; color: #e9c46a; }
+.acard-row.full .v { color: #8fe07a; }
+.acard-row .bar { grid-column: 2 / 4; display: block; height: .3em; border-radius: 9px; background: #ffffff1c; overflow: hidden; }
+.acard-row .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c9a24f, #f3d68a); }
+.acard-row.full .bar i { background: linear-gradient(90deg, #5f9a45, #9bd67e); }
+.acard small { display: block; margin-top: .45em; color: #cdb99c; font-size: .9em; line-height: 1.35; }
 .counts { display: flex; gap: .45em; justify-content: center; margin: -.1em 0 .25em; padding: .2em .55em; background: #120c07e0; border-radius: 3px; }
 .counts i { display: inline-flex; align-items: center; gap: .15em; font: 700 .95em var(--display); font-style: normal; color: #f1e8d6; }
 .counts i.full { color: #8fe07a; }
 .counts svg, .counts .mk-pic { width: 1.35em; height: 1.35em; flex: none; }
-.banner .counts { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: .25em; font-size: 1.05em; }
 .corner-counts { position: absolute; z-index: 6; right: .8em; bottom: 4.6em; }
 .corner-counts .counts { flex-direction: column; align-items: flex-start; gap: .3em; padding: .45em .6em; font-size: .85em; border: 1px solid #4a3a28; }
-.banner small { display: block; font-size: .78em; opacity: .85; text-align: center; font-weight: 700; }
-.banner.dun { background: linear-gradient(180deg, #4b3b6a, #2f2547); }
-.banner.done { filter: saturate(.5) brightness(.95); }
-/* Dungeons on the world map: a small dark badge with a doorway, gold rimmed; greyed when complete. */
-.dun-dot { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 1.7em; height: 1.7em; border-radius: 50%; padding: 0; border: 2px solid #d9b25f; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23140d07' stroke='%23f1dfb4' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23f1dfb4' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #5b4228, #24170c); box-shadow: 0 0 0 1px #1a1009, 0 2px 4px #000a; }
-.dun-dot.done { filter: grayscale(.85) brightness(.85); }
-.banner.done small::after { content: " ✓"; }
 .exit { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: none; border: 0; padding: 0; display: grid; justify-items: center; color: #fff; }
 .exit .chev { width: 1.9em; height: 1.9em; border-radius: 50%; background: rgba(40,28,16,.88); border: 2px solid #f1dfb4; display: grid; place-items: center; }
 .exit .chev svg { width: 1.2em; height: 1.2em; }
 .exit small { margin-top: .15em; background: rgba(40,28,16,.8); padding: .05em .45em; border-radius: 4px; font-size: .62em; font-weight: 700; white-space: nowrap; }
-.era-tabs { position: absolute; z-index: 5; top: 6.1em; left: 1.2em; display: flex; border: 2px solid #3b2815; border-radius: 99px; overflow: hidden; }
+.era-tabs { position: absolute; z-index: 5; top: 7.1em; left: 1.2em; display: flex; border: 2px solid #3b2815; border-radius: 99px; overflow: hidden; }
 .era-tabs button { border: 0; background: rgba(251,240,212,.85); color: #3b2815; font: 800 .74em var(--body); padding: .35em .9em; }
 .era-tabs button.on { background: #3b2815; color: #fbf0d4; }
 .floor-tabs { position: absolute; z-index: 5; right: .9em; top: 14.4em; display: flex; flex-direction: column; gap: .3em; }
@@ -239,7 +278,7 @@ h1, h2, h3, p { margin: 0; }
 .listcard .pic { width: 4.4em; height: 4.4em; flex: none; display: grid; place-items: center; background: radial-gradient(circle, #5a4326, #1c140c); border-radius: 3px; color: var(--ochre); }
 .listcard .pic svg { width: 70%; height: 70%; }
 .listcard .mid { flex: 1; text-align: right; font-weight: 800; }
-.listcard .time { font: 700 .85em var(--display); color: var(--gold); }
+.listcard .time { font: 800 .72em var(--body); letter-spacing: .07em; text-transform: uppercase; color: var(--gold); margin-top: .15em; }
 .ribbon { width: 2.6em; height: 3em; flex: none; }
 .listcard.foe { gap: .9em; min-height: 4.6em; padding: .6em 1em .6em .7em; }
 .listcard.foe .ribbon, .listcard.foe .rosette { width: 3.4em; height: 4em; object-fit: contain; flex: none; filter: drop-shadow(0 2px 3px #000a); }
@@ -415,6 +454,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .roll-n .nkey { margin-left: -.2em; }
 .oc-actions { display: flex; gap: .8em; justify-content: center; align-items: center; margin: .4em 0 .8em; flex-wrap: wrap; }
 .oc-actions .btn { margin: 0; }
+.rec-dot { display: inline-block; width: .65em; height: .65em; border-radius: 50%; background: #e2453a; box-shadow: 0 0 6px #e2453a; vertical-align: .02em; }
 .pillbtn.lit { border-color: var(--gold); color: var(--gold); }
 .oc-choose { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; padding: 0 1.2em 1.2em; }
 .oc-opt { display: flex; flex-direction: column; align-items: center; gap: .3em; padding: .8em .5em; background: #1a120b; border: 2px solid #4a3a28; border-radius: 4px; color: inherit; }

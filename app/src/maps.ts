@@ -26,16 +26,24 @@ export interface MapIndex {
 }
 
 let indexPromise: Promise<MapIndex | null> | null = null;
+/** The index once read (undefined while it hasn't been yet), so screens opened later have it from their first frame. */
+let loadedIndex: MapIndex | null | undefined;
+
+function loadIndex() {
+  indexPromise ??= invoke<MapIndex>("get_map_index")
+    .then((i) => (loadedIndex = i))
+    .catch(() => {
+      indexPromise = null;
+      return (loadedIndex = null);
+    });
+  return indexPromise;
+}
 
 export function useMapIndex(): MapIndex | null {
-  const [idx, setIdx] = useState<MapIndex | null>(null);
+  const [idx, setIdx] = useState<MapIndex | null>(loadedIndex ?? null);
   useEffect(() => {
-    indexPromise ??= invoke<MapIndex>("get_map_index").catch(() => {
-      indexPromise = null;
-      return null;
-    });
     let live = true;
-    indexPromise.then((i) => live && setIdx(i));
+    loadIndex().then((i) => live && setIdx(i));
     return () => {
       live = false;
     };
@@ -43,33 +51,61 @@ export function useMapIndex(): MapIndex | null {
   return idx;
 }
 
-const urls = new Map<string, Promise<string>>();
-
-/** An object URL for one map picture, with its natural size once loaded. */
-export function useMapImage(name: string | null | undefined): { url: string; w: number; h: number } | null {
-  const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null);
+/** True until the first attempt to read the map index has finished (so screens can wait instead of showing a stand-in). */
+export function useMapIndexPending(): boolean {
+  const [pending, setPending] = useState(loadedIndex === undefined);
   useEffect(() => {
-    setImg(null);
-    if (!name) return;
-    let p = urls.get(name);
-    if (!p) {
-      p = invoke<ArrayBuffer>("get_map_image", { name }).then((buf) =>
-        URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })),
-      );
-      p.catch(() => urls.delete(name));
-      urls.set(name, p);
-    }
     let live = true;
-    p.then((url) => {
-      const i = new Image();
-      i.onload = () => live && setImg({ url, w: i.naturalWidth, h: i.naturalHeight });
-      i.src = url;
-    }).catch(() => {});
+    loadIndex().finally(() => live && setPending(false));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return pending;
+}
+
+type MapImage = { url: string; w: number; h: number };
+const urls = new Map<string, Promise<MapImage>>();
+/** Pictures already decoded: returned on the first render, so switching back to one never flashes. */
+const loaded = new Map<string, MapImage>();
+
+function loadImage(name: string): Promise<MapImage> {
+  let p = urls.get(name);
+  if (!p) {
+    p = invoke<ArrayBuffer>("get_map_image", { name })
+      .then((buf) => URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })))
+      .then((url) => new Promise<MapImage>((ok, bad) => {
+        const i = new Image();
+        i.onload = () => { i.decode().catch(() => {}).finally(() => ok({ url, w: i.naturalWidth, h: i.naturalHeight })); };
+        i.onerror = bad;
+        i.src = url;
+      }))
+      .then((m) => (loaded.set(name, m), m));
+    p.catch(() => urls.delete(name));
+    urls.set(name, p);
+  }
+  return p;
+}
+
+/** Starts reading pictures that may be wanted soon (the other era, the other floors). */
+export function preloadMapImages(names: (string | null | undefined)[]) {
+  for (const n of names) if (n) loadImage(n).catch(() => {});
+}
+
+/** An object URL for one map picture, with its natural size once loaded. Never returns a different picture than the
+ *  one asked for, so a screen doesn't briefly show the previous map. */
+export function useMapImage(name: string | null | undefined): MapImage | null {
+  const [img, setImg] = useState<{ name: string; img: MapImage } | null>(null);
+  useEffect(() => {
+    if (!name || loaded.has(name)) return;
+    let live = true;
+    loadImage(name).then((m) => live && setImg({ name, img: m })).catch(() => {});
     return () => {
       live = false;
     };
   }, [name]);
-  return img;
+  if (!name) return null;
+  return loaded.get(name) ?? (img?.name === name ? img.img : null);
 }
 
 /** A world position on a place's picture, in percent of its width and height (+X right, +Z down). */

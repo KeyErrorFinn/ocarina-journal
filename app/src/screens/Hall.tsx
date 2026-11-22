@@ -12,7 +12,10 @@ const TABS = ["Records", "Rankings"] as const;
 export function Hall({ report, entries, onHome }: { report: Report | null; entries: Entry[]; onHome: () => void }) {
   const [open, setOpen] = useState<(RepEntry & { boss: boolean }) | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Records");
-  const bosses = (cat(report, "bosses")?.entries ?? []).map((e) => ({ ...e, boss: true }));
+  // (in the order Link meets them, not the report's alphabetical one)
+  const STORY = ["Gohma", "Dodongo", "Barinade", "PhantomGanon", "Volvagia", "Morpha", "BongoBongo", "Twinrova", "Ganondorf", "Ganon"];
+  const story = (id: string) => { const i = STORY.indexOf(id.split("/").pop() ?? ""); return i < 0 ? 99 : i; };
+  const bosses = (cat(report, "bosses")?.entries ?? []).map((e) => ({ ...e, boss: true })).sort((a, b) => story(a.id) - story(b.id));
   const foes = (cat(report, "enemies")?.entries ?? []).map((e) => ({ ...e, boss: false }));
   const done = (l: { have: number }[]) => l.filter((e) => e.have).length;
   const hall = report?.hall ?? [];

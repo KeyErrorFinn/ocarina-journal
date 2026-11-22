@@ -34,7 +34,15 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
   const [cheer, setCheer] = useState<Rumor | null>(null);
   const [more, setMore] = useState(PAGE);
 
-  const list = useMemo(() => rumors ?? [], [rumors]);
+  // Numbered taking each kind in turn (a stone, a grotto, a cow, ...), so the list mixes them rather than opening on
+  // one kind's dozens of places.
+  const list = useMemo(() => {
+    const byKind = new Map<string, Rumor[]>();
+    for (const r of rumors ?? []) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r]);
+    const out: Rumor[] = [], runs = [...byKind.values()];
+    for (let i = 0; out.length < (rumors?.length ?? 0); i++) for (const run of runs) if (run[i]) out.push(run[i]);
+    return out;
+  }, [rumors]);
   const number = useMemo(() => new Map(list.map((r, i) => [r.id, i + 1])), [list]);
   const points = list.filter((r) => found[r.id]).reduce((a, r) => a + KINDS[r.kind].points, 0);
   const bank = points - spent;

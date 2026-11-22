@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
 import { Sheet, Sync } from "../components/chrome";
@@ -36,6 +36,12 @@ export function BridgeActions({ s }: { s: LiveState }) {
   const [sheet, setSheet] = useState<null | "enable" | "launch">(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  // Whether longshot_env.txt already turns the bridge on (read-only check), so the card doesn't offer it twice.
+  const [isOn, setIsOn] = useState(false);
+  useEffect(() => {
+    if (s.mode === "live") return;
+    invoke<Preview>("preview_enable_bridge").then((p) => setIsOn(!!p.already)).catch(() => setIsOn(false));
+  }, [s.mode, msg]);
   const run = (cmd: string) => invoke<string>(cmd, { confirm: true }).then(setMsg).catch((e) => setMsg(String(e)));
   if (s.mode === "live") return null;
   const added = preview ? preview.after.split(/\r?\n/).filter((l) => !preview.before.split(/\r?\n/).includes(l) && l) : [];
@@ -44,12 +50,14 @@ export function BridgeActions({ s }: { s: LiveState }) {
       <div className="bridge-card">
         <span className="bridge-badge" aria-hidden><Sync on={false} /></span>
         <div className="bridge-text">
-          <b>{s.mode === "bridge_off" ? "Game running without the bridge" : "Live bridge is off"}</b>
-          <span>{s.mode === "bridge_off" ? "Turn it on, then restart Longshot to follow Link live." : "Turn it on once to follow Link live on every launch."}</span>
+          <b>{isOn ? (s.mode === "bridge_off" ? "Restart Longshot to connect" : "Live bridge is on") : s.mode === "bridge_off" ? "Game running without the bridge" : "Live bridge is off"}</b>
+          <span>{isOn
+            ? s.mode === "bridge_off" ? "The bridge is turned on, but this game was started before it was." : "Start Longshot and the app follows Link live."
+            : s.mode === "bridge_off" ? "Turn it on, then restart Longshot to follow Link live." : "Turn it on once to follow Link live on every launch."}</span>
         </div>
         <div className="bridge-btns">
-          <button className="bridge-btn" onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>Turn on…</button>
-          {s.mode === "offline" && <button className="bridge-btn ghost" onClick={() => { setMsg(null); setSheet("launch"); }}>Start game once…</button>}
+          {!isOn && <button className="bridge-btn" onClick={() => { setMsg(null); invoke<Preview>("preview_enable_bridge").then((p) => { setPreview(p); setSheet("enable"); }).catch((e) => { setMsg(String(e)); setSheet("enable"); }); }}>Turn on…</button>}
+          {s.mode === "offline" && <button className={`bridge-btn ${isOn ? "" : "ghost"}`} onClick={() => { setMsg(null); setSheet("launch"); }}>{isOn ? "Start game…" : "Start game once…"}</button>}
         </div>
       </div>
       {sheet === "enable" && (
