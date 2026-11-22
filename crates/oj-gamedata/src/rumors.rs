@@ -2,7 +2,7 @@
 //! app's rumours (photos and wording) live in Nintendo's app, not in the game, so this app makes its own from landmarks
 //! the game places: gossip stones, grotto entrances, cows, the owl's perches, scarecrow spots, frogs, soft soil for
 //! magic beans and beehives. Only field maps (`<Area>_Child`, `<Area>_Adult`) are read, so every rumour has a spot on a
-//! map picture; one landmark placed in both eras is one rumour.
+//! map picture; one landmark placed in both eras is one rumour, and actors of a kind standing together are one place.
 
 use std::collections::BTreeMap;
 
@@ -67,5 +67,22 @@ pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
     if by_id.is_empty() {
         return Err(Error::Game("no landmarks found in the game's maps".into()));
     }
-    Ok(by_id.into_values().collect())
+    // One spot can hold several actors of a kind (Kakariko's beehive is six within 4 m, the Zora River frogs sit
+    // together, two cows stand 3 m apart): within MERGE metres in the same area they are one place, one rumour.
+    const MERGE: f64 = 8.0;
+    let mut out: Vec<Rumor> = Vec::new();
+    for r in by_id.into_values() {
+        let near = out.iter_mut().find(|o| o.kind == r.kind && o.area == r.area && (o.pos[0] - r.pos[0]).hypot(o.pos[2] - r.pos[2]) < MERGE);
+        match near {
+            Some(o) => {
+                for e in r.eras {
+                    if !o.eras.contains(&e) {
+                        o.eras.push(e);
+                    }
+                }
+            }
+            None => out.push(r),
+        }
+    }
+    Ok(out)
 }

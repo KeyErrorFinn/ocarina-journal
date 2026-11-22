@@ -136,7 +136,7 @@ export function Today({ onHome, s, report }: { onHome: () => void; s: LiveState;
               {mode === "live" ? "Nothing yet. Walk somewhere, fight, or open a chest and it will appear here."
                 : "Nothing recorded today yet. From now on, each time the game saves, what the save gained appears here, even if this app was closed while you played."}
             </p>
-            {mode !== "live" && <p className="small muted" style={{ margin: 0 }}>For a live timeline as well (areas, fights, damage and rupees as they happen), turn on the bridge once below; it then stays on for every launch.</p>}
+            {mode !== "live" && <p className="small muted" style={{ margin: 0 }}>With the live bridge (below), a timeline of areas, fights, damage and rupees fills in as you play too.</p>}
           </div>
         ) : tab === "Timeline" ? (
           <div className="timeline">

@@ -60,22 +60,25 @@ function Instrument({ lit, ocarina }: { lit: Note | null; ocarina: Ocarina }) {
   );
 }
 
-/** The five note buttons in pitch order, with ♭ and ♯: click one to bend the notes you play a semitone (click again to
- *  stop), as tilting the stick does in the game. A note already sounding bends at once. */
+/** Where each note's button sits, as on a controller: the shoulder buttons L and R on top, then X, then Y and A. */
+const PAD: Record<Note, string> = { A: "1 / 1", D: "1 / 3", U: "2 / 2", L: "3 / 1", R: "3 / 3" };
+
+/** The five note buttons laid out as on a controller, with ♭ and ♯ either side of X: click one to bend the notes you
+ *  play a semitone (click again to stop), as tilting the stick does in the game. A note already sounding bends at once. */
 function Keys({ lit, onDown, onUp, bend, setBend }: { lit: Note | null; onDown: (n: Note) => void; onUp: (n: Note) => void; bend: number; setBend: (b: number) => void }) {
   const toggle = (b: number) => ({ "aria-pressed": bend === b, onClick: () => setBend(bend === b ? 0 : b) });
   return (
     <div className="oc-keys">
-      <button className={`oc-bend ${bend < 0 ? "on" : ""}`} aria-label="Flat: lower the notes a semitone" title="Flat (hold Q)" {...toggle(-1)}>♭</button>
+      <button style={{ gridArea: "2 / 1" }} className={`oc-bend ${bend < 0 ? "on" : ""}`} aria-label="Flat: lower the notes a semitone" title="Flat (hold Q)" {...toggle(-1)}>♭</button>
       {NOTES.map((n) => (
-        <button key={n} className={`oc-key ${lit === n ? "on" : ""}`} aria-label={`Note ${NOTE_NAME[n]} (${NOTE_BUTTON[n]})`}
+        <button key={n} style={{ gridArea: PAD[n] }} className={`oc-key ${lit === n ? "on" : ""}`} aria-label={`Note ${NOTE_NAME[n]} (${NOTE_BUTTON[n]})`}
           onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); onDown(n); }}
           onPointerUp={() => onUp(n)} onPointerCancel={() => onUp(n)}>
           <Key n={n} />
           <small>{NOTE_NAME[n]}{n === "U" ? "'" : ""}</small>
         </button>
       ))}
-      <button className={`oc-bend ${bend > 0 ? "on" : ""}`} aria-label="Sharp: raise the notes a semitone" title="Sharp (hold E)" {...toggle(1)}>♯</button>
+      <button style={{ gridArea: "2 / 3" }} className={`oc-bend ${bend > 0 ? "on" : ""}`} aria-label="Sharp: raise the notes a semitone" title="Sharp (hold E)" {...toggle(1)}>♯</button>
     </div>
   );
 }
@@ -449,9 +452,9 @@ export function Ocarina({ report, onHome, start }: { report: Report | null; onHo
             <div style={{ padding: "0 1em" }}>
               <div className="small muted" style={{ margin: "1em 0 .4em" }}>Add a friend's score</div>
               <input type="text" value={code} placeholder="Paste a share code" onChange={(e) => setCode(e.target.value)} />
-              <div style={{ display: "flex", gap: ".6em", margin: ".8em 0" }}>
-                <button className="btn ghost" style={{ flex: 1, margin: 0 }} onClick={() => addTake(decodeScore(code))}>Add code</button>
-                <label className="btn ghost" style={{ flex: 1, margin: 0, textAlign: "center", cursor: "pointer" }}>
+              <div style={{ display: "flex", gap: ".6em", margin: ".8em 0", flexWrap: "wrap" }}>
+                <button className="pillbtn" disabled={!code.trim()} onClick={() => addTake(decodeScore(code))}>Add code</button>
+                <label className="pillbtn" style={{ cursor: "pointer" }}>
                   ⌗ Scan a QR picture
                   <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) scanScore(f).then(addTake).catch(() => flash("Could not read that picture")); }} />
                 </label>

@@ -126,7 +126,7 @@ Read from the player's own files, like everything above; nothing is copied into 
   app counts the Hall as open when that flag, `HavePlayedEvent.Npc_Dream_FirstTalk` or any Hall record is set.
 - **Landmarks for Rumor Hunt** [V]: field maps place `Obj_GossipStone_*`, `LookAttentionActor_HidingHoleEntrance`
   (grotto entrances), `Animal_Cow*`, `Npc_Kaepora*`, `Npc_Pierre_CallOcarina`, `Animal_Frog_*` and
-  `Obj_Kokiri_Beehive_*`: 109 places after merging the child and adult maps (`crates/oj-gamedata/src/rumors.rs`).
+  `Obj_Kokiri_Beehive_*`: 96 places after merging the child and adult maps and actors of a kind within 8 m of each other (Kakariko's six beehive actors are one hive) (`crates/oj-gamedata/src/rumors.rs`).
   Soft soil is not among them: `Obj_Plant_MagicBean*` are the grown plant's leaves (73 across the game, two 64 m apart
   in Death Mountain Crater), and no actor marks the soil patch itself [V].
   The original app's own 100 rumours (photos and wording) are not in the game files [V: no such text in `Mals`].

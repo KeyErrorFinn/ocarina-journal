@@ -118,8 +118,6 @@ export function Home({ s, go, fresh, locked, reportError }: { s: LiveState; go: 
       {/* A forest painted for this app (not a scene from the game), dimmed behind the tiles. */}
       <div className="bg home-bg" style={{ backgroundImage: `url(${homeBg})` }} aria-hidden />
       <div className="top">
-        <span style={{ display: "inline-grid", width: "1.6em" }}><Ic.Grid /></span>
-        <b>Titles</b>
         <div className="logo">OCARINA<br />JOURNAL</div>
         <Sync on={s.connected} />
         <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}><Ic.Dots /></button>

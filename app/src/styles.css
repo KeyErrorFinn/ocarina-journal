@@ -129,7 +129,7 @@ h1, h2, h3, p { margin: 0; }
 .titles .home-bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,10,6,.25), rgba(8,10,6,.35) 40%, rgba(8,10,6,.6)); }
 .titles .top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: .6em; padding: .8em 1em; background: linear-gradient(180deg, rgba(10,8,5,.92), rgba(10,8,5,.4)); }
 .titles .top b { font-weight: 800; }
-.titles .top .logo { margin: 0 auto; font: 700 .85em var(--display); letter-spacing: .12em; color: var(--ochre); text-align: center; line-height: 1.1; }
+.titles .top .logo { margin: 0 auto 0 .2em; font: 700 .85em var(--display); letter-spacing: .12em; color: var(--ochre); text-align: left; line-height: 1.1; }
 .tgrid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3em .9em; padding: 1.2em 1.1em 2em; }
 .ttile { background: none; border: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: .55em; position: relative; }
 .ttile .frame { width: 100%; aspect-ratio: 1; border-radius: 6px; border: 2px solid #b78d45; background: linear-gradient(145deg, #e2c887, #b8935a); box-shadow: 0 0 0 1px #3a2713, inset 0 0 0 3px rgba(255,248,220,.25), 0 4px 10px rgba(0,0,0,.5); display: grid; place-items: center; color: #5a3a14; overflow: hidden; }
@@ -193,18 +193,15 @@ h1, h2, h3, p { margin: 0; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
 .mk-pic { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 /* Secrets still to find glow softly so they stand out on the paper; found ones stay plain and dimmer. */
-.mk:not(.done) > svg, .mk:not(.done) > .mk-pic, .mk:not(.done) > * > .mk-pic { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 2px 3px #0009); }
-.mk:not(.done)::after { content: ""; position: absolute; z-index: -1; inset: -32%; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, #fffdf0 0 30%, #fff1b0e0 42%, #ffd24a80 56%, transparent 72%); animation: mk-glow 2.4s ease-in-out infinite; }
-.mk:not(.done):not(.sel)::before { content: ""; position: absolute; z-index: -1; inset: -10%; border-radius: 50%; border: 2px solid #fff8dc; pointer-events: none; animation: mk-ping 2.4s ease-out infinite; }
+.mk:not(.done) > svg, .mk:not(.done) > .mk-pic, .mk:not(.done) > * > .mk-pic { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 2px 2px #0008); }
+.mk:not(.done)::after { content: ""; position: absolute; z-index: -1; inset: -18%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fff8dcb0 0 34%, #ffe38a55 52%, transparent 70%); animation: mk-glow 3.2s ease-in-out infinite; }
 /* (Rumor Hunt landmarks get a quieter, still halo, so the secrets to collect stand out more) */
-.mk.land:not(.done)::after { inset: -18%; animation: none; background: radial-gradient(circle, #f4fdffd0 0 35%, #bfefff70 52%, transparent 70%); }
-.mk.land::before { display: none; }
+.mk.land:not(.done)::after { inset: -10%; animation: none; background: radial-gradient(circle, #f4fdff80 0 38%, transparent 66%); }
 .mk.done { opacity: .72; }
 .mk:hover { z-index: 6; }
-@keyframes mk-glow { 0%, 100% { transform: scale(.85); opacity: .75; } 50% { transform: scale(1.12); opacity: 1; } }
-@keyframes mk-ping { 0% { transform: scale(.9); opacity: .9; } 70%, 100% { transform: scale(1.9); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .mk:not(.done)::after, .mk:not(.done)::before { animation: none; } }
+@keyframes mk-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mk:not(.done)::after { animation: none; } }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
 .link { position: absolute; z-index: 5; width: 1.25em; height: 1.25em; transform: translate(-50%, -50%); pointer-events: none; }
 .wisp { position: relative; display: block; width: 100%; height: 100%; }
@@ -217,23 +214,29 @@ h1, h2, h3, p { margin: 0; }
 .pz:active { cursor: grabbing; }
 .pz-in { position: absolute; left: 0; top: 0; will-change: transform; }
 .pz-img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-/* A place's name on the world map: a dark ink plaque with a gold rim, a ring for how much is found, and a card of
-   what's found and missing on hover. */
-.plaque { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .4em; padding: .28em .7em .28em .32em; border-radius: 99px;
-  background: linear-gradient(180deg, #2e2014f2, #1c130bf2); border: 1.5px solid #c9a24f; box-shadow: 0 2px 5px #0007, inset 0 1px 0 #fff2; color: #fbf0d4; font: 800 .7em var(--body); white-space: nowrap; transition: transform .12s, border-color .12s; }
-.plaque:hover, .plaque:focus-visible { z-index: 9; transform: translate(-50%, -50%) scale(1.06); border-color: #f3d68a; outline: none; }
-.plaque .nm { text-shadow: 0 1px 0 #000a; }
-.plaque .pc { font-size: .86em; font-weight: 700; color: #e9c46a; }
-.plaque .ring { flex: none; width: 1.45em; height: 1.45em; border-radius: 50%; display: grid; place-items: center; font-size: .9em; color: #1b130b;
-  background: radial-gradient(closest-side, #241810 66%, transparent 70%), conic-gradient(#e9c46a calc(var(--p) * 1%), #ffffff24 0); }
-.plaque.done { border-color: #7fb069; }
-.plaque.done .ring { background: radial-gradient(circle at 40% 35%, #b6e39a, #5f9a45); font-weight: 900; }
-.plaque.dun { background: linear-gradient(180deg, #3c2f58f2, #241b38f2); border-color: #b9a6e6; }
-.plaque.dun .ring { background: radial-gradient(closest-side, #241b38 66%, transparent 70%), conic-gradient(#c9b8ff calc(var(--p) * 1%), #ffffff24 0); }
-/* (dungeons when zoomed out: a round doorway badge) */
-.plaque.dot { width: 1.7em; height: 1.7em; padding: 0; font-size: 1em; border: 2px solid #d9b25f; justify-content: center;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23140d07' stroke='%23f1dfb4' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23f1dfb4' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #5b4228, #24170c); }
-.plaque.dot.done { border-color: #7fb069; }
+/* A place's name on the world map, as a scroll ribbon: a cream band with folded tails (dark green for dungeons), and
+   under it a small dark tag of what's still to find there. Hovering opens a card of found and missing. */
+.plaque { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .35em; padding: .22em .75em .24em;
+  background: linear-gradient(180deg, #f6eed4, #e4d3a2); border-top: 1.5px solid #5e4220; border-bottom: 1.5px solid #5e4220; color: #33230f;
+  box-shadow: 0 2px 3px #0005; font: 800 .7em var(--body); white-space: nowrap; transition: transform .12s; }
+.plaque::before, .plaque::after { content: ""; position: absolute; z-index: -1; top: .3em; bottom: -.3em; width: .75em; background: linear-gradient(180deg, #d3be86, #b89d5f);
+  border-top: 1.5px solid #5e4220; border-bottom: 1.5px solid #5e4220; }
+.plaque::before { left: -.7em; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 40% 50%); }
+.plaque::after { right: -.7em; clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%); }
+.plaque:hover, .plaque:focus-visible { z-index: 9; transform: translate(-50%, -50%) scale(1.06); outline: none; }
+.plaque .ok { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; background: #5f8f3e; color: #f6eed4; font-size: .8em; font-weight: 900; }
+.plaque .left { position: absolute; left: 50%; top: calc(100% + .3em); transform: translateX(-50%); display: flex; gap: .55em; padding: .12em .5em; border-radius: 99px;
+  background: #1f1a12e6; color: #f1e8d6; font: 800 .92em var(--body); }
+.plaque .left span { display: inline-flex; align-items: center; gap: .15em; }
+.plaque .left svg, .plaque .left .mk-pic { width: 1.25em; height: 1.25em; }
+.plaque.dun { background: linear-gradient(180deg, #3f5f43, #2a4430); color: #eef3dc; border-color: #1c2c1f; }
+.plaque.dun::before, .plaque.dun::after { background: linear-gradient(180deg, #2c4530, #1e3122); border-color: #1c2c1f; }
+.plaque.dun .ok { background: #d9c98a; color: #22361f; }
+/* (dungeons when zoomed out: a round green doorway badge) */
+.plaque.dot { width: 1.7em; height: 1.7em; padding: 0; font-size: 1em; border: 2px solid #d9c98a; border-radius: 50%; justify-content: center;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 21V11a6 6 0 0112 0v10z' fill='%23101a12' stroke='%23eef3dc' stroke-width='1.6'/%3E%3Cpath d='M3 21h18' stroke='%23eef3dc' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 72% no-repeat, radial-gradient(circle at 40% 35%, #4d7352, #1e3122); }
+.plaque.dot::before, .plaque.dot::after { display: none; }
+.plaque.dot.done { filter: saturate(.6); }
 .acard { position: absolute; left: 50%; bottom: calc(100% + .6em); transform: translateX(-50%); display: none; width: 15.5em; padding: .7em .8em .65em; border-radius: 10px; text-align: left; white-space: normal; cursor: default;
   background: linear-gradient(180deg, #2a1d12, #19110a); border: 1.5px solid #c9a24f; box-shadow: 0 8px 22px #000b; color: #f1e8d6; font: 600 .82rem var(--body); pointer-events: none; }
 .plaque:hover .acard, .plaque:focus-visible .acard { display: block; }
@@ -429,12 +432,12 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .ocarina2 .oc-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 14px #000b); pointer-events: none; }
 .oc-hole { position: absolute; width: 4.2%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); transition: box-shadow .08s, background .08s; }
 .oc-hole.on { background: radial-gradient(circle, #f4fdff 0 25%, #7fdcff 55%, transparent 72%); box-shadow: 0 0 1.1em .3em #8fe3ffcc; }
-.oc-keys { display: flex; justify-content: center; align-items: flex-end; gap: .45em; margin: .2em .6em .9em; touch-action: none; user-select: none; }
+.oc-keys { display: grid; grid-template-columns: repeat(3, 3.6em); justify-content: center; justify-items: center; align-items: center; row-gap: 0; column-gap: 2.2em; margin: .2em .6em .9em; touch-action: none; user-select: none; }
 .oc-key { display: flex; flex-direction: column; align-items: center; gap: .25em; padding: 0; background: none; border: 0; color: #cdb99c; }
 .oc-key .nkey { font-size: 1.35em; transition: transform .06s; }
 .oc-key.on .nkey { transform: scale(.92); background: radial-gradient(circle at 40% 35%, #fff, #bfe9ff); box-shadow: 0 0 0 2px #7fdcff, 0 0 14px #8fe3ff; }
 .oc-key small { font-size: .7em; font-weight: 800; letter-spacing: .04em; }
-.oc-bend { width: 2.3em; height: 2.3em; margin-bottom: 1.2em; border-radius: 50%; border: 2px solid #8a6a3a; background: #1a120b; color: #e9dcc0; font-size: 1.05em; font-weight: 800; }
+.oc-bend { width: 2.3em; height: 2.3em; margin-bottom: 1em; border-radius: 50%; border: 2px solid #8a6a3a; background: #1a120b; color: #e9dcc0; font-size: 1.05em; font-weight: 800; }
 .oc-bend.on { background: #d9b25f; color: #1a120b; border-color: #fff1c8; }
 /* One of the remake's buttons as the game draws it in a score: a round cream key with a dark letter. */
 .nkey { display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fffdf6, #e6dcc6); color: #1d1610; font: 800 1em var(--body); box-shadow: 0 2px 0 #0007, inset 0 -2px 0 #0002; border: 1.5px solid #2a2017; }
@@ -456,6 +459,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .oc-actions .btn { margin: 0; }
 .rec-dot { display: inline-block; width: .65em; height: .65em; border-radius: 50%; background: #e2453a; box-shadow: 0 0 6px #e2453a; vertical-align: .02em; }
 .pillbtn.lit { border-color: var(--gold); color: var(--gold); }
+.pillbtn:disabled { opacity: .45; }
 .oc-choose { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; padding: 0 1.2em 1.2em; }
 .oc-opt { display: flex; flex-direction: column; align-items: center; gap: .3em; padding: .8em .5em; background: #1a120b; border: 2px solid #4a3a28; border-radius: 4px; color: inherit; }
 .oc-opt.on { border-color: var(--gold); }

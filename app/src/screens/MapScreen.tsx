@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Back, Chevron, Close, Filter, Gear, Locate } from "../components/icons";
 import { LandIcon, LinkArrow, Marker } from "../components/art";
 import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
@@ -58,6 +58,8 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
   const [z, setZ] = useState(1);
   const [t, setT] = useState({ x: 0, y: 0 });
   const drag = useRef<{ pts: Map<number, { x: number; y: number }>; moved: number; pinch?: number }>({ pts: new Map(), moved: 0 });
+  /** The focusKey last centred on, and whether the user has moved or zoomed the map since. */
+  const placed = useRef<{ key?: string; touched: boolean }>({ touched: false });
 
   useLayoutEffect(() => {
     const el = view.current;
@@ -76,7 +78,12 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
     y: h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, y)),
   });
   // (before paint, so a new picture never shows a frame at the old one's position)
+  // Another picture under the same focusKey (Young and Adult Link's maps) keeps the place the user left the map at.
   useLayoutEffect(() => {
+    const p = placed.current;
+    if (p.key === focusKey && p.touched) { setT((o) => clamp(o.x, o.y)); return; }
+    if (p.key !== focusKey) p.touched = false;
+    p.key = focusKey;
     const f = focus ?? { x: 0.5, y: 0.5 };
     setT(clamp(vw / 2 - f.x * cw, vh / 2 - f.y * ch));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +91,7 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
 
   const zoomAt = (nz: number, px: number, py: number) => {
     nz = Math.min(4, Math.max(1, nz));
+    placed.current.touched = true;
     const k = nz / z;
     const w = vw * base * nz;
     setZ(nz);
@@ -117,6 +125,7 @@ export function PanZoom({ aspect, cover, focus, focusKey, children }: {
         d.moved += Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y);
         d.pts.set(e.pointerId, p);
         if (d.moved > 4) {
+          placed.current.touched = true;
           (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
           setT((o) => clamp(o.x + p.x - prev.x, o.y + p.y - prev.y));
         }
@@ -214,7 +223,7 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
     <Sheet title="Completion Progress" onClose={() => setSheet(null)}>
       <div style={{ textAlign: "center", padding: ".4em 0 1em" }}>
         <div className="big">{overall(report)}%</div>
-        <div className="small muted">Area Achievement Rate (chests, skulltulas and hearts, weighted by count)</div>
+        <div className="small muted" style={{ padding: "0 1.4em" }}>Area Achievement Rate (chests, skulltulas and hearts, weighted by count)</div>
       </div>
       {[...rows].sort((a, b) => pct(b.have, b.of) - pct(a.have, a.of)).map((r) => (
         <button key={r.area} className="rowline" style={{ width: "100%", background: "none", border: 0, padding: ".9em 1.2em", borderTop: "1px solid #2c2118" }} onClick={() => go(r.area)}>
@@ -272,14 +281,8 @@ function Counts({ kinds }: { kinds: AreaRow["kinds"] }) {
   );
 }
 
-/** What one of each kind is called in the hover card's "still to find" line. */
-const ONE: Record<MapKind, [string, string]> = {
-  chests: ["chest", "chests"], skulltulas: ["Skulltula token", "Skulltula tokens"],
-  "heart-pieces": ["Piece of Heart", "Pieces of Heart"], "heart-containers": ["Heart Container", "Heart Containers"],
-};
-
-/** A place's name on the world map: a small plaque with a ring for how much of it is found. Hovering it (or focusing it
- *  with the keyboard) opens a card of what has been found there and what is still missing. */
+/** A place's name on the world map, drawn as a scroll ribbon (dark green for dungeons) with a small tag under it of what
+ *  is still to find there, by kind. Hovering it (or focusing it with the keyboard) opens a card of found and missing. */
 function Plaque({ name, row, dungeon, dot, side, left, top, onPick }: {
   name: string; row?: AreaRow; dungeon: boolean; dot: boolean; side: string; left: number; top: number; onPick: () => void;
 }) {
@@ -291,9 +294,13 @@ function Plaque({ name, row, dungeon, dot, side, left, top, onPick }: {
       aria-label={row ? `${name}, ${p}% found` : name}>
       {!dot && (
         <>
-          {row && <span className="ring" style={{ "--p": p } as CSSProperties}>{done && "✓"}</span>}
           <span className="nm">{name}</span>
-          {row && !done && <span className="pc">{p}%</span>}
+          {done && <span className="ok" aria-hidden>✓</span>}
+          {missing.length > 0 && (
+            <span className="left" aria-hidden>
+              {missing.map(([k, n]) => <span key={k}><Marker kind={k} />{n}</span>)}
+            </span>
+          )}
         </>
       )}
       <span className={`acard ${side}`} role="tooltip">
@@ -309,7 +316,7 @@ function Plaque({ name, row, dungeon, dot, side, left, top, onPick }: {
             </span>
           );
         })}
-        <small>{!row ? "Nothing to collect here." : missing.length ? `Still to find: ${missing.map(([k, n]) => `${n} ${ONE[k][n === 1 ? 0 : 1]}`).join(", ")}` : "Everything here is found."}</small>
+        {!row && <small>Nothing to collect here.</small>}
       </span>
     </button>
   );
@@ -477,11 +484,10 @@ function AreaMap(props: {
   return (
     <div className="mapwrap">
       {usePicture ? (
-        img ? (
-          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${era}:${floor}:${!!link}`}>{layer()}</PanZoom>
-        ) : (
-          <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>Reading the map from your game files…</p>
-        )
+        <>
+          <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${floor}:${!!link}`}>{img ? layer() : null}</PanZoom>
+          {!img && <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>Reading the map from your game files…</p>}
+        </>
       ) : (
         <>
           <Paper seed={area} />

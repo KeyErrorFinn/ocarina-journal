@@ -60,6 +60,12 @@ fn finds_landmarks_for_rumours() {
     eprintln!("{} rumours: {:?}", r.len(), ["stone", "grotto", "cow", "owl", "scarecrow", "frog", "beehive"].map(|k| (k, count(k))));
     assert!(count("stone") >= 10 && count("grotto") >= 10);
     assert!(r.iter().all(|x| !x.eras.is_empty()));
+    // No two rumours of a kind share a spot.
+    for (i, a) in r.iter().enumerate() {
+        for b in &r[i + 1..] {
+            assert!(a.kind != b.kind || a.area != b.area || (a.pos[0] - b.pos[0]).hypot(a.pos[2] - b.pos[2]) >= 8.0, "{} and {}", a.id, b.id);
+        }
+    }
 }
 
 /// The ocarina's notes are the game's own recordings; each one sounds at its note's pitch, an octave above middle
