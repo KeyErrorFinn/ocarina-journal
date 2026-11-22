@@ -139,3 +139,35 @@ async fn talks_to_a_real_named_pipe() {
     .unwrap();
     assert!(next);
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn talks_to_a_real_unix_socket() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("oj-socket-test-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let path = dir.join("control.sock");
+    let listener = tokio::net::UnixListener::bind(&path).unwrap();
+    let server = tokio::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        serve(stream, Fixture::session(), Duration::from_millis(2), true).await;
+    });
+    let (handle, mut rx) =
+        spawn(oj_bridge::LocalConnector { name: path.to_string_lossy().into_owned() }, fast_config(64));
+    let first = timeout(Duration::from_secs(5), rx.recv()).await.unwrap().unwrap();
+    assert!(matches!(first, BridgeEvent::Connected(Some(_))), "got {first:?}");
+    timeout(Duration::from_secs(5), async {
+        loop {
+            if matches!(rx.recv().await, Some(BridgeEvent::Sample { .. })) {
+                break;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    handle.abort();
+    server.abort();
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir(dir).unwrap();
+}

@@ -82,6 +82,7 @@ export interface DaySummary {
 }
 
 export interface LiveState {
+  bridge_config_supported?: boolean;
   mode: Mode;
   connected: boolean;
   game_running: boolean;

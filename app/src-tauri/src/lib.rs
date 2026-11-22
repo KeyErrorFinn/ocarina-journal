@@ -9,13 +9,15 @@ use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+mod platform;
+
 /// How the app is getting its data (see docs/research/COMPANION_APP_ARCHITECTURE.md).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Mode {
     /// The bridge answers: live data.
     Live,
-    /// `longshot.exe` is running but its control pipe is not available (the bridge was not enabled at launch).
+    /// Longshot is running but its control pipe is not available (the bridge was not enabled at launch).
     BridgeOff,
     /// The game is not running: only saved data.
     #[default]
@@ -25,6 +27,8 @@ enum Mode {
 /// Everything the UI shows; sent whole on each change (it is small).
 #[derive(Debug, Clone, Default, Serialize)]
 struct LiveState {
+    /// Linux launches use HOS_CONTROL in the process environment, not the persistent Windows env-file switch.
+    bridge_config_supported: bool,
     mode: Mode,
     connected: bool,
     game_running: bool,
@@ -74,9 +78,7 @@ struct JournalFile {
 const MAX_DAYS: usize = 120;
 
 fn data_dir() -> Option<std::path::PathBuf> {
-    let d = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("OcarinaJournal");
-    std::fs::create_dir_all(&d).ok()?;
-    Some(d)
+    platform::data_dir()
 }
 
 fn write_atomic(path: &std::path::Path, bytes: &[u8]) {
@@ -288,7 +290,10 @@ fn find_game_dir(running: Option<&str>) -> Option<std::path::PathBuf> {
     if let Some(p) = running.map(std::path::PathBuf::from).filter(|p| ok(p)) {
         return Some(p);
     }
-    let root = std::path::PathBuf::from(std::env::var_os("USERPROFILE")?).join("Games").join("Longshot");
+    let root = platform::home_dir()?.join("Games").join("Longshot");
+    if ok(&root) {
+        return Some(root);
+    }
     let mut dirs: Vec<_> = std::fs::read_dir(root).ok()?.flatten().map(|e| e.path()).filter(|p| ok(p)).collect();
     dirs.sort_by_key(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok());
     dirs.pop()
@@ -308,9 +313,9 @@ fn newest_save_ms(dir: &std::path::Path) -> u64 {
 
 /// A hand-made report file, used when the game folder cannot be read (`OJ_REPORT`, or the app folder under LOCALAPPDATA).
 fn report_file() -> Option<ReportFile> {
-    let path = std::env::var_os("OJ_REPORT").map(std::path::PathBuf::from).or_else(|| {
-        std::env::var_os("LOCALAPPDATA").map(|p| std::path::PathBuf::from(p).join("OcarinaJournal").join("report.json"))
-    })?;
+    let path = std::env::var_os("OJ_REPORT")
+        .map(std::path::PathBuf::from)
+        .or_else(|| Some(data_dir()?.join("report.json")))?;
     let modified_ms =
         std::fs::metadata(&path).and_then(|m| m.modified()).ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
     Some(ReportFile { modified_ms, report: serde_json::from_slice(&std::fs::read(&path).ok()?).ok()? })
@@ -500,6 +505,9 @@ fn env_file(state: &Shared) -> Result<std::path::PathBuf, String> {
 /// What turning the bridge on would change in `longshot_env.txt`. Changes nothing.
 #[tauri::command]
 fn preview_enable_bridge(state: State<'_, Shared>) -> Result<BridgePreview, String> {
+    if !cfg!(windows) {
+        return Err("On Linux, use Start game once, or start Longshot with HOS_CONTROL matching OJ_PIPE.".into());
+    }
     let path = env_file(&state)?;
     let before = std::fs::read_to_string(&path).unwrap_or_default();
     let already = before.lines().find_map(|l| l.trim().strip_prefix("HOS_CONTROL=").map(|v| v.trim().to_string()));
@@ -546,14 +554,27 @@ fn launch_game(state: State<'_, Shared>, confirm: bool) -> Result<String, String
     }
     let known = state.0.lock().unwrap().game_dir.clone();
     let dir = find_game_dir(known.as_deref()).ok_or("The game folder was not found.")?;
-    let exe = dir.join("bin").join("longshot.exe");
+    let exe = platform::game_binary(&dir);
     if !exe.is_file() {
         return Err(format!("{} does not exist.", exe.display()));
     }
+    let endpoint = pipe_name();
+    #[cfg(unix)]
+    {
+        // A Unix socket path must be absolute and fit sockaddr_un (108 bytes, with the terminator).
+        if !std::path::Path::new(&endpoint).is_absolute() || endpoint.len() >= 108 {
+            return Err(
+                "Set OJ_PIPE to a short absolute socket path in a private folder you own, then restart the app.".into(),
+            );
+        }
+    }
     let mut cmd = std::process::Command::new(&exe);
-    cmd.current_dir(&dir).env("HOS_CONTROL", pipe_name());
+    cmd.current_dir(&dir).env("HOS_CONTROL", endpoint);
     // Without --user a directly started game makes a new empty save folder inside the game folder.
-    if let Some(user) = oj_savefile::default_save_dir().and_then(|d| d.parent()?.parent().map(|p| p.to_path_buf())) {
+    let user = oj_savefile::default_save_dir()
+        .and_then(|d| d.parent()?.parent().map(|p| p.to_path_buf()))
+        .or_else(oj_savefile::default_data_dir);
+    if let Some(user) = user {
         cmd.arg("--user").arg(user);
     }
     cmd.spawn().map_err(|e| e.to_string())?;
@@ -567,7 +588,7 @@ fn get_state(state: State<'_, Shared>) -> LiveState {
 
 /// The pipe name must match Longshot's `HOS_CONTROL` value. Override with `OJ_PIPE`.
 fn pipe_name() -> String {
-    std::env::var("OJ_PIPE").unwrap_or_else(|_| "longshot".into())
+    platform::bridge_endpoint()
 }
 
 fn now_ms() -> u64 {
@@ -585,7 +606,11 @@ const POLL_EVERY: Duration = Duration::from_secs(3);
 
 pub fn run() {
     tauri::Builder::default()
-        .manage(Shared(Arc::new(Mutex::new(LiveState { pipe: pipe_name(), ..Default::default() }))))
+        .manage(Shared(Arc::new(Mutex::new(LiveState {
+            bridge_config_supported: cfg!(windows),
+            pipe: pipe_name(),
+            ..Default::default()
+        }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
         .invoke_handler(tauri::generate_handler![
@@ -684,10 +709,10 @@ pub fn run() {
                                 let exe = sys
                                     .processes()
                                     .values()
-                                    .find(|p| p.name().to_string_lossy().eq_ignore_ascii_case("longshot.exe"))
+                                    .find(|p| platform::is_game_process(&p.name().to_string_lossy()))
                                     .map(|p| p.exe().map(|e| e.to_path_buf()));
                                 let running = exe.is_some();
-                                // bin\longshot.exe lives in <game folder>in
+                                // Packaged games live in <game folder>/bin on both supported platforms.
                                 let game_dir =
                                     exe.flatten().and_then(|e| e.parent()?.parent().map(|p| p.display().to_string()));
                                 let saves = dir.as_deref().map(oj_savefile::list_slots).unwrap_or_default();

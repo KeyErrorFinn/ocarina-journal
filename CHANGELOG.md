@@ -6,6 +6,22 @@ that changes what players see.
 
 ## Unreleased
 
+### Added
+- Linux build (x86_64): `.deb`, `.rpm` and AppImage packages, built by the release workflow on Ubuntu 22.04. The
+  app finds the game in `~/Games/Longshot` and saves in `~/.local/share/longshot`, and follows the game over a
+  same-user Unix socket. Documented in `docs/research/LINUX.md`.
+- Continuous integration for Linux: clippy, tests (including the bridge client against a real Unix socket), a scan
+  for the unused glib iterator behind RUSTSEC-2024-0429, a release build, and a start-up smoke test in a virtual
+  display with no game and with a synthetic report.
+- Screenshots in the README, made from the frontend with no game data and invented demonstration data.
+
+### Changed
+- On Linux the Home screen offers **Start game** only: Longshot's persistent environment file is a Windows
+  mechanism the app edits there, and nothing equivalent is established for Linux.
+- The app's data folder, saves and game folder are resolved per platform (`app/src-tauri/src/platform.rs`).
+- The launch and About texts no longer name `longshot.exe`.
+
+
 ## 1.0.0 - 2026-11-22
 
 First public release; includes all features and fixes from the 0.1.0 release candidate below.

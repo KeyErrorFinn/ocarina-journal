@@ -20,10 +20,19 @@ Starter issues: [clean Windows setup (#1)](https://github.com/KeyErrorFinn/ocari
 [Tapestry states (#4)](https://github.com/KeyErrorFinn/ocarina-journal/issues/4).
 
 At this initial snapshot, publishing source/workflows and building the first release were still pending.
+
+## Linux build (1.1.0)
+
+CI gains a **Linux (clippy, tests, build, smoke test)** job and the release workflow a `linux` job that builds the
+`.deb`, `.rpm` and AppImage after the Windows job. Once the Linux CI job has passed on `master`, add it to the
+required status checks (Settings, Branches, the `master` rule); until it has run once, GitHub can't offer it in the
+list. See [the 1.1.0 validation](../../docs/releases/1.1.0-validation.md) for what is and isn't verified. After
+release, add `linux` to the repository topics; the description still says Windows.
 See [1.0.0 validation](../../docs/releases/1.0.0-validation.md) and [candidate validation](../../docs/releases/0.1.0-validation.md) for source publication, privacy
 cleanup, installer tests and release gates. Uploading a social preview remains optional.
 Social-preview upload could not be completed because the browser access host was unavailable.
-The README still needs a sanitized no-game/synthetic UI screenshot; no gameplay screenshot has been committed.
+The README screenshot gallery uses no-game and synthetic frontend captures, with provenance in
+`assets/screenshots/README.md`; it includes no gameplay captures or player data.
 
 The owner chose on-demand AI-session reviews instead of an installed review bot. The unmerged bot setup PR
 was closed and its branch deleted; no bot configuration reached `master`. The owner subsequently confirmed

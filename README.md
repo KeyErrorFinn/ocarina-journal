@@ -9,7 +9,7 @@
 [Contributing](CONTRIBUTING.md) · [Common contribution guides](docs/workflows/README.md) ·
 [Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions)
 
-An unofficial, read-only **Windows companion app** for the native PC recompilation of
+An unofficial, read-only **companion app for Windows and Linux** for the native PC recompilation of
 *The Legend of Zelda: Ocarina of Time* ([Longshot](https://github.com/Recomper/Longshot)). It is a fan-made
 take on the idea behind Nintendo's *Zelda Notes*: a pocket journal that shows what you have found, what you
 have missed, and how your day of play went. It runs on your own PC, from your own saves and your own game files.
@@ -18,8 +18,23 @@ have missed, and how your day of play went. It runs on your own PC, from your ow
 > Ocarina Journal contains no game files, keys, Nintendo assets or Nintendo source code. All artwork in the
 > app is original. "Zelda", "Ocarina of Time" and related names belong to Nintendo.
 
-**Status: 1.0.0, first public release.** It runs and reads real saves, but expect rough edges. Several details
-are still unverified; they are listed under [Known gaps](#known-gaps).
+**Status: 1.1.0.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
+1.1.0: CI builds it and starts it in a virtual display, but it hasn't yet been run against a live Linux Longshot
+game, so treat Linux as an early release (see [`docs/research/LINUX.md`](docs/research/LINUX.md)). Expect rough
+edges, and see [Known gaps](#known-gaps) for what is still unverified.
+
+## Screenshots
+
+These are captures of the app's frontend in a browser, without native window chrome. Home and Ocarina show
+no-game states; My Journey and Today's Journal use invented demonstration data, including the place
+"Demo Meadow". They contain no player's saves, game-derived maps or text, or personal information.
+
+<p>
+  <a href="assets/screenshots/home.png"><img src="assets/screenshots/home.png" width="240" alt="Home screen in the no-game state"></a>
+  <a href="assets/screenshots/journey.png"><img src="assets/screenshots/journey.png" width="240" alt="My Journey medals with synthetic progress data"></a>
+  <a href="assets/screenshots/journal.png"><img src="assets/screenshots/journal.png" width="240" alt="Today's Journal timeline with synthetic events"></a>
+  <a href="assets/screenshots/ocarina.png"><img src="assets/screenshots/ocarina.png" width="240" alt="Ocarina controls in the no-game state"></a>
+</p>
 
 ## What it does
 
@@ -56,27 +71,54 @@ uploaded anywhere.
 - **Read-only by default.** The bridge client only sends the read-only `status` and `subscribe` requests. The
   protocol type in `oj-protocol` has no write commands.
 - **Your saves are never modified.** Save files are only read.
-- **Local only.** The bridge is a same-user Windows named pipe, not a network port. The app does not open any
-  listening socket and talks to no server.
-- **Explicit consent for changes.** The two actions that change anything (adding `HOS_CONTROL` to
-  `longshot_env.txt`, or starting Longshot with the bridge on) show what will happen and need a button press.
-  The first makes a backup copy of the file before writing.
+- **Local only.** The bridge is a same-user Windows named pipe, or a same-user Unix socket on Linux, never a network
+  port. The app does not open any listening socket and talks to no server.
+- **Explicit consent for changes.** The actions that change anything (on Windows, adding `HOS_CONTROL` to
+  `longshot_env.txt`; on both, starting Longshot with the bridge on) show what will happen and need a button press.
+  The first makes a backup copy of the file before writing. On Linux the app doesn't edit any Longshot file.
 - **No circumvention.** The project does not touch Nintendo's servers, accounts, tokens or app protections.
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 (x64), or a 64-bit (x86_64) Linux desktop with WebKitGTK 4.1
 - A working Longshot install with its own game files (you supply these; this project doesn't and can't)
 - To build: [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org) 20+, [pnpm](https://pnpm.io), and the
-  [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for Windows (WebView2, MSVC build tools)
+  [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for your system (Windows: WebView2 and the MSVC
+  build tools; Linux: WebKitGTK and GTK development packages, see [Linux](#linux))
 
-Windows installers are published under [Releases](https://github.com/KeyErrorFinn/ocarina-journal/releases)
-as unsigned Windows x64 installers. It installs for the current Windows user and requires
-WebView2; your game files and saves are supplied separately and are never bundled. Build from source below.
+Installers are published under [Releases](https://github.com/KeyErrorFinn/ocarina-journal/releases), unsigned.
+Your game files and saves are supplied separately and are never bundled. Downloads are manual; the app does not
+check for updates or contact a server. You can also build from source below.
 
-To update, close Ocarina Journal and run the new `-setup.exe`. It updates the existing installation in the same
-folder, preserves your settings and journal data, and keeps one entry in Windows Installed apps. You do not
-need to uninstall first. Running the same version repairs it. New installers reject downgrades. Downloads are manual; the app does not check for updates or contact a server.
+### Windows
+
+The Windows x64 installer installs for the current Windows user and requires WebView2. To update, close Ocarina
+Journal and run the new `-setup.exe`. It updates the existing installation in the same folder, preserves your
+settings and journal data, and keeps one entry in Windows Installed apps. You do not need to uninstall first.
+Running the same version repairs it. New installers reject downgrades.
+
+### Linux
+
+Releases include a `.deb`, an `.rpm` and an AppImage for x86_64, all unsigned. They are built on Ubuntu 22.04, so
+the glibc they need is that old or older. The app uses the system's WebKitGTK 4.1 (`libwebkit2gtk-4.1`) and GTK 3.
+
+- **AppImage:** `chmod +x Ocarina.Journal_*.AppImage`, then run it.
+- **Debian, Ubuntu:** `sudo apt install ./Ocarina.Journal_*.deb`
+- **Fedora, openSUSE:** `sudo dnf install ./Ocarina.Journal-*.rpm`
+
+Where it looks, on Linux, for what it reads (verified against Longshot's own documentation; details and what is
+still unverified are in [`docs/research/LINUX.md`](docs/research/LINUX.md)):
+
+| What | Where |
+|---|---|
+| The game | `~/Games/Longshot` (or the folder of a running `longshot`; `OJ_GAME` overrides) |
+| Your saves | `~/.local/share/longshot` (`OJ_SAVE_DIR` selects one user folder) |
+| This app's own data (journal, save log) | `~/.local/share/ocarina-journal` (private, mode 0700) |
+
+For live mode, use **Start game** on the Home screen: it starts `bin/longshot` with the bridge on at a private Unix
+socket inside this app's data folder, for that launch only. The persistent "turn the bridge on" switch is Windows
+only. To start Longshot yourself with the bridge on, set `HOS_CONTROL` to the same socket path
+(`OJ_PIPE` changes the path; it must be absolute and short, in a folder only you can write to).
 
 ## Build and run
 
@@ -87,19 +129,28 @@ cd ocarina-journal
 cd app
 pnpm install
 pnpm tauri dev        # development window with hot reload
-pnpm tauri build      # installer under target/release/bundle (workspace target directory)
+pnpm tauri build      # installer or packages under target/release/bundle (workspace target directory)
 ```
 
-To use Live mode, start Longshot with the bridge on. The app can do this for you from its Home screen, or you
-can set `HOS_CONTROL=longshot` in the environment or in `longshot_env.txt` yourself. The app looks for the game in
-the usual Longshot folders and also picks up the folder of a running `longshot.exe`.
+On Linux, first install the build prerequisites. On Debian or Ubuntu:
+
+```sh
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf build-essential
+```
+
+(Other distributions: see the [Tauri prerequisites](https://tauri.app/start/prerequisites/#linux).) `pnpm tauri build`
+then produces the `.deb`, `.rpm` and AppImage; the Windows build produces the NSIS installer.
+
+To use Live mode, start Longshot with the bridge on. The app can do this for you from its Home screen. On Windows
+you can also set `HOS_CONTROL=longshot` in the environment or in `longshot_env.txt` yourself. The app looks for the
+game in the usual Longshot folders and also picks up the folder of a running Longshot process.
 
 ## Repository layout
 
 ```
 app/                  Tauri 2 desktop app (React + TypeScript + Vite) and its Rust backend (app/src-tauri)
 crates/oj-protocol    Bridge request/response types (read-only commands only)
-crates/oj-bridge      Named-pipe client with reconnect
+crates/oj-bridge      Bridge client with reconnect (Windows named pipe, Linux Unix socket)
 crates/oj-journal     Turns live samples into a timeline and daily totals
 crates/oj-savefile    Reader for the game's save files (progress.sav flag table)
 crates/oj-gamedata    Reads names, categories and maps from your game files (zstd, SARC, BYML, MSBT, BNTX)
@@ -131,8 +182,12 @@ Honesty about what hasn't been confirmed is part of this project. Open items:
   against the game (see `docs/research/GAME_MAPS.md`).
 - **Daily stat counters** (grass cut, jumps, and similar): no matching save flags were found, so Today's
   Journal doesn't show them.
-- **Launcher behaviour**: starting `longshot.exe` directly needs `--user <your Longshot data folder>` to use your
+- **Launcher behaviour**: starting Longshot's binary directly needs `--user <your Longshot data folder>` to use your
   real saves. Whether the official Launcher does the same hasn't been confirmed.
+- **Linux**: the Linux app has been built and started in a virtual display by CI, and its bridge client is tested
+  against a real Unix socket, but it hasn't been run against a live Linux Longshot game. Wayland behaviour and
+  distributions other than Ubuntu are untested. Whether Longshot reads an environment file on Linux (so the app
+  could offer a persistent bridge switch there) isn't established.
 - **Screenshots in the timeline**: not available; capturing the game would need a write-capable command
   with its own consent step.
 - **Online features**: global comparison, leaderboards and amiibo depend on Nintendo's services or the console

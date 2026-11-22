@@ -18,7 +18,8 @@ attacker could do with it. You should hear back within a week.
 - The app reading or writing files outside what it needs (the game folder, the save folder, its own data folder),
   or being made to through a crafted save, game file, path or share code.
 - Any way to make the app or its bridge connection reachable from another computer, or to send commands to the
-  game that aren't read-only without the player's consent.
+  game that aren't read-only without the player's consent. On Linux that includes the control socket: the folder
+  that holds it must stay private to the user (mode 0700), and the path must stay a local Unix socket.
 - A Tauri command callable with arguments that escape its intended scope (for example `get_sound`, `get_map_image`
   or the bridge set-up commands).
 - A crash or hang from a crafted input file (saves, BYML, SARC, BNTX, BWAV, QR or share codes).

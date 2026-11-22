@@ -25,10 +25,11 @@ Pick the smallest home that fits:
 
 ## Setting up
 
-You need Windows 10 or 11, [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org) 20 or newer,
-[pnpm](https://pnpm.io) and the [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) (WebView2 and the
-MSVC build tools). A Longshot install with your own game files is needed to see real data, but not to build or to
-run most tests.
+You need Windows 10 or 11, or a Linux desktop, plus [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org)
+20 or newer, [pnpm](https://pnpm.io) and the [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for your
+system (Windows: WebView2 and the MSVC build tools; Linux: WebKitGTK 4.1 and GTK 3 development packages, for example
+`libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf` on Debian or Ubuntu). A
+Longshot install with your own game files is needed to see real data, but not to build or to run most tests.
 
 ```powershell
 git clone https://github.com/KeyErrorFinn/ocarina-journal.git
@@ -37,7 +38,7 @@ pnpm install
 pnpm tauri dev        # the app, with hot reload for the interface
 ```
 
-The app finds the game in the usual Longshot folders and picks up the folder of a running `longshot.exe`. Without
+The app finds the game in the usual Longshot folders and picks up the folder of a running Longshot process. Without
 a game it still opens, with the screens that need game data showing what is missing.
 
 For browser-only layout review, an optional private report can live at `app/.local/dev-report.json`; it is
