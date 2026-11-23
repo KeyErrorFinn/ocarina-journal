@@ -129,12 +129,16 @@ const WISP = Object.values(import.meta.glob<string>("../assets/ocarina/wisp.webp
 export const LinkArrow = () =>
   WISP ? (
     <span className="wisp">
-      <i className="wisp-dir" />
+      <span className="wisp-dir">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2.5l7.5 16c.2.5-.3 1-.8.8L12 16l-6.7 3.3c-.5.2-1-.3-.8-.8z" fill="#effdff" stroke="#2b6f93" strokeWidth="1.4" strokeLinejoin="round" />
+        </svg>
+      </span>
       <img src={WISP} alt="" />
     </span>
   ) : (
     <svg viewBox="0 0 24 24">
-      <path d="M12 2l8 20-8-5-8 5z" fill="#c0392b" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M12 2.5l7.5 16c.2.5-.3 1-.8.8L12 16l-6.7 3.3c-.5.2-1-.3-.8-.8z" fill="#d6473a" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 

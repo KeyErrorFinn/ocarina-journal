@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Back, Chevron, Close, Filter, Gear, Locate } from "../components/icons";
+import { Back, Chevron, Close, ExitArrow, Funnel, Gear, Locate } from "../components/icons";
 import { LandIcon, LinkArrow, Marker } from "../components/art";
+import { Maze } from "../components/Maze";
+import { hintsFor, type Near } from "../hints";
 import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
 import { Seg, Sheet, Sync, Toggle } from "../components/chrome";
 import { WORLD } from "../data/content";
@@ -9,6 +11,7 @@ import { useLocal } from "../store";
 import { areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report } from "../report";
 import {
   floorOf,
+  inWalk,
   placeAt,
   placeOfLive,
   preloadMapImages,
@@ -231,17 +234,26 @@ type Prefs = {
   gamePictures: boolean;
   follow: boolean;
   era: Era;
+  /** Draw only the parts of the Lost Woods maze that Link has walked through. */
+  reveal: boolean;
+  /** Which version of the defaults these were saved under (see PREFS_VERSION). */
+  v: number;
 };
+
+/** Raise this to put the display filters back to "show everything" once for everyone (version 2: all on by default). */
+const PREFS_VERSION = 2;
 
 const MAP_DEFAULTS: Prefs = {
   kinds: { chests: true, skulltulas: true, "heart-pieces": true, "heart-containers": true },
-  marks: { stone: true, grotto: true, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
+  marks: { stone: true, grotto: true, cow: true, scarecrow: true, frog: true, owl: true, beehive: true },
   incompleteOnly: false,
   contents: true,
   showLink: true,
   gamePictures: true,
   follow: true,
   era: "child",
+  reveal: false,
+  v: PREFS_VERSION,
 };
 
 export function MapScreen({ report: raw, game, connected, onHome, start }: Props) {
@@ -252,7 +264,13 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   const [sel, setSel] = useState<string | null>(null);
   // (saved settings from before this version lack the newer keys; the defaults fill them in)
   const [saved, setPrefs] = useLocal<Partial<Prefs>>("map.prefs", MAP_DEFAULTS);
-  const p: Prefs = { ...MAP_DEFAULTS, ...saved };
+  // (filters saved before the current defaults go back to showing everything, once; the other settings are kept)
+  const p: Prefs = {
+    ...MAP_DEFAULTS,
+    ...saved,
+    ...(saved.v === PREFS_VERSION ? {} : { kinds: MAP_DEFAULTS.kinds, marks: MAP_DEFAULTS.marks, incompleteOnly: false }),
+    v: PREFS_VERSION,
+  };
   const index = p.gamePictures ? idx : null;
   const report = useMemo(() => regroup(raw, idx), [raw, idx]);
   const rows = useMemo(() => areaRows(report), [report]);
@@ -568,6 +586,9 @@ function AreaMap(props: {
   const landmarks = useLandmarks();
   const [found] = useLocal<Record<string, number>>("gossip.found", {});
   const [mark, setMark] = useState<string | null>(null);
+  // (a landmark picked on one map isn't picked on the next)
+  useEffect(() => setMark(null), [area]);
+  const [seenWalk, setSeenWalk] = useLocal<number[]>("lostwood.seen", []);
   const here = linkPlace === area;
   const all = entriesFor(report, area);
   const row = rows.find((r) => r.area === area) ?? { area, kinds: {}, have: 0, of: 0 };
@@ -620,10 +641,30 @@ function AreaMap(props: {
   const onFloor = (y: number) => !place?.dungeon || !usePicture || floorOf(place, y) === floor;
   const shown = all.filter((e) => prefs.kinds[e.kind] && (!prefs.incompleteOnly || e.have < e.of) && (!e.pos || onFloor(e.pos[1])));
   const selected = shown.find((e) => e.id === sel) ?? null;
+  const nearby: Near[] = [
+    ...((usePicture && !place?.dungeon ? place?.[era]?.exits : null) ?? [])
+      .filter((x) => x.to)
+      .map((x) => ({ name: `the way to ${prettyArea(x.to)}`, x: x.x, z: x.z })),
+    ...(landmarks ?? [])
+      .filter((m) => m.eras.includes(era) && placeAt(idx, m.area, m.pos[0], m.pos[2]) === area)
+      .map((m) => ({ name: `a ${LANDMARK[m.kind].name}`, x: m.pos[0], z: m.pos[2] })),
+  ];
   const link =
     here && game?.pos && onFloor(game.pos[1]) && (!usePicture || place!.dungeon || !linkEra || linkEra === era) ? proj(game.pos[0], game.pos[2]) : null;
   const exits = usePicture && !place!.dungeon ? (place![era]?.exits ?? []) : [];
+  const walk = usePicture && !place!.dungeon ? (place![era]?.walk ?? []) : [];
+  const walked = useMemo(() => new Set(seenWalk), [seenWalk]);
+  // Remember each maze volume Link walks through, to draw only those when "reveal as I explore" is on.
+  useEffect(() => {
+    if (!here || !walk.length || !game?.pos) return;
+    const now = walk.flatMap((w, i) => (inWalk(w, game.pos![0], game.pos![2]) && !walked.has(i) ? [i] : []));
+    if (now.length) setSeenWalk([...seenWalk, ...now]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.pos?.[0], game?.pos?.[2], here, walk.length]);
   const pct2 = (v: number) => `${v}%`;
+  // How many filters are narrowing what is shown (item kinds and landmark kinds turned off, and "incomplete only").
+  const hiddenFilters =
+    MAP_KINDS.filter((k) => !prefs.kinds[k]).length + LAND_KINDS.filter((k) => !(prefs.marks ?? MAP_DEFAULTS.marks)[k]).length + (prefs.incompleteOnly ? 1 : 0);
   // Without Link to follow, open on the middle of what is drawn (the area's pictures have wide empty margins).
   const drawn = [...all.filter((e) => e.pos && onFloor(e.pos[1])).map((e) => proj(e.pos![0], e.pos![2])), ...exits.map((x) => proj(x.x, x.z))];
   const centre = drawn.length
@@ -642,13 +683,16 @@ function AreaMap(props: {
   const layer = () => (
     <>
       {usePicture && img && <img className="pz-img" src={img.url} alt="" draggable={false} />}
+      {walk.length > 0 && <Maze walk={walk} place={place!} aspect={aspect} seen={prefs.reveal ? walked : null} />}
       {exits.map((x, i) => {
         const q = proj(x.x, x.z);
         const ang = (Math.atan2(q.top - 50, (q.left - 50) / aspect) * 180) / Math.PI + 90;
         return (
           <button key={i} className="exit" style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => onGo(x.to)} aria-label={`To ${prettyArea(x.to)}`}>
-            <span className="chev" style={{ transform: `rotate(${ang}deg)` }}>
-              <Chevron />
+            <span className="chev">
+              <span style={{ display: "grid", transform: `rotate(${ang}deg)` }}>
+                <ExitArrow />
+              </span>
             </span>
             <small>{prettyArea(x.to)}</small>
           </button>
@@ -662,7 +706,10 @@ function AreaMap(props: {
             key={e.id}
             className={`mk ${e.id === sel ? "sel" : ""} ${e.have >= e.of ? "done" : ""}`}
             style={{ left: pct2(q.left), top: pct2(q.top) }}
-            onClick={() => setSel(e.id)}
+            onClick={() => {
+              setMark(null);
+              setSel(e.id);
+            }}
             aria-label={e.label}
           >
             <Marker kind={e.kind} done={e.have >= e.of} />
@@ -682,7 +729,7 @@ function AreaMap(props: {
                 style={{ left: pct2(q.left), top: pct2(q.top) }}
                 onClick={() => {
                   setSel(null);
-                  setMark(m.id);
+                  setMark(m.id === mark ? null : m.id);
                 }}
                 aria-label={LANDMARK[m.kind].name}
               >
@@ -748,8 +795,10 @@ function AreaMap(props: {
       <button className="round" style={{ top: "6.4em" }} aria-label="Go to Link" onClick={() => linkPlace && onGo(linkPlace)}>
         <Locate />
       </button>
-      <button className="round" style={{ top: "10.3em" }} aria-label="Display filters" onClick={() => setSheet("filter")}>
-        <Filter />
+      <button className="filter-btn" aria-label={hiddenFilters ? `Filters, ${hiddenFilters} turned off` : "Filters"} onClick={() => setSheet("filter")}>
+        <Funnel />
+        <span>Filters</span>
+        {hiddenFilters > 0 && <b>{hiddenFilters}</b>}
       </button>
       {shown.length === 0 && (
         <p className="empty" style={{ position: "absolute", top: "40%", left: 0, right: 0, textAlign: "center" }}>
@@ -838,6 +887,12 @@ function AreaMap(props: {
                 </div>
               )}
             </div>
+            <Spoiler
+              key={selected.id}
+              hints={hintsFor(selected, selected.kind, selected.pos ? { x: selected.pos[0], z: selected.pos[2] } : null, nearby).filter(
+                (h) => !(prefs.contents && h.title === "Inside"),
+              )}
+            />
           </div>
         </section>
       )}
@@ -868,6 +923,23 @@ function AreaMap(props: {
       {sheet === "filter" && (
         <Sheet title="Display Filters" onClose={() => setSheet(null)}>
           <div style={{ padding: "0 1.2em" }}>
+            {hiddenFilters > 0 && (
+              <button
+                className="spoil-btn"
+                style={{
+                  margin: ".2em 0 .6em",
+                  padding: ".55em 1em",
+                  borderRadius: 99,
+                  border: "2px solid #6b5a44",
+                  background: "#2a2018",
+                  color: "#f1dfb4",
+                  font: "800 .85em var(--body)",
+                }}
+                onClick={() => setPrefs({ ...prefs, kinds: MAP_DEFAULTS.kinds, marks: MAP_DEFAULTS.marks, incompleteOnly: false })}
+              >
+                Show everything ({hiddenFilters} turned off)
+              </button>
+            )}
             <div className="small muted" style={{ margin: ".4em 0" }}>
               Completion Progress
             </div>
@@ -934,10 +1006,50 @@ function Settings({ prefs, setPrefs, onClose }: { prefs: Prefs; setPrefs: (p: Pr
         <span>Display Link on the map</span>
         <Toggle on={prefs.showLink} label="Link" onChange={(v) => setPrefs({ ...prefs, showLink: v })} />
       </div>
+      <div className="setting">
+        <span>Reveal the Lost Woods maze as I explore it</span>
+        <Toggle on={prefs.reveal} label="reveal the Lost Woods maze as I explore" onChange={(v) => setPrefs({ ...prefs, reveal: v })} />
+      </div>
       <p className="note">
         The map pictures, place names' positions and floors are read from your own Longshot game files and kept only on this PC; the app ships none of them.
         Positions come from the game's placement data. Drag to move, scroll or pinch to zoom.
       </p>
     </Sheet>
+  );
+}
+
+/** The button that keeps a spoiler hidden until it is asked for. */
+function Spoiler({ hints }: { hints: { title: string; text: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="spoil">
+      <h3>Spoiler</h3>
+      {!open ? (
+        <>
+          <p className="small muted" style={{ textAlign: "center", margin: 0 }}>
+            How to find it. Hidden until you ask.
+          </p>
+          <button className="spoil-btn" onClick={() => setOpen(true)}>
+            Show me how to get it
+          </button>
+        </>
+      ) : hints.length ? (
+        <>
+          {hints.map((h) => (
+            <p key={h.title} className="hint">
+              <b>{h.title}.</b> {h.text}
+            </p>
+          ))}
+          <p className="src">From your own game files. The app can't see how to reach a spot, only where it is and what the game calls it.</p>
+          <button className="spoil-btn" onClick={() => setOpen(false)}>
+            Hide it again
+          </button>
+        </>
+      ) : (
+        <p className="small muted" style={{ textAlign: "center" }}>
+          Nothing more is known about this one yet.
+        </p>
+      )}
+    </div>
   );
 }

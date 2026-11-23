@@ -20,6 +20,33 @@ fn reads_the_game_maps() {
     assert!(oj_gamedata::maps::map_image(&files, "field/../x").is_err());
 }
 
+/// The Lost Woods map parameters name no destinations and its picture draws no paths; both come from the scene.
+/// (Checked by hand on v3.1.1: four real exits, and about a hundred maze volumes inside the picture's frame.)
+#[test]
+fn reads_the_lost_woods_maze() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
+    let idx = oj_gamedata::maps::map_index(&files).unwrap();
+    let lw = &idx.places["LostWood"];
+    for era in [lw.child.as_ref().unwrap(), lw.adult.as_ref().unwrap()] {
+        let mut to: Vec<&str> = era.exits.iter().map(|e| e.to.as_str()).collect();
+        to.sort_unstable();
+        assert_eq!(to, ["GoronCity", "KokiriForest", "SacredForestMeadow", "ZoraRiver"]);
+        assert!((80..=140).contains(&era.walk.len()), "{} maze volumes", era.walk.len());
+        let half = lw.span / 2.0;
+        for w in &era.walk {
+            assert!(
+                (w.x - lw.center[0]).abs() < half && (w.z - lw.center[1]).abs() < half,
+                "{w:?} is outside the picture"
+            );
+            assert!(w.w > 0.0 && w.d > 0.0);
+        }
+    }
+    // Every other place keeps its exits and gets no maze.
+    assert!(idx.places["KokiriForest"].adult.as_ref().unwrap().walk.is_empty());
+    assert!(idx.places["KokiriForest"].adult.as_ref().unwrap().exits.iter().all(|e| !e.to.is_empty()));
+}
+
 #[test]
 fn reads_the_game_tapestry() {
     let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };

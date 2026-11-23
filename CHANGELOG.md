@@ -6,6 +6,19 @@ that changes what players see.
 
 ## Unreleased
 
+- **Lost Woods map.** The game's own picture of the Lost Woods is only foliage, so the app now draws the maze over it
+  from the game's walkable volumes for the maze floor, read from your game files, with the four real exits labelled
+  (Kokiri Forest, Sacred Forest Meadow, Goron City, Zora River). A setting can reveal the maze only as you explore it.
+- **Exit arrows** are redrawn: a gold badge with a double chevron that points where the exit leads. Link's heading
+  arrow and the "go to Link" arrow are redrawn too.
+- **Display filters** show everything by default, and the filter button now says "Filters" with a funnel, a count of
+  what is turned off, and a "Show everything" button in its sheet. Filters you saved before this version go back to
+  showing everything once; your other map settings are kept.
+- **Spoiler button** in an item's popup. It is hidden until asked for, then shows what your own game files say: what a
+  chest holds, where the item sits relative to the nearest exit or Gossip Stone, and what the game calls it. Hand-written
+  tips can be added in `app/src/data/tips.ts`.
+- **Fixed:** a Gossip Stone stayed highlighted after you picked something else on the map.
+
 ## 1.1.1 - 2026-11-23
 
 Fixes the game maps not showing in the installed app, and follows Longshot's new folder layout. Installing over

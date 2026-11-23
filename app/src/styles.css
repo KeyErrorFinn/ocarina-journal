@@ -208,7 +208,8 @@ h1, h2, h3, p { margin: 0; }
 .link { position: absolute; z-index: 5; width: 1.25em; height: 1.25em; transform: translate(-50%, -50%); pointer-events: none; }
 .wisp { position: relative; display: block; width: 100%; height: 100%; }
 .wisp img { position: absolute; inset: -20%; width: 140%; height: 140%; animation: wisp 2.4s ease-in-out infinite; }
-.wisp-dir { position: absolute; left: 50%; top: -45%; width: 0; height: 0; margin-left: -.24em; border: .24em solid transparent; border-bottom: .38em solid #e8fbff; filter: drop-shadow(0 0 2px #6fd3ff); }
+.wisp-dir { position: absolute; left: 50%; top: -62%; width: .9em; height: .9em; margin-left: -.45em; filter: drop-shadow(0 0 3px #6fd3ff) drop-shadow(0 1px 1px #0009); }
+.wisp-dir svg { width: 100%; height: 100%; display: block; }
 @keyframes wisp { 50% { transform: translateY(-6%) scale(1.05); filter: brightness(1.15); } }
 
 /* the game's own map pictures: a draggable, zoomable surface */
@@ -256,10 +257,13 @@ h1, h2, h3, p { margin: 0; }
 .counts svg, .counts .mk-pic { width: 1.35em; height: 1.35em; flex: none; }
 .corner-counts { position: absolute; z-index: 6; right: .8em; bottom: 4.6em; }
 .corner-counts .counts { flex-direction: column; align-items: flex-start; gap: .3em; padding: .45em .6em; font-size: .85em; border: 1px solid #4a3a28; }
-.exit { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: none; border: 0; padding: 0; display: grid; justify-items: center; color: #fff; }
-.exit .chev { width: 1.9em; height: 1.9em; border-radius: 50%; background: rgba(40,28,16,.88); border: 2px solid #f1dfb4; display: grid; place-items: center; }
-.exit .chev svg { width: 1.2em; height: 1.2em; }
-.exit small { margin-top: .15em; background: rgba(40,28,16,.8); padding: .05em .45em; border-radius: 4px; font-size: .62em; font-weight: 700; white-space: nowrap; }
+.exit { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: none; border: 0; padding: 0; display: grid; justify-items: center; gap: .22em; color: #3d2a0c; cursor: pointer; }
+.exit .chev { width: 2.3em; height: 2.3em; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 34% 28%, #fbeab0, #e3bd5c 58%, #b88f36); border: 2px solid #4a3416;
+  box-shadow: 0 2px 5px #0008, inset 0 1px 1px #fff9, inset 0 -2px 3px #7a5a1a66; transition: transform .15s ease, box-shadow .15s ease; }
+.exit .chev svg { width: 1.35em; height: 1.35em; fill: none; stroke: #3d2a0c; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 0 #fff6); }
+.exit:hover .chev, .exit:focus-visible .chev { transform: scale(1.12); box-shadow: 0 3px 8px #000a, 0 0 0 3px #fff7d6aa, inset 0 1px 1px #fff9; }
+.exit small { background: linear-gradient(180deg, #f6e8bd, #e2c880); border: 1.5px solid #4a3416; color: #3d2a0c; padding: .08em .6em; border-radius: 99px; font-size: .64em; font-weight: 800; white-space: nowrap; box-shadow: 0 1px 3px #0007; }
 .era-tabs { position: absolute; z-index: 5; top: 7.1em; left: 1.2em; display: flex; border: 2px solid #3b2815; border-radius: 99px; overflow: hidden; }
 .era-tabs button { border: 0; background: rgba(251,240,212,.85); color: #3b2815; font: 800 .74em var(--body); padding: .35em .9em; }
 .era-tabs button.on { background: #3b2815; color: #fbf0d4; }
@@ -497,3 +501,24 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
   .band h1 { font-size: 1.5em; }
   .band .sub { margin-top: 0; }
 }
+
+/* Lost Woods maze (drawn from the game's walkable volumes over its foliage picture) */
+.maze { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 1px 3px #0007); }
+.maze-rim use { fill: #3f2c12; stroke: #3f2c12; stroke-linejoin: round; }
+.maze-floor use { fill: #efd596; stroke: #efd596; stroke-linejoin: round; }
+
+/* The filter button says what it is, and how many things it is hiding */
+.filter-btn { position: absolute; z-index: 5; right: .9em; top: 10.3em; display: inline-flex; align-items: center; gap: .45em; padding: .5em .95em .5em .8em; border-radius: 99px;
+  background: rgba(34,28,22,.94); border: 2px solid #4a3a28; color: #fff; font: 800 .82em var(--body); box-shadow: 0 2px 6px #0007; cursor: pointer; }
+.filter-btn svg { width: 1.25em; height: 1.25em; }
+.filter-btn b { min-width: 1.5em; padding: 0 .35em; border-radius: 99px; background: #e9c46a; color: #2a1c10; font-size: .85em; line-height: 1.5; text-align: center; }
+.filter-btn:hover { border-color: #e9c46a; }
+
+/* A spoiler is hidden until asked for */
+.spoil { margin: .4em 1em; padding: .9em 1.1em; border: 1px dashed #6b5a44; border-radius: 6px; background: #1a140e; }
+.spoil h3 { font: 800 1.05em var(--body); margin: 0 0 .3em; text-align: center; }
+.spoil-btn { display: block; width: 100%; margin: .5em 0 .1em; padding: .65em 1em; border-radius: 99px; border: 2px solid #6b5a44; background: #2a2018; color: #f1dfb4; font: 800 .9em var(--body); cursor: pointer; }
+.spoil-btn:hover { border-color: #e9c46a; }
+.spoil .hint { margin: .4em 0 0; line-height: 1.5; font-size: .86em; color: #e8dcc4; }
+.spoil .hint + .hint { margin-top: .5em; }
+.spoil .src { margin-top: .6em; font-size: .72em; color: var(--muted); }
