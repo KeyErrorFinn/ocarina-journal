@@ -46,6 +46,8 @@ jobs:
         working-directory: app
       - run: pnpm check
         working-directory: app
+      - name: The security policy allows what the frontend uses
+        run: python scripts/check-csp.py
       - name: Remap source paths in release binaries
         shell: pwsh
         run: |
@@ -64,6 +66,13 @@ jobs:
           releaseBody: Unofficial read-only companion for Windows and Linux. See CHANGELOG.md, THIRD_PARTY_NOTICES.md and the corresponding source for details. No game files or saves are included. The Windows installer and the Linux packages are unsigned.
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+      - name: Build the same source again with the browser's debugging port on (not uploaded)
+        # Only for the check below: one extra browser argument, otherwise identical, and the installer is already built.
+        run: pnpm tauri build --no-bundle --config src-tauri/tauri.smoke.conf.json
+        working-directory: app
+      - name: Start it with no game or user data and check its page under the policy
+        # The release is still a draft here: a failure means it must not be published.
+        run: node scripts/smoke-windows.mjs target/release/ocarina-journal.exe
 
   linux:
     needs: windows

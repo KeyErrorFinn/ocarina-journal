@@ -5,6 +5,8 @@
 [![CI](https://github.com/KeyErrorFinn/ocarina-journal/actions/workflows/ci.yml/badge.svg)](https://github.com/KeyErrorFinn/ocarina-journal/actions/workflows/ci.yml)
 [![Licence: GPL-3.0-or-later](https://img.shields.io/badge/licence-GPL--3.0--or--later-blue)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/KeyErrorFinn/ocarina-journal?include_prereleases)](https://github.com/KeyErrorFinn/ocarina-journal/releases)
+[![Downloads](https://img.shields.io/github/downloads/KeyErrorFinn/ocarina-journal/total?label=downloads)](https://github.com/KeyErrorFinn/ocarina-journal/releases)
+[![Contributors](https://img.shields.io/github/contributors/KeyErrorFinn/ocarina-journal)](https://github.com/KeyErrorFinn/ocarina-journal/graphs/contributors)
 
 [Contributing](CONTRIBUTING.md) · [Common contribution guides](docs/workflows/README.md) ·
 [Discussions](https://github.com/KeyErrorFinn/ocarina-journal/discussions)
@@ -18,7 +20,7 @@ have missed, and how your day of play went. It runs on your own PC, from your ow
 > Ocarina Journal contains no game files, keys, Nintendo assets or Nintendo source code. All artwork in the
 > app is original. "Zelda", "Ocarina of Time" and related names belong to Nintendo.
 
-**Status: 1.1.0.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
+**Status: 1.1.1.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
 1.1.0: CI builds it and starts it in a virtual display, but it hasn't yet been run against a live Linux Longshot
 game, so treat Linux as an early release (see [`docs/research/LINUX.md`](docs/research/LINUX.md)). Expect rough
 edges, and see [Known gaps](#known-gaps) for what is still unverified.
@@ -116,8 +118,8 @@ still unverified are in [`docs/research/LINUX.md`](docs/research/LINUX.md)):
 
 | What | Where |
 |---|---|
-| The game | `~/Games/Longshot` (or the folder of a running `longshot`; `OJ_GAME` overrides) |
-| Your saves | `~/.local/share/longshot` (`OJ_SAVE_DIR` selects one user folder) |
+| The game | `~/Games/Longshot`, directly or inside a channel folder such as `stable/` (or the folder of a running `longshot`; `OJ_GAME` overrides) |
+| Your saves | `~/.local/share/longshot`, from `save` or `save-work`, whichever changed last (`OJ_SAVE_DIR` selects one user folder) |
 | This app's own data (journal, save log) | `~/.local/share/ocarina-journal` (private, mode 0700) |
 
 For live mode, use **Start game** on the Home screen: it starts `bin/longshot` with the bridge on at a private Unix
@@ -229,6 +231,18 @@ building them, then contribute through focused pull requests.
 
 Maintainers: [repository activation and release checklist](.github/maintainer/SETUP.md) and
 [review policy](.github/maintainer/MAINTAINER.md).
+
+## Contributors
+
+Thank you to everyone who has contributed to Ocarina Journal.
+
+[![Contributors](https://contrib.rocks/image?repo=KeyErrorFinn/ocarina-journal)](https://github.com/KeyErrorFinn/ocarina-journal/graphs/contributors)
+
+The pictures above and the badges at the top (total release downloads, contributor count) update by themselves
+and are drawn by third-party services ([contrib.rocks](https://contrib.rocks), [shields.io](https://shields.io)),
+so viewing this page contacts them; the app itself never does. The download count includes every file attached to
+a release (installers, packages, checksums and source archives). Descriptions, research and testing count as
+contributions too; if you helped without a commit, open an issue or discussion and we'll credit you in the changelog.
 
 ## Legal
 

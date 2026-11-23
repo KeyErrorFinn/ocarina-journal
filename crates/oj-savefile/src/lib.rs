@@ -225,15 +225,37 @@ pub fn default_data_dir() -> Option<PathBuf> {
     }
 }
 
-/// The first user folder under Longshot's save root. `OJ_SAVE_DIR` selects one explicitly.
+/// The save roots under the data folder. Older Longshot builds keep saves in `save`; newer ones were seen
+/// writing to `save-work` while `save` stopped changing [I: observed on one install, not in Longshot's docs].
+const SAVE_ROOTS: [&str; 2] = ["save", "save-work"];
+
+/// The first user folder (by name) under `root`.
+fn first_user(root: &Path) -> Option<PathBuf> {
+    let mut users: Vec<_> = std::fs::read_dir(root).ok()?.flatten().filter(|e| e.path().is_dir()).collect();
+    users.sort_by_key(|e| e.file_name());
+    users.into_iter().next().map(|e| e.path())
+}
+
+/// The time of the newest `slot_NN/progress.sav` in a user folder.
+fn newest_progress(user: &Path) -> Option<std::time::SystemTime> {
+    std::fs::read_dir(user)
+        .ok()?
+        .flatten()
+        .filter_map(|e| std::fs::metadata(e.path().join("progress.sav")).and_then(|m| m.modified()).ok())
+        .max()
+}
+
+/// The first user folder under Longshot's save root; where both `save` and `save-work` exist, the one whose
+/// saves changed most recently. `OJ_SAVE_DIR` selects one explicitly.
 pub fn default_save_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("OJ_SAVE_DIR").map(PathBuf::from).filter(|p| p.is_dir()) {
         return Some(dir);
     }
-    let root = default_data_dir()?.join("save");
-    let mut users: Vec<_> = std::fs::read_dir(root).ok()?.flatten().filter(|e| e.path().is_dir()).collect();
-    users.sort_by_key(|e| e.file_name());
-    users.into_iter().next().map(|e| e.path())
+    pick_save_dir(&default_data_dir()?)
+}
+
+fn pick_save_dir(data: &Path) -> Option<PathBuf> {
+    SAVE_ROOTS.iter().filter_map(|r| first_user(&data.join(r))).max_by_key(|u| newest_progress(u))
 }
 
 /// Summaries of every `slot_NN/progress.sav` under a user save folder, newest first. Unreadable or
@@ -259,6 +281,25 @@ pub fn list_slots(user_dir: &Path) -> Vec<SlotSummary> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prefers_the_save_root_that_changed_last() {
+        let data = std::env::temp_dir().join(format!("oj-saveroots-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let put = |root: &str, secs: u64| {
+            let slot = data.join(root).join("user0").join("slot_00");
+            std::fs::create_dir_all(&slot).unwrap();
+            let f = std::fs::File::create(slot.join("progress.sav")).unwrap();
+            f.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs)).unwrap();
+        };
+        put("save", 1_000);
+        assert_eq!(pick_save_dir(&data), Some(data.join("save").join("user0")));
+        put("save-work", 2_000);
+        assert_eq!(pick_save_dir(&data), Some(data.join("save-work").join("user0")));
+        put("save", 3_000);
+        assert_eq!(pick_save_dir(&data), Some(data.join("save").join("user0")));
+        let _ = std::fs::remove_dir_all(&data);
+    }
 
     /// Build a minimal valid save: given words, given true keys.
     fn build(words: &[(u32, u32)], keys: &[u64]) -> Vec<u8> {

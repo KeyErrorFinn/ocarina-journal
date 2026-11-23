@@ -1,6 +1,7 @@
 # Checks every pull request and every push to master: Rust formatting, lints and tests on Windows and Linux; a Linux
-# build that is started in a virtual display; the app's type check, lints, formatting and build; and the repository
-# rules that a machine can check (docs/RULES.md).
+# build that is started in a virtual display and a Windows build whose page is checked under the app's security
+# policy; the app's type check, lints, formatting and build; and the repository rules that a machine can check
+# (docs/RULES.md).
 name: CI
 
 on:
@@ -73,6 +74,33 @@ jobs:
         # No game, saves or user data exist on the runner; the script supplies none (docs/RULES.md).
         run: xvfb-run -a python3 scripts/smoke-linux.py target/release/ocarina-journal
 
+  windows-app:
+    name: Windows (release build, policy smoke test)
+    # `tauri dev` doesn't enforce the Content Security Policy that the installed app does, so the release build is
+    # started here and its page is checked under the real policy (a missing blob: source once blanked every map).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - name: Release build, without packaging, with the browser's debugging port on
+        # The same source and policy as the shipped app; the only difference is one browser argument (the hosted
+        # runner's WebView2 ignores the environment variable that would otherwise turn the port on).
+        run: pnpm tauri build --no-bundle --config src-tauri/tauri.smoke.conf.json
+        working-directory: app
+      - name: Start it with no game or user data and check the page under the policy
+        run: node scripts/smoke-windows.mjs target/release/ocarina-journal.exe
+
   app:
     name: App (types, lint, format, build)
     runs-on: ubuntu-latest
@@ -106,6 +134,8 @@ jobs:
           if [ -n "$bad" ]; then
             echo "::error::These files can't be in the repository (docs/RULES.md):"; echo "$bad"; exit 1
           fi
+      - name: The security policy allows what the frontend uses
+        run: python3 scripts/check-csp.py
       - name: Pictures stay small
         run: |
           big=$(git ls-files -z 'app/src/assets/*' 'assets/*' | while IFS= read -r -d '' f; do
