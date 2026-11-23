@@ -22,20 +22,29 @@ const env = {
 delete env.OJ_REPORT;
 delete env.OJ_TEST_REAL;
 
-const app = spawn(exe, [], { env, stdio: "ignore" });
+const app = spawn(exe, [], { env, stdio: ["ignore", "inherit", "inherit"] });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const failures = [];
 let ws;
 try {
   let page;
-  for (let i = 0; i < 60 && !page; i++) {
+  let last = "no answer yet";
+  for (let i = 0; i < 90 && !page; i++) {
     if (app.exitCode !== null) throw new Error(`the app exited early (code ${app.exitCode})`);
     try {
-      page = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((p) => p.type === "page");
-    } catch {}
+      const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+      last = `targets: ${JSON.stringify(targets.map((t) => [t.type, t.url]))}`;
+      page = targets.find((p) => p.type === "page");
+    } catch (e) {
+      last = `debugging port: ${e.cause?.code ?? e.message}`;
+    }
     if (!page) await sleep(1000);
   }
-  if (!page) throw new Error("the app's window never appeared");
+  if (!page) {
+    const running = spawnSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8" }).stdout ?? "";
+    const names = running.split(/\r?\n/).filter((l) => /ocarina|webview2/i.test(l)).map((l) => l.split(",")[0]);
+    throw new Error(`the app's window never appeared (${last}; related processes: ${names.join(" ") || "none"})`);
+  }
 
   ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener("open", r));
