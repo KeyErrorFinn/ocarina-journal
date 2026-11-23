@@ -38,14 +38,15 @@ html, body, #root { height: 100%; margin: 0; background: #070504; color: var(--t
 button { font: inherit; color: inherit; cursor: pointer; }
 h1, h2, h3, p { margin: 0; }
 
-/* The app fills the window at any size. Text scales a little with the window; pages of text and lists keep a column
+/* The app fills the window at any size. Everything is sized in em, so shrinking the window shrinks the whole app
+   with it (down to about 160 px wide) and it stays complete and usable instead of getting cut off. Text scales with the window; pages of text and lists keep a column
    of at most --col wide in the middle, while maps, the tapestry and the home background use the whole window. */
 .stage { height: 100%; background: #050302; }
 .phone {
   /* Dark leather drawn for this app, behind every page (home, map and tapestry draw over it). */
   position: relative; overflow: hidden; background: var(--ink) url(./assets/bg/page.webp) center top / cover no-repeat;
   width: 100%; height: 100%; --col: 46em;
-  font-size: clamp(14px, min(100vw / 26, 100vh / 46), 19px);
+  font-size: clamp(4px, min(100vw / 26, 100vh / 46), 19px);
   display: flex; flex-direction: column;
 }
 .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; padding-inline: max(0px, calc((100% - var(--col)) / 2)); }
@@ -432,7 +433,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .ocarina2 .oc-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 14px #000b); pointer-events: none; }
 .oc-hole { position: absolute; width: 4.2%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); transition: box-shadow .08s, background .08s; }
 .oc-hole.on { background: radial-gradient(circle, #f4fdff 0 25%, #7fdcff 55%, transparent 72%); box-shadow: 0 0 1.1em .3em #8fe3ffcc; }
-.oc-keys { display: grid; grid-template-columns: repeat(3, 3.6em); justify-content: center; justify-items: center; align-items: center; row-gap: 0; column-gap: 2.2em; margin: .2em .6em .9em; touch-action: none; user-select: none; }
+.oc-keys { display: grid; grid-template-columns: repeat(3, 3.2em); justify-content: center; justify-items: center; align-items: center; row-gap: 0; column-gap: .55em; margin: .2em .6em .9em; touch-action: none; user-select: none; }
 .oc-key { display: flex; flex-direction: column; align-items: center; gap: .25em; padding: 0; background: none; border: 0; color: #cdb99c; }
 .oc-key .nkey { font-size: 1.35em; transition: transform .06s; }
 .oc-key.on .nkey { transform: scale(.92); background: radial-gradient(circle at 40% 35%, #fff, #bfe9ff); box-shadow: 0 0 0 2px #7fdcff, 0 0 14px #8fe3ff; }
@@ -522,3 +523,23 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .spoil .hint { margin: .4em 0 0; line-height: 1.5; font-size: .86em; color: #e8dcc4; }
 .spoil .hint + .hint { margin-top: .5em; }
 .spoil .src { margin-top: .6em; font-size: .72em; color: var(--muted); }
+
+/* ---------- The window itself: see-through mode, a hidden title bar, and the controls for them ---------- */
+html[data-see-through], html[data-see-through] body, html[data-see-through] #root { background: transparent; }
+html[data-see-through] .stage { opacity: var(--see, .72); background: transparent; }
+/* With the title bar hidden, the app's own bar sits above the page and the page starts below it. */
+html[data-frameless] .stage { padding-top: 28px; }
+.overlay-bar { position: fixed; z-index: 200; top: 0; left: 0; right: 0; height: 28px; display: flex; align-items: center; gap: 2px; padding: 0 4px;
+  background: rgba(18,13,9,.94); border-bottom: 1px solid #4a3a28; color: #e9dcc0; }
+.overlay-bar .grip { flex: 1; height: 100%; min-width: 24px; cursor: grab;
+  background: repeating-linear-gradient(90deg, #5b4630 0 2px, transparent 2px 6px) center / 100% 8px no-repeat; opacity: .8; }
+.overlay-bar button { display: grid; place-items: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; }
+.overlay-bar button:hover { background: #3a2b1d; }
+.overlay-bar button.on { background: #d9b25f; color: #1a120b; }
+.overlay-bar svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.overlay-bar .opacity-range { width: 64px; }
+.opacity-range { accent-color: #d9b25f; }
+.winpanel { margin-top: 1.1em; }
+.winpanel h3 { font: 800 1em var(--body); margin-bottom: .2em; }
+.winpanel small { display: block; margin-top: .15em; font-size: .78em; font-weight: 400; color: var(--muted); line-height: 1.35; }
+.winpanel .opacity-range { width: 9em; }

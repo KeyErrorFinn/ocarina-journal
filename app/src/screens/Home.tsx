@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
 import { Sheet, Sync } from "../components/chrome";
+import { WindowPanel } from "../components/WindowControls";
+import type { WindowMode } from "../windowMode";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
 import homeBg from "../assets/bg/home.webp";
@@ -194,7 +196,11 @@ export function Home({
   fresh,
   locked,
   reportError,
+  win,
+  setWin,
 }: {
+  win: WindowMode;
+  setWin: (m: WindowMode) => void;
   s: LiveState;
   go: (id: string) => void;
   fresh: string[];
@@ -316,6 +322,7 @@ export function Home({
                 )}
               </p>
             )}
+            <WindowPanel mode={win} set={setWin} />
             <p className="muted small" style={{ marginTop: "1em" }}>
               Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.
             </p>

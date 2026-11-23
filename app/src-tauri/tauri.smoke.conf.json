@@ -5,9 +5,10 @@
         "title": "Ocarina Journal",
         "width": 450,
         "height": 960,
-        "minWidth": 330,
-        "minHeight": 480,
-        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0"
+        "minWidth": 160,
+        "minHeight": 220,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0",
+        "transparent": true
       }
     ]
   }

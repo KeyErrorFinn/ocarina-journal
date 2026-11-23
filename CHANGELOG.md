@@ -18,6 +18,18 @@ that changes what players see.
   chest holds, where the item sits relative to the nearest exit or Gossip Stone, and what the game calls it. Hand-written
   tips can be added in `app/src/data/tips.ts`.
 - **Fixed:** a Gossip Stone stayed highlighted after you picked something else on the map.
+- **Ocarina:** the note buttons sit closer together, so moving from one to the next is a shorter reach.
+- **Song of Time and Prelude of Light** play at the game's tempo. Both were set to the accompaniment's half-beat in the
+  game's recordings, so they played twice as fast; Song of Time is re-measured (a beat of about 540 ms) and the
+  Prelude's rhythm repeats at about 510 ms, so 520 ms is used (the Prelude's recording is too busy to read its notes
+  directly, so that one is an inference).
+- **Shrinks to fit.** The whole app now scales down with the window, to about 160 px wide, and stays complete and
+  usable instead of getting cut off.
+- **Window options** (in the Home menu's "Window" section): keep the window on top of other windows, a see-through mode
+  with a slider for how solid it is, and hiding the title bar (a slim bar with the same controls and a handle to drag the
+  window by takes its place). They are remembered between runs. Pinning uses the window's own "always on top" and does
+  nothing to other programs. See-through relies on the system's window transparency, so on a setup without it the
+  window just looks dimmer.
 
 ## 1.1.1 - 2026-11-23
 

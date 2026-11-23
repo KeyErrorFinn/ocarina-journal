@@ -597,6 +597,31 @@ fn launch_game(state: State<'_, Shared>, confirm: bool) -> Result<String, String
     Ok("Longshot is starting with the bridge on.".into())
 }
 
+// ------------------------------------------------------------------------------------------------- the window itself
+/// Keeps the window above other windows (or stops doing so). The window is the app's own; nothing else is touched.
+#[tauri::command]
+fn set_pinned(window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
+    window.set_always_on_top(on).map_err(|e| e.to_string())
+}
+
+/// Shows or hides the window's title bar and border (hidden, the page draws its own strip to drag it by).
+#[tauri::command]
+fn set_frame(window: tauri::WebviewWindow, visible: bool) -> Result<(), String> {
+    window.set_decorations(visible).map_err(|e| e.to_string())
+}
+
+/// Starts moving the window with the mouse, for the strip drawn when the frame is hidden.
+#[tauri::command]
+fn drag_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|e| e.to_string())
+}
+
+/// Closes the app (the frame's close button is gone while the frame is hidden).
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 #[tauri::command]
 fn get_state(state: State<'_, Shared>) -> LiveState {
     state.0.lock().unwrap().clone()
@@ -640,7 +665,11 @@ pub fn run() {
             get_sound,
             preview_enable_bridge,
             apply_enable_bridge,
-            launch_game
+            launch_game,
+            set_pinned,
+            set_frame,
+            drag_window,
+            quit_app
         ])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();

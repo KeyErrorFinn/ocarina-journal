@@ -40,7 +40,9 @@ no-game states; My Journey and Today's Journal use invented demonstration data, 
 
 ## What it does
 
-The app has a freely resizable window with twelve tiles:
+The app has a freely resizable window with twelve tiles. The whole app shrinks with the window (down to about 160 px
+wide) and stays complete. In the Home menu's **Window** section you can keep it on top of other windows, make it
+see-through (with a slider for how solid it is) to overlay it on a game, and hide the title bar:
 
 | Tile | What it shows |
 |---|---|
