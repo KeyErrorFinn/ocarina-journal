@@ -39,6 +39,27 @@ const activePort = () => {
   }
   return 0;
 };
+// Ports that WebView2's own processes are listening on (the browser's debugging port is one of them), in case the
+// profile folder isn't where DevToolsActivePort ends up.
+const listeningPorts = () => {
+  const out = spawnSync("tasklist", ["/FI", "IMAGENAME eq msedgewebview2.exe", "/FO", "CSV", "/NH"], { encoding: "utf8" }).stdout ?? "";
+  const pids = new Set(out.split(/\r?\n/).map((l) => l.split('","')[1]).filter(Boolean));
+  const net = spawnSync("netstat", ["-ano", "-p", "TCP"], { encoding: "utf8" }).stdout ?? "";
+  const ports = [];
+  for (const line of net.split(/\r?\n/)) {
+    const m = line.match(/^\s*TCP\s+(?:127\.0\.0\.1|\[::1\]):(\d+)\s+\S+\s+LISTENING\s+(\d+)/);
+    if (m && pids.has(m[2])) ports.push(Number(m[1]));
+  }
+  return ports;
+};
+const describeBrowser = () => {
+  const ps = spawnSync(
+    "powershell",
+    ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"name='msedgewebview2.exe'\" | ForEach-Object { $c = $_.CommandLine; if ($c -notmatch '--type=') { $c.Substring(0, [Math]::Min(500, $c.Length)) } }"],
+    { encoding: "utf8" },
+  ).stdout;
+  return (ps ?? "").trim().replace(/\s+/g, " ") || "(no main browser process line)";
+};
 const failures = [];
 let ws;
 try {
@@ -46,24 +67,23 @@ try {
   let last = "no answer yet";
   for (let i = 0; i < 90 && !page; i++) {
     if (app.exitCode !== null) throw new Error(`the app exited early (code ${app.exitCode})`);
-    const port = activePort();
-    if (!port) {
-      last = "the browser hasn't written DevToolsActivePort yet";
-    } else {
+    const candidates = [...new Set([activePort(), ...listeningPorts()].filter(Boolean))];
+    last = `candidate ports: ${candidates.join(" ") || "none"}`;
+    for (const port of candidates) {
       try {
-        const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+        const targets = await (await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(3000) })).json();
+        const found = targets.find((p) => p.type === "page");
         last = `port ${port}, targets: ${JSON.stringify(targets.map((t) => [t.type, t.url]))}`;
-        page = targets.find((p) => p.type === "page");
-      } catch (e) {
-        last = `port ${port}: ${e.cause?.code ?? e.message}`;
-      }
+        if (found) {
+          page = found;
+          break;
+        }
+      } catch {}
     }
     if (!page) await sleep(1000);
   }
   if (!page) {
-    const running = spawnSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8" }).stdout ?? "";
-    const names = running.split(/\r?\n/).filter((l) => /ocarina|webview2/i.test(l)).map((l) => l.split(",")[0]);
-    throw new Error(`the app's window never appeared (${last}; related processes: ${names.join(" ") || "none"}; profile files: ${profileFiles().join(" ") || "none"})`);
+    throw new Error(`the app's window never appeared (${last}; profile files: ${profileFiles().join(" ") || "none"}; browser: ${describeBrowser()})`);
   }
 
   ws = new WebSocket(page.webSocketDebuggerUrl);
