@@ -93,8 +93,10 @@ jobs:
           cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: app
-      - name: Release build, without packaging
-        run: pnpm tauri build --no-bundle
+      - name: Release build, without packaging, with the browser's debugging port on
+        # The same source and policy as the shipped app; the only difference is one browser argument (the hosted
+        # runner's WebView2 ignores the environment variable that would otherwise turn the port on).
+        run: pnpm tauri build --no-bundle --config src-tauri/tauri.smoke.conf.json
         working-directory: app
       - name: Start it with no game or user data and check the page under the policy
         run: node scripts/smoke-windows.mjs target/release/ocarina-journal.exe

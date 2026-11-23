@@ -1,6 +1,8 @@
 // Starts the release build on Windows with no game, saves or user data, and checks the page under the app's real
 // Content Security Policy (which `tauri dev` does not enforce). Usage: node scripts/smoke-windows.mjs <app.exe>
 // Reads the page over WebView2's local debugging port (127.0.0.1 only) and changes nothing.
+// The app must have been built with app/src-tauri/tauri.smoke.conf.json (which opens the debugging port); the
+// environment variable set below does the same on a runtime that honours it, and is how a plain build is tried locally.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
