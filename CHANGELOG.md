@@ -11,18 +11,28 @@ that changes what players see.
   (Kokiri Forest, Sacred Forest Meadow, Goron City, Zora River). A setting can reveal the maze only as you explore it.
 - **Exit arrows** are redrawn: a gold badge with a double chevron that points where the exit leads. Link's heading
   arrow and the "go to Link" arrow are redrawn too.
-- **Display filters** show everything by default, and the filter button now says "Filters" with a funnel, a count of
-  what is turned off, and a "Show everything" button in its sheet. Filters you saved before this version go back to
-  showing everything once; your other map settings are kept.
+- **Display filters** all start switched off, for a clean map, and the app keeps what you switch on. The filter button
+  now says "Filters" with a funnel and a count of what is on, and its sheet has "Turn all on" and "Turn all off".
+  Filters saved before this version are reset to off once; your other map settings are kept. It also no longer
+  overlaps the "go to Link" button.
 - **Spoiler button** in an item's popup. It is hidden until asked for, then shows what your own game files say: what a
   chest holds, where the item sits relative to the nearest exit or Gossip Stone, and what the game calls it. Hand-written
   tips can be added in `app/src/data/tips.ts`.
+- **Visited landmarks.** Gossip Stones, grottos and the other Rumor Hunt landmarks are marked on the map once Link has
+  stood right beside one while the app was connected. The save has no flag for speaking to a stone or entering a
+  grotto (each stone's own flag stays unset even after using the Mask of Truth), so "visited" only means you were
+  there. It is kept apart from the Rumor Hunt points.
+- **Heart pieces given by an event** (for example from a Business Scrub) now show on the map. Their position was thrown
+  away before, so they were listed but could not be found; this fixes the third Death Mountain Crater piece.
+- **Link's hearts** are shown in at most two rows of ten; the second row only holds hearts once the first has ten.
+- **The map title's underline** is redrawn.
 - **Fixed:** a Gossip Stone stayed highlighted after you picked something else on the map.
 - **Ocarina:** the note buttons sit closer together, so moving from one to the next is a shorter reach.
-- **Song of Time and Prelude of Light** play at the game's tempo. Both were set to the accompaniment's half-beat in the
-  game's recordings, so they played twice as fast; Song of Time is re-measured (a beat of about 540 ms) and the
-  Prelude's rhythm repeats at about 510 ms, so 520 ms is used (the Prelude's recording is too busy to read its notes
-  directly, so that one is an inference).
+- **Song of Time and Prelude of Light** follow the rhythm of the game's full songs. Both were set from the
+  accompaniment's half-beat. Re-measured against the recordings: Song of Time keeps its note lengths (1, 2, 1, 1, 2, 1)
+  at a beat of about 520 ms (it played twice as fast), and the Prelude of Light's note lengths are 1, 3, 1, 1, 1, 3
+  at 250 ms (they were 1, 1, 2, 1, 1, 3). How long the Prelude's last note is held can't be read through its
+  accompaniment, so that one is an inference.
 - **Shrinks to fit.** The whole app now scales down with the window, to about 160 px wide, and stays complete and
   usable instead of getting cut off.
 - **Window options** (in the Home menu's "Window" section): keep the window on top of other windows, a see-through mode

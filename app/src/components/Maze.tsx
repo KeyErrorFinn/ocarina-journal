@@ -24,7 +24,24 @@ export function Maze({ walk, place, aspect, seen }: { walk: MapWalk[]; place: Ma
         q = chosen[b].w,
         dx = Math.abs(p.x - q.x),
         dz = Math.abs(p.z - q.z);
-      const lined = (dx <= 1.5 && dz <= 14) || (dz <= 1.5 && dx <= 14);
+      // Link two volumes only when they line up AND their edges nearly touch (the game leaves small gaps along a
+      // corridor, never a stretch with nothing in it), and nothing else sits between them.
+      const horiz = dz <= 1.5 && dx > 1.5;
+      const vert = dx <= 1.5 && dz > 1.5;
+      const half = (w: MapWalk, alongX: boolean) => {
+        const r = (w.r * Math.PI) / 180,
+          c = Math.abs(Math.cos(r)),
+          sn = Math.abs(Math.sin(r));
+        return alongX ? (c * w.w + sn * w.d) / 2 : (sn * w.w + c * w.d) / 2;
+      };
+      const gap = horiz ? dx - half(p, true) - half(q, true) : vert ? dz - half(p, false) - half(q, false) : Infinity;
+      const between = chosen.some(({ w: m }, k) => {
+        if (k === a || k === b) return false;
+        return horiz
+          ? Math.abs(m.z - p.z) <= 1.5 && m.x > Math.min(p.x, q.x) && m.x < Math.max(p.x, q.x)
+          : vert && Math.abs(m.x - p.x) <= 1.5 && m.z > Math.min(p.z, q.z) && m.z < Math.max(p.z, q.z);
+      });
+      const lined = gap <= 6 && !between;
       if (lined) joins.push([a, b]);
       if (lined || Math.hypot(dx, dz) <= Math.hypot(p.w, p.d) / 2 + Math.hypot(q.w, q.d) / 2) parent[root(a)] = root(b);
     }

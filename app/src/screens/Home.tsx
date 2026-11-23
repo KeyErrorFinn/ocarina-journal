@@ -32,7 +32,8 @@ const GLYPHS: Record<string, () => ReactNode> = {
 export function Hearts({ life, max }: { life: number; max: number }) {
   const total = Math.max(1, Math.round(max / 4));
   return (
-    <div className="hearts" style={{ display: "flex", flexWrap: "wrap", gap: ".15em" }} aria-label={`${life / 4} of ${total} hearts`}>
+    // Ten to a row, at most two rows: the second row only has hearts once the first holds ten, and fills after it.
+    <div className="hearts" style={{ display: "grid", gridTemplateColumns: "repeat(10, 1.35em)", gap: ".15em" }} aria-label={`${life / 4} of ${total} hearts`}>
       {Array.from({ length: total }, (_, i) => (
         <span key={i} style={{ width: "1.35em", height: "1.35em", display: "inline-block" }}>
           <Ic.Heart fill={Math.max(0, Math.min(4, life - i * 4)) / 4} />

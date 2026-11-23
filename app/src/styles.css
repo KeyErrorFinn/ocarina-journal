@@ -182,8 +182,11 @@ h1, h2, h3, p { margin: 0; }
 .map-top { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; justify-content: space-between; align-items: center; padding: .7em .8em; background: linear-gradient(180deg, rgba(110,70,30,.92), rgba(110,70,30,0)); }
 .map-top .icon-btn { color: #fff; }
 .map-title { position: absolute; z-index: 5; top: 3.9em; left: 1.2em; font: 800 1.1em var(--body); color: #3b2815; }
-.map-title i { display: block; height: 2px; width: 7em; background: #3b2815; opacity: .7; margin-top: .2em; position: relative; }
-.map-title i::after { content: "୭"; position: absolute; right: -1.5em; top: -.65em; font-size: 1.1em; }
+.map-title i { display: block; height: 3px; width: 8.5em; margin-top: .4em; position: relative; border-radius: 3px;
+  background: linear-gradient(90deg, #3b2815 0%, #3b2815 58%, #3b281500 100%); }
+.map-title i::before { content: ""; position: absolute; left: -.2em; top: 50%; width: .5em; height: .5em; background: #3b2815; border-radius: 1px; transform: translateY(-50%) rotate(45deg); }
+.map-title i::after { content: ""; position: absolute; left: calc(100% - .4em); top: -.55em; width: 1.7em; height: 1.4em; opacity: .85;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 28'%3E%3Cpath d='M2 16c7 0 12-3 13-8 1-5-5-7-8-3-3 4 1 9 7 9 8 0 11-5 12-9' fill='none' stroke='%233b2815' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='31' cy='5' r='1.8' fill='%233b2815'/%3E%3C/svg%3E") center / contain no-repeat; }
 .round { position: absolute; z-index: 5; right: .9em; width: 2.9em; height: 2.9em; border-radius: 50%; background: rgba(34,28,22,.92); border: 2px solid #1a130d; display: grid; place-items: center; color: #fff; }
 .round svg { width: 1.4em; height: 1.4em; }
 .pill-map { position: absolute; z-index: 6; left: 50%; bottom: 1em; transform: translateX(-50%); background: #231b14; border: 2.5px solid #4a3a28; border-radius: 99px; padding: .7em 1.6em; font-weight: 800; display: inline-flex; gap: .5em; align-items: center; white-space: nowrap; box-shadow: 0 3px 8px #0008; }
@@ -509,7 +512,7 @@ input[type=text] { width: 100%; background: #0f0b08; border: 1px solid var(--lin
 .maze-floor use { fill: #efd596; stroke: #efd596; stroke-linejoin: round; }
 
 /* The filter button says what it is, and how many things it is hiding */
-.filter-btn { position: absolute; z-index: 5; right: .9em; top: 10.3em; display: inline-flex; align-items: center; gap: .45em; padding: .5em .95em .5em .8em; border-radius: 99px;
+.filter-btn { position: absolute; z-index: 5; right: 1.1em; top: 12.9em; display: inline-flex; align-items: center; gap: .45em; padding: .5em .95em .5em .8em; border-radius: 99px;
   background: rgba(34,28,22,.94); border: 2px solid #4a3a28; color: #fff; font: 800 .82em var(--body); box-shadow: 0 2px 6px #0007; cursor: pointer; }
 .filter-btn svg { width: 1.25em; height: 1.25em; }
 .filter-btn b { min-width: 1.5em; padding: 0 .35em; border-radius: 99px; background: #e9c46a; color: #2a1c10; font-size: .85em; line-height: 1.5; text-align: center; }
@@ -543,3 +546,7 @@ html[data-frameless] .stage { padding-top: 28px; }
 .winpanel h3 { font: 800 1em var(--body); margin-bottom: .2em; }
 .winpanel small { display: block; margin-top: .15em; font-size: .78em; font-weight: 400; color: var(--muted); line-height: 1.35; }
 .winpanel .opacity-range { width: 9em; }
+
+/* A short note over the map ("everything is switched off") that stays readable on any picture */
+.map-hint { position: absolute; z-index: 6; left: 50%; bottom: 5.4em; transform: translateX(-50%); width: max-content; max-width: calc(100% - 3em); padding: .55em 1.1em;
+  border-radius: 99px; background: rgba(34,28,22,.92); border: 1.5px solid #4a3a28; color: #f1dfb4; font-size: .82em; font-weight: 700; text-align: center; box-shadow: 0 2px 8px #0008; pointer-events: none; }

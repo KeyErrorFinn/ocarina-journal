@@ -240,12 +240,20 @@ type Prefs = {
   v: number;
 };
 
-/** Raise this to put the display filters back to "show everything" once for everyone (version 2: all on by default). */
-const PREFS_VERSION = 2;
-
-const MAP_DEFAULTS: Prefs = {
+/** Raise this to put the display filters back to the defaults once for everyone. Version 3: every layer starts switched
+ *  off (a clean map), and from then on the choices a player makes are kept. */
+const PREFS_VERSION = 3;
+const ALL_OFF = {
+  kinds: { chests: false, skulltulas: false, "heart-pieces": false, "heart-containers": false },
+  marks: { stone: false, grotto: false, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
+};
+const ALL_ON = {
   kinds: { chests: true, skulltulas: true, "heart-pieces": true, "heart-containers": true },
   marks: { stone: true, grotto: true, cow: true, scarecrow: true, frog: true, owl: true, beehive: true },
+};
+
+const MAP_DEFAULTS: Prefs = {
+  ...ALL_OFF,
   incompleteOnly: false,
   contents: true,
   showLink: true,
@@ -585,6 +593,9 @@ function AreaMap(props: {
   const idx = useMapIndex();
   const landmarks = useLandmarks();
   const [found] = useLocal<Record<string, number>>("gossip.found", {});
+  // Landmarks Link has stood right beside while the app was connected (when, as a time). The save has no flag for "spoke to this
+  // stone" or "entered this grotto", so this is the best the app can tell; it is kept apart from the Rumor Hunt points.
+  const [visited, setVisited] = useLocal<Record<string, number>>("landmark.visited", {});
   const [mark, setMark] = useState<string | null>(null);
   // (a landmark picked on one map isn't picked on the next)
   useEffect(() => setMark(null), [area]);
@@ -654,6 +665,21 @@ function AreaMap(props: {
   const exits = usePicture && !place!.dungeon ? (place![era]?.exits ?? []) : [];
   const walk = usePicture && !place!.dungeon ? (place![era]?.walk ?? []) : [];
   const walked = useMemo(() => new Set(seenWalk), [seenWalk]);
+  // Mark each landmark Link stands within about 4 m of (and no more than 6 m above or below).
+  useEffect(() => {
+    if (!here || !game?.pos || !landmarks || !linkEra) return;
+    const [x, y, z] = game.pos;
+    const near = landmarks.filter(
+      (m) =>
+        !visited[m.id] &&
+        m.eras.includes(linkEra) &&
+        placeAt(idx, m.area, m.pos[0], m.pos[2]) === area &&
+        Math.hypot(m.pos[0] - x, m.pos[2] - z) <= 4 &&
+        Math.abs(m.pos[1] - y) <= 6,
+    );
+    if (near.length) setVisited({ ...visited, ...Object.fromEntries(near.map((m) => [m.id, Date.now()])) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.pos?.[0], game?.pos?.[1], game?.pos?.[2], here, landmarks]);
   // Remember each maze volume Link walks through, to draw only those when "reveal as I explore" is on.
   useEffect(() => {
     if (!here || !walk.length || !game?.pos) return;
@@ -662,9 +688,8 @@ function AreaMap(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.pos?.[0], game?.pos?.[2], here, walk.length]);
   const pct2 = (v: number) => `${v}%`;
-  // How many filters are narrowing what is shown (item kinds and landmark kinds turned off, and "incomplete only").
-  const hiddenFilters =
-    MAP_KINDS.filter((k) => !prefs.kinds[k]).length + LAND_KINDS.filter((k) => !(prefs.marks ?? MAP_DEFAULTS.marks)[k]).length + (prefs.incompleteOnly ? 1 : 0);
+  // How many layers are switched on (item kinds and landmark kinds).
+  const layersOn = MAP_KINDS.filter((k) => prefs.kinds[k]).length + LAND_KINDS.filter((k) => (prefs.marks ?? MAP_DEFAULTS.marks)[k]).length;
   // Without Link to follow, open on the middle of what is drawn (the area's pictures have wide empty margins).
   const drawn = [...all.filter((e) => e.pos && onFloor(e.pos[1])).map((e) => proj(e.pos![0], e.pos![2])), ...exits.map((x) => proj(x.x, x.z))];
   const centre = drawn.length
@@ -725,7 +750,7 @@ function AreaMap(props: {
             return (
               <button
                 key={m.id}
-                className={`mk land ${m.id === mark ? "sel" : ""} ${found[m.id] ? "done" : ""}`}
+                className={`mk land ${m.id === mark ? "sel" : ""} ${found[m.id] || visited[m.id] ? "done" : ""}`}
                 style={{ left: pct2(q.left), top: pct2(q.top) }}
                 onClick={() => {
                   setSel(null);
@@ -733,7 +758,7 @@ function AreaMap(props: {
                 }}
                 aria-label={LANDMARK[m.kind].name}
               >
-                <LandIcon kind={m.kind} done={!!found[m.id]} />
+                <LandIcon kind={m.kind} done={!!(found[m.id] || visited[m.id])} />
               </button>
             );
           })}
@@ -795,14 +820,14 @@ function AreaMap(props: {
       <button className="round" style={{ top: "6.4em" }} aria-label="Go to Link" onClick={() => linkPlace && onGo(linkPlace)}>
         <Locate />
       </button>
-      <button className="filter-btn" aria-label={hiddenFilters ? `Filters, ${hiddenFilters} turned off` : "Filters"} onClick={() => setSheet("filter")}>
+      <button className="filter-btn" aria-label={layersOn ? `Filters, ${layersOn} switched on` : "Filters"} onClick={() => setSheet("filter")}>
         <Funnel />
         <span>Filters</span>
-        {hiddenFilters > 0 && <b>{hiddenFilters}</b>}
+        {layersOn > 0 && <b>{layersOn}</b>}
       </button>
       {shown.length === 0 && (
-        <p className="empty" style={{ position: "absolute", top: "40%", left: 0, right: 0, textAlign: "center" }}>
-          Nothing to show here with these filters.
+        <p className="map-hint">
+          {layersOn === 0 ? "Everything is switched off. Open Filters to choose what to see." : "Nothing to show here with these filters."}
         </p>
       )}
       {!selected && here && linkEra && !place?.dungeon && eras.includes(linkEra) && linkEra !== era && (
@@ -842,7 +867,9 @@ function AreaMap(props: {
               <p className="small muted" style={{ padding: "0 1.2em 1.2em" }}>
                 {found[m.id]
                   ? `Found in Rumor Hunt on ${new Date(found[m.id]).toLocaleDateString()}.`
-                  : "A Rumor Hunt place. Stand here with the bridge on and tap Found! in Rumor Hunt."}
+                  : visited[m.id]
+                    ? `Visited on ${new Date(visited[m.id]).toLocaleDateString()}: Link stood right beside it while the app was connected. (The save doesn't record whether you spoke to it or went in, so this only means you were there.) Tap Found! in Rumor Hunt for the points.`
+                    : "A Rumor Hunt place. Stand beside it with the bridge on and the app marks it as visited; tap Found! in Rumor Hunt for the points."}
                 {m.eras.length === 1 ? ` Only there as ${m.eras[0]} Link.` : ""}
               </p>
             </section>
@@ -923,23 +950,21 @@ function AreaMap(props: {
       {sheet === "filter" && (
         <Sheet title="Display Filters" onClose={() => setSheet(null)}>
           <div style={{ padding: "0 1.2em" }}>
-            {hiddenFilters > 0 && (
-              <button
-                className="spoil-btn"
-                style={{
-                  margin: ".2em 0 .6em",
-                  padding: ".55em 1em",
-                  borderRadius: 99,
-                  border: "2px solid #6b5a44",
-                  background: "#2a2018",
-                  color: "#f1dfb4",
-                  font: "800 .85em var(--body)",
-                }}
-                onClick={() => setPrefs({ ...prefs, kinds: MAP_DEFAULTS.kinds, marks: MAP_DEFAULTS.marks, incompleteOnly: false })}
-              >
-                Show everything ({hiddenFilters} turned off)
-              </button>
-            )}
+            <div style={{ display: "flex", gap: ".6em", margin: ".2em 0 .6em" }}>
+              {[
+                ["Turn all on", ALL_ON],
+                ["Turn all off", ALL_OFF],
+              ].map(([label, set]) => (
+                <button
+                  key={label as string}
+                  className="spoil-btn"
+                  style={{ margin: 0, padding: ".5em .8em", font: "800 .85em var(--body)" }}
+                  onClick={() => setPrefs({ ...prefs, ...(set as typeof ALL_ON) })}
+                >
+                  {label as string}
+                </button>
+              ))}
+            </div>
             <div className="small muted" style={{ margin: ".4em 0" }}>
               Completion Progress
             </div>
