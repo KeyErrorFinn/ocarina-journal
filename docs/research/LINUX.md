@@ -8,7 +8,7 @@ local clone of the Longshot repository at commit `868f6be`), **[I]** inferred, *
 
 | Thing | Windows | Linux | Source |
 |---|---|---|---|
-| Game folder (default) | `%USERPROFILE%\Games\Longshot` (newest version folder inside) | `~/Games/Longshot` | **[V]** Longshot README, "where things are" table |
+| Game folder (default) | `%USERPROFILE%\Games\Longshot` (newest version folder inside, directly or under a channel folder such as `stable\v3.1.1`) | `~/Games/Longshot` | **[V]** Longshot README, "where things are" table |
 | Game binary | `bin\longshot.exe` | `bin/longshot` | **[V]** Longshot README ("the game itself is `bin/longshot`"); `docs/control.md` ("`launch` finds `bin/longshot.exe` on Windows or `bin/longshot` on Linux") |
 | Saves and settings | `%APPDATA%\Longshot` (Longshot's README also names a `user` folder in the game folder) | `~/.local/share/longshot` | **[V]** Longshot README for the Linux path and for `--user <folder>`; **[I]** that `$XDG_DATA_HOME` moves it, as Longshot's own `scripts/longshot_ctl.py` computes the default |
 | Save layout | `save/<user id>/slot_NN/progress.sav` | same | **[V]** the format is the same game code on both |

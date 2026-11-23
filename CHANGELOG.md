@@ -6,6 +6,23 @@ that changes what players see.
 
 ## Unreleased
 
+## 1.1.1 - 2026-11-23
+
+Fixes the game maps not showing in the installed app, and follows Longshot's new folder layout. Installing over
+1.1.0 keeps your data.
+
+- Fixes the game maps and pictures not showing in the installed app: its security policy blocked the in-memory
+  pictures the app makes from your game files (`img-src` lacked `blob:`). Development builds don't apply that
+  policy, which is why it went unnoticed.
+- Finds the game when Longshot keeps builds inside a release-channel folder (for example
+  `Games\Longshot\stable\v3.1.1`), not only directly under `Games\Longshot`.
+- Reads saves from `save-work` when that folder changed more recently than `save`. Newer Longshot builds were seen
+  writing there; this was observed on one install and is not in Longshot's documentation.
+- Checks that can't be skipped: CI now starts the Windows release build and loads its page under the app's real
+  security policy, and a repository check compares the policy with what the frontend uses. The release workflow
+  runs both before a release can be published.
+- The README shows total release downloads and a contributors list.
+
 ## 1.1.0 - 2026-11-22
 
 Adds the Linux build and updates every dependency.

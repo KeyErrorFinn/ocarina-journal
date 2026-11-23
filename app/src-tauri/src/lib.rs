@@ -281,7 +281,7 @@ struct ReportCache {
 
 struct Reports(Mutex<ReportCache>);
 
-/// The game folder: `OJ_GAME`, the running game's folder, else the newest build under `~/Games/Longshot`.
+/// The game folder: `OJ_GAME`, the running game's folder, else the newest build under `~/Games/Longshot` (directly, or inside a channel folder such as `stable/`).
 fn find_game_dir(running: Option<&str>) -> Option<std::path::PathBuf> {
     let ok = |p: &std::path::Path| p.join("romfs").join("GameData").is_dir() || p.join("GameData").is_dir();
     if let Some(p) = std::env::var_os("OJ_GAME").map(std::path::PathBuf::from).filter(|p| ok(p)) {
@@ -290,11 +290,27 @@ fn find_game_dir(running: Option<&str>) -> Option<std::path::PathBuf> {
     if let Some(p) = running.map(std::path::PathBuf::from).filter(|p| ok(p)) {
         return Some(p);
     }
-    let root = platform::home_dir()?.join("Games").join("Longshot");
-    if ok(&root) {
-        return Some(root);
+    newest_build(&platform::home_dir()?.join("Games").join("Longshot"))
+}
+
+fn newest_build(root: &std::path::Path) -> Option<std::path::PathBuf> {
+    let ok = |p: &std::path::Path| p.join("romfs").join("GameData").is_dir() || p.join("GameData").is_dir();
+    if ok(root) {
+        return Some(root.to_path_buf());
     }
-    let mut dirs: Vec<_> = std::fs::read_dir(root).ok()?.flatten().map(|e| e.path()).filter(|p| ok(p)).collect();
+    // Builds sit either directly under the root (`v3.0.0-rc.4`) or one level deeper, under a release channel
+    // (`stable/v3.1.1`); look at both and take the most recently changed.
+    let subdirs = |p: &std::path::Path| -> Vec<std::path::PathBuf> {
+        std::fs::read_dir(p).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect()
+    };
+    let mut dirs = Vec::new();
+    for first in subdirs(root) {
+        if ok(&first) {
+            dirs.push(first);
+        } else {
+            dirs.extend(subdirs(&first).into_iter().filter(|p| ok(p)));
+        }
+    }
     dirs.sort_by_key(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok());
     dirs.pop()
 }
@@ -750,6 +766,22 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finds_builds_directly_under_the_root_and_inside_a_channel_folder() {
+        let root = std::env::temp_dir().join(format!("oj-builds-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        // The newest build is the one made last; wait so the folder times differ on coarse filesystems.
+        let make = |rel: &str| {
+            std::thread::sleep(std::time::Duration::from_millis(1_100));
+            std::fs::create_dir_all(root.join(rel).join("romfs").join("GameData")).unwrap();
+        };
+        make("v3.0.0-rc.4");
+        assert_eq!(newest_build(&root), Some(root.join("v3.0.0-rc.4")));
+        make("stable/v3.1.1");
+        assert_eq!(newest_build(&root), Some(root.join("stable").join("v3.1.1")));
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn journal_days_follow_local_calendar_across_daylight_saving() {
