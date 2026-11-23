@@ -2,13 +2,12 @@
 // Content Security Policy (which `tauri dev` does not enforce). Usage: node scripts/smoke-windows.mjs <app.exe>
 // Reads the page over WebView2's local debugging port (127.0.0.1 only) and changes nothing.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const exe = process.argv[2];
 if (!exe) throw new Error("usage: node scripts/smoke-windows.mjs <app.exe>");
-const port = 9333;
 const root = mkdtempSync(join(tmpdir(), "oj-win-smoke-"));
 const env = {
   ...process.env,
@@ -17,13 +16,29 @@ const env = {
   OJ_GAME: join(root, "missing-game"),
   OJ_SAVE_DIR: join(root, "missing-save"),
   WEBVIEW2_USER_DATA_FOLDER: join(root, "webview"),
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+  // Port 0: the browser picks a free one and writes it to DevToolsActivePort in its profile folder.
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=0",
 };
 delete env.OJ_REPORT;
 delete env.OJ_TEST_REAL;
 
 const app = spawn(exe, [], { env, stdio: ["ignore", "inherit", "inherit"] });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The profile folder holds DevToolsActivePort (port on the first line) once the browser's debugging port is open.
+const profileFiles = () => {
+  try {
+    return readdirSync(env.WEBVIEW2_USER_DATA_FOLDER, { recursive: true }).filter((f) => /DevToolsActivePort|\.lock$/i.test(String(f))).map(String);
+  } catch {
+    return [];
+  }
+};
+const activePort = () => {
+  for (const f of profileFiles().filter((f) => /DevToolsActivePort$/.test(f))) {
+    const port = Number.parseInt(readFileSync(join(env.WEBVIEW2_USER_DATA_FOLDER, f), "utf8").split(/\r?\n/)[0], 10);
+    if (port > 0) return port;
+  }
+  return 0;
+};
 const failures = [];
 let ws;
 try {
@@ -31,19 +46,24 @@ try {
   let last = "no answer yet";
   for (let i = 0; i < 90 && !page; i++) {
     if (app.exitCode !== null) throw new Error(`the app exited early (code ${app.exitCode})`);
-    try {
-      const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      last = `targets: ${JSON.stringify(targets.map((t) => [t.type, t.url]))}`;
-      page = targets.find((p) => p.type === "page");
-    } catch (e) {
-      last = `debugging port: ${e.cause?.code ?? e.message}`;
+    const port = activePort();
+    if (!port) {
+      last = "the browser hasn't written DevToolsActivePort yet";
+    } else {
+      try {
+        const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+        last = `port ${port}, targets: ${JSON.stringify(targets.map((t) => [t.type, t.url]))}`;
+        page = targets.find((p) => p.type === "page");
+      } catch (e) {
+        last = `port ${port}: ${e.cause?.code ?? e.message}`;
+      }
     }
     if (!page) await sleep(1000);
   }
   if (!page) {
     const running = spawnSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8" }).stdout ?? "";
     const names = running.split(/\r?\n/).filter((l) => /ocarina|webview2/i.test(l)).map((l) => l.split(",")[0]);
-    throw new Error(`the app's window never appeared (${last}; related processes: ${names.join(" ") || "none"})`);
+    throw new Error(`the app's window never appeared (${last}; related processes: ${names.join(" ") || "none"}; profile files: ${profileFiles().join(" ") || "none"})`);
   }
 
   ws = new WebSocket(page.webSocketDebuggerUrl);
