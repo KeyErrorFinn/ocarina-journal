@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
 import { Sheet, Sync } from "../components/chrome";
 import { WindowPanel } from "../components/WindowControls";
+import { SaveFolder } from "../components/SaveFolder";
+import { UpdateCheck } from "../components/UpdateCheck";
 import type { WindowMode } from "../windowMode";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
@@ -323,6 +325,8 @@ export function Home({
                 )}
               </p>
             )}
+            <SaveFolder s={s} />
+            <UpdateCheck s={s} />
             <WindowPanel mode={win} set={setWin} />
             <p className="muted small" style={{ marginTop: "1em" }}>
               Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.

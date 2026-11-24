@@ -6,6 +6,13 @@ that changes what players see.
 
 ## Unreleased
 
+- **Update check.** The menu has a "Check for updates" button that asks GitHub for the newest release and, if there is
+  one, offers to open its page. The menu also shows which version you have. A switch next to it does the same when the app starts (off by default). This is the
+  app's only network call: one plain HTTPS request, no identifier, nothing downloaded or installed for you.
+- **Choose your save folder.** If the app picks the wrong saves (or none), the menu now has a "Save folder" box with a Browse button: pick or paste
+  the folder that holds your `slot_00`, `slot_01`, ... folders, or the one above it. The choice is remembered and the
+  app only reads it. The automatic search also looks for the saves Longshot's launcher keeps a few folders above the
+  game build (`LongshotLauncher-data/user`), and uses whichever saves changed most recently.
 - **Lost Woods map.** The game's own picture of the Lost Woods is only foliage, so the app now draws the maze over it
   from the game's walkable volumes for the maze floor, read from your game files, with the four real exits labelled
   (Kokiri Forest, Sacred Forest Meadow, Goron City, Zora River). A setting can reveal the maze only as you explore it.

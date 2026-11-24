@@ -24,6 +24,9 @@ oj-savefile = { path = "../../crates/oj-savefile" }
 oj-gamedata = { path = "../../crates/oj-gamedata" }
 jiff = "1.0.1"
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
+tauri-plugin-dialog = "2"
+ureq = "3"
+tauri-plugin-opener = "2"
 
 [lints]
 workspace = true

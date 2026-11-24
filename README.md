@@ -76,7 +76,9 @@ uploaded anywhere.
   protocol type in `oj-protocol` has no write commands.
 - **Your saves are never modified.** Save files are only read.
 - **Local only.** The bridge is a same-user Windows named pipe, or a same-user Unix socket on Linux, never a network
-  port. The app does not open any listening socket and talks to no server.
+  port. The app does not open any listening socket. Its only network call is the update check: one plain HTTPS request to
+  GitHub for the newest release, sent only when you press "Check for updates" or have switched on the start-up check
+  (off by default). Nothing is downloaded or installed for you.
 - **Explicit consent for changes.** The actions that change anything (on Windows, adding `HOS_CONTROL` to
   `longshot_env.txt`; on both, starting Longshot with the bridge on) show what will happen and need a button press.
   The first makes a backup copy of the file before writing. On Linux the app doesn't edit any Longshot file.

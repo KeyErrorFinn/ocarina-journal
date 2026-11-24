@@ -81,6 +81,13 @@ export interface DaySummary {
   totals: Totals;
 }
 
+/** What the last "check for updates" found. */
+export interface UpdateInfo {
+  latest: string;
+  url: string;
+  newer: boolean;
+}
+
 export interface LiveState {
   bridge_config_supported?: boolean;
   mode: Mode;
@@ -93,7 +100,11 @@ export interface LiveState {
   last_error: string | null;
   journal: Journal;
   save_dir: string | null;
+  save_dir_chosen: boolean;
   saves: SlotSummary[];
+  app_version: string;
+  update_check_auto: boolean;
+  update: UpdateInfo | null;
   game_dir: string | null;
   history: DaySummary[];
   save_log: SaveEvent[];
@@ -124,7 +135,11 @@ export const EMPTY: LiveState = {
   last_error: null,
   journal: { started_wall_ms: 0, totals: EMPTY_TOTALS, entries: [] },
   save_dir: null,
+  save_dir_chosen: false,
   saves: [],
+  app_version: "",
+  update_check_auto: false,
+  update: null,
   game_dir: null,
   history: [],
   save_log: [],

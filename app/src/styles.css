@@ -546,6 +546,15 @@ html[data-frameless] .stage { padding-top: 28px; }
 .winpanel h3 { font: 800 1em var(--body); margin-bottom: .2em; }
 .winpanel small { display: block; margin-top: .15em; font-size: .78em; font-weight: 400; color: var(--muted); line-height: 1.35; }
 .winpanel .opacity-range { width: 9em; }
+.savepanel { display: flex; flex-direction: column; gap: .35em; }
+.save-row { display: flex; gap: .5em; margin-top: .3em; }
+.save-row input { flex: 1; min-width: 0; padding: .45em .6em; border-radius: .5em; border: 1px solid var(--muted); background: transparent; color: inherit; font: inherit; font-size: .85em; }
+.save-row button, .save-reset { padding: .4em .9em; border-radius: .5em; border: 1px solid var(--muted); background: transparent; color: inherit; font: inherit; font-size: .85em; cursor: pointer; }
+.save-row button:disabled { opacity: .45; cursor: default; }
+.save-reset { align-self: flex-start; }
+.save-error { color: var(--amber); }
+.updatepanel .save-row { align-items: center; flex-wrap: wrap; }
+.updatepanel label { display: flex; gap: .5em; align-items: center; font-size: .85em; cursor: pointer; }
 
 /* A short note over the map ("everything is switched off") that stays readable on any picture */
 .map-hint { position: absolute; z-index: 6; left: 50%; bottom: 5.4em; transform: translateX(-50%); width: max-content; max-width: calc(100% - 3em); padding: .55em 1.1em;

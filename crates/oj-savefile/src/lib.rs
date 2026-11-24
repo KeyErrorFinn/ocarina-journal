@@ -248,14 +248,75 @@ fn newest_progress(user: &Path) -> Option<std::time::SystemTime> {
 /// The first user folder under Longshot's save root; where both `save` and `save-work` exist, the one whose
 /// saves changed most recently. `OJ_SAVE_DIR` selects one explicitly.
 pub fn default_save_dir() -> Option<PathBuf> {
+    default_save_dir_near(None)
+}
+
+/// Like [`default_save_dir`], but also looks where Longshot's launcher keeps portable saves relative to the game
+/// folder `game` (a few folders above the build) and in its per-user install folder. The folder whose saves changed
+/// most recently wins, so a stale copy in the data folder doesn't hide the ones the game is writing now.
+pub fn default_save_dir_near(game: Option<&Path>) -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("OJ_SAVE_DIR").map(PathBuf::from).filter(|p| p.is_dir()) {
         return Some(dir);
     }
-    pick_save_dir(&default_data_dir()?)
+    let mut roots: Vec<PathBuf> = default_data_dir().into_iter().collect();
+    roots.extend(launcher_data_roots(game));
+    roots.iter().filter_map(|r| pick_save_dir(r)).max_by_key(|u| newest_progress(u))
+}
+
+/// Where a Longshot launcher can keep its data apart from the data folder [I: layout seen in a third-party tracker's
+/// lookup code and in one player's report, not in Longshot's own documentation]. The launcher puts builds under
+/// `<launcher>/LongshotLauncher-data/builds/<channel>/<version>` and the saves in `LongshotLauncher-data/user`, so the
+/// saves sit a few folders above the build.
+fn launcher_data_roots(game: Option<&Path>) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    // The game folder itself too: a build started directly keeps its saves in `<game>/user/save/<id>`.
+    for above in game.into_iter().flat_map(|g| g.ancestors().take(5)) {
+        out.push(above.to_path_buf());
+        out.push(above.join("user"));
+        out.push(above.join("LongshotLauncher-data"));
+        out.push(above.join("LongshotLauncher-data").join("user"));
+    }
+    #[cfg(windows)]
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let data = PathBuf::from(local).join("Programs").join("LongshotLauncher").join("LongshotLauncher-data");
+        out.push(data.join("user"));
+        out.push(data);
+    }
+    out
 }
 
 fn pick_save_dir(data: &Path) -> Option<PathBuf> {
     SAVE_ROOTS.iter().filter_map(|r| first_user(&data.join(r))).max_by_key(|u| newest_progress(u))
+}
+
+/// Whether `dir` is a user save folder: it holds at least one `slot_NN/progress.sav`.
+fn is_user_dir(dir: &Path) -> bool {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| e.file_name().to_string_lossy().starts_with("slot_") && e.path().join("progress.sav").is_file())
+}
+
+/// Turns a folder the player points at into the user save folder to read. It can be the user folder itself, a `save`
+/// or `save-work` folder, or Longshot's data folder (the one that holds them). Where several fit, the one whose saves
+/// changed most recently wins. `None` if nothing under it holds a `slot_NN/progress.sav`.
+pub fn resolve_save_dir(chosen: &Path) -> Option<PathBuf> {
+    if is_user_dir(chosen) {
+        return Some(chosen.to_path_buf());
+    }
+    let mut found: Vec<PathBuf> = [first_user(chosen)].into_iter().flatten().collect();
+    found.extend(SAVE_ROOTS.iter().filter_map(|r| first_user(&chosen.join(r))));
+    found.into_iter().filter(|u| is_user_dir(u)).max_by_key(|u| newest_progress(u))
+}
+
+/// The Longshot data folder a user save folder sits in (`<data>/save/<user>`), or `None` for any other layout.
+pub fn data_dir_of(user: &Path) -> Option<PathBuf> {
+    let root = user.parent()?;
+    SAVE_ROOTS
+        .iter()
+        .any(|r| root.file_name().is_some_and(|n| n == *r))
+        .then(|| root.parent().map(Path::to_path_buf))?
 }
 
 /// Summaries of every `slot_NN/progress.sav` under a user save folder, newest first. Unreadable or
@@ -299,6 +360,37 @@ mod tests {
         put("save", 3_000);
         assert_eq!(pick_save_dir(&data), Some(data.join("save").join("user0")));
         let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn resolves_a_chosen_folder_at_any_level() {
+        let data = std::env::temp_dir().join(format!("oj-resolve-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let user = data.join("save").join("user0");
+        std::fs::create_dir_all(user.join("slot_00")).unwrap();
+        std::fs::File::create(user.join("slot_00").join("progress.sav")).unwrap();
+        assert_eq!(resolve_save_dir(&user), Some(user.clone()));
+        assert_eq!(resolve_save_dir(&data.join("save")), Some(user.clone()));
+        assert_eq!(resolve_save_dir(&data), Some(user.clone()));
+        std::fs::create_dir_all(data.join("elsewhere")).unwrap();
+        assert_eq!(resolve_save_dir(&data.join("elsewhere")), None);
+        assert_eq!(resolve_save_dir(&data.join("missing")), None);
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn finds_saves_kept_above_the_build_by_the_launcher() {
+        let root = std::env::temp_dir().join(format!("oj-launcher-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let data = root.join("LongshotLauncher-data");
+        let game = data.join("builds").join("stable").join("v3.1.1");
+        std::fs::create_dir_all(&game).unwrap();
+        let slot = data.join("user").join("save").join("user0").join("slot_00");
+        std::fs::create_dir_all(&slot).unwrap();
+        std::fs::File::create(slot.join("progress.sav")).unwrap();
+        let found: Vec<_> = launcher_data_roots(Some(&game)).iter().filter_map(|r| pick_save_dir(r)).collect();
+        assert!(found.contains(&data.join("user").join("save").join("user0")), "{found:?}");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     /// Build a minimal valid save: given words, given true keys.

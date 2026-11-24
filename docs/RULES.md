@@ -26,7 +26,9 @@ the project legal to share and safe to run on someone's own game and saves.
 ## Private and local
 
 - Nothing listens to other computers. Local interfaces bind to the local machine only.
-- No telemetry, analytics, network calls or auto-updates.
+- No telemetry, analytics or auto-updates. The one network call is the update check: a single plain HTTPS request
+  to GitHub's public release API, sent only when the player presses "Check for updates" or has switched on the
+  start-up check (off by default). It sends no identifier and downloads and installs nothing.
 - No personal details in shared files: no user names in paths, save folder ids, screenshots of your own saves
   or your machine's details. Blur them in screenshots.
 
