@@ -109,20 +109,25 @@ export const SONGS: Record<string, Note[]> = {
 
 /** How long each note of a song lasts, in beats, and a beat in milliseconds: measured from the game's own recordings
  *  of the songs (`Ocarina_<song>.bwav`, by tracking which note sounds every 20 ms) [V for the clean recordings; the
- *  Serenade, Requiem and Nocturne recordings have accompaniment over them, so theirs are approximate [I]]. */
+ *  Serenade, Requiem and Nocturne recordings have accompaniment over them, so theirs are approximate [I]].
+ *  Song of Time and Prelude of Light were re-measured against their recordings, tracking the energy at the ocarina's
+ *  own five pitches (D5 F5 A5 B5 D6) every 20 ms. Song of Time's notes last 500, 1060, 520, 540, 1040 and 500 ms (a
+ *  beat of about 520 ms). The Prelude's melody (D6 A5 D6 A5 B5 D6) starts its notes at about 0, 240, 960, 1240, 1500 and
+ *  1740 ms, which is a beat of 250 ms with note lengths 1, 3, 1, 1, 1, 3. The accompaniment hides how long its last
+ *  note is held [I]. */
 export const SONG_RHYTHM: Record<string, { beat: number; beats: number[] }> = {
   "Zelda's Lullaby": { beat: 420, beats: [2, 1, 3, 2, 1, 3] },
   "Epona's Song": { beat: 300, beats: [1, 1, 4, 1, 1, 4] },
   "Saria's Song": { beat: 240, beats: [1, 1, 2, 1, 1, 2] },
   "Sun's Song": { beat: 220, beats: [1, 1, 2, 1, 1, 2] },
-  "Song of Time": { beat: 270, beats: [1, 2, 1, 1, 2, 1] },
+  "Song of Time": { beat: 520, beats: [1, 2, 1, 1, 2, 1] },
   "Song of Storms": { beat: 200, beats: [1, 1, 4, 1, 1, 4] },
   "Minuet of the Forest": { beat: 280, beats: [1, 1, 4, 1, 1, 4] },
   "Bolero of Fire": { beat: 250, beats: [1, 1, 1, 1, 1.5, 1, 1, 3] },
   "Serenade of Water": { beat: 600, beats: [1, 1, 1, 1, 2] },
   "Requiem of Spirit": { beat: 250, beats: [3, 1, 2, 3, 3, 3] },
   "Nocturne of Shadow": { beat: 330, beats: [2, 2, 1, 1, 1, 1, 2] },
-  "Prelude of Light": { beat: 260, beats: [1, 1, 2, 1, 1, 3] },
+  "Prelude of Light": { beat: 250, beats: [1, 3, 1, 1, 1, 3] },
 };
 
 export interface Q {

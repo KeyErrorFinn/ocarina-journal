@@ -15,9 +15,19 @@ export interface MapMask {
   height: number;
   bits: string;
 }
+/** One walkable volume (the Lost Woods maze): centre, size along its own axes, and its turn in degrees. */
+export interface MapWalk {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  r: number;
+}
 export interface MapEra {
   image: string;
   exits: MapExit[];
+  /** Only for places whose picture draws no paths. */
+  walk?: MapWalk[];
   mask: MapMask | null;
 }
 export interface MapFloor {
@@ -131,6 +141,16 @@ export function useMapImage(name: string | null | undefined): MapImage | null {
   }, [name]);
   if (!name) return null;
   return loaded.get(name) ?? (img?.name === name ? img.img : null);
+}
+
+/** Whether a world position is inside a walkable volume (a metre or so of slack, as Link's position is his feet). */
+export function inWalk(w: MapWalk, x: number, z: number, slack = 1.5): boolean {
+  const r = (w.r * Math.PI) / 180,
+    dx = x - w.x,
+    dz = z - w.z;
+  const lx = Math.cos(r) * dx + Math.sin(r) * dz,
+    lz = -Math.sin(r) * dx + Math.cos(r) * dz;
+  return Math.abs(lx) <= w.w / 2 + slack && Math.abs(lz) <= w.d / 2 + slack;
 }
 
 /** A world position on a place's picture, in percent of its width and height (+X right, +Z down). */

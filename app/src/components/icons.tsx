@@ -37,14 +37,23 @@ export const Gear = () => (
     <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
   </I>
 );
+/** A navigation arrowhead (the "go to Link" button). */
 export const Locate = () => (
   <I>
-    <path d="M12 3l7 17-7-4-7 4z" />
+    <path d="M12 2.8l7.5 17.4c.2.5-.3 1-.8.8L12 17.2l-6.7 3.8c-.5.2-1-.3-.8-.8z" fill="currentColor" fillOpacity=".22" />
   </I>
 );
-export const Filter = () => (
+/** A funnel: the filter button. */
+export const Funnel = () => (
   <I>
-    <path d="M4 7h16M7 12h10M10 17h4" />
+    <path d="M4 5.5h16l-6 7v5.7l-4 2v-7.7z" fill="currentColor" fillOpacity=".22" />
+  </I>
+);
+export const Filter = Funnel;
+/** Two stacked chevrons pointing up; the map's exits turn it toward where they lead. */
+export const ExitArrow = () => (
+  <I>
+    <path d="M6.5 11L12 5.5 17.5 11M6.5 18.5L12 13l5.5 5.5" />
   </I>
 );
 export const Chevron = () => (

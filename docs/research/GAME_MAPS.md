@@ -67,6 +67,27 @@ falls on that picture. The game itself probably uses the location shapes in `Wor
 - Places with no map picture (Gerudo Training Ground, Inside Ganon's Castle) use the app's own paper.
 - The pane-to-place pairing (`Pa_Village_00` = Kakariko Village, and so on) is matched by name, by us.
 
+## The Lost Woods maze
+
+**Date:** 2026-11-23. **Code:** `crates/oj-gamedata/src/maps.rs` (`scene_exits`, `maze_walk`), `app/src/components/Maze.tsx`.
+
+- The game's Lost Woods picture (`LostWood_<Age>_00`, and the `Mini_` one) is only the foliage: no paths. [V]
+  (decoded and looked at.) So the maze can't come from the picture.
+- The map parameters list 14 `EntranceAnchor`s for the Lost Woods with **blank destinations**. The scene
+  (`Banc/LostWood/LostWood_<Age>_Static`) holds 14 `FieldAndDungeonEntranceEventRequestActor`s at the same positions,
+  with the destination in `NextBancParamName<Age>`. [V]
+- Ten of them lead back to Kokiri Forest and their `FirstEventName` ends in `_LostWood` (the wrong turns). The
+  four whose event does not are the real exits: Kokiri Forest `(0, 7)`, Sacred Forest Meadow `(24, -83.7)`,
+  Goron City `(24, -35.7)` (two actors, before/after) and Zora River `(68.5, -25.6)`. [V] That the unsuffixed event
+  marks the real exits is our reading. [I]
+- The scene's `Area` actors (145) are boxes with a position, a scale and a turn. About 100 sit at height ≈ 99 m,
+  the maze floor; plotted, their union is a network of corridors and junctions that fits the layout of the maze. [V]
+  Whether every one is a path, rather than a trigger volume that happens to sit on one, is not established. [U] The
+  app drops lone small ones, joins ones that line up, and draws the rest as a path.
+- The age's scene is used for its own era; the two ages' volumes were not compared.
+- Which rooms the player has seen is not in the save. The app can remember the volumes Link walks through while it
+  is connected (the "reveal as I explore" setting); that history starts when the setting's data starts. [I]
+
 ## The Threads of Time tapestry
 
 **Date:** 2026-11-21. **Code:** `crates/oj-gamedata/src/tapestry.rs`, `app/src/screens/Tapestry.tsx`.

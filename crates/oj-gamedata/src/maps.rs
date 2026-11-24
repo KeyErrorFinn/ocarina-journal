@@ -100,6 +100,10 @@ pub struct Place {
 pub struct Era {
     pub image: String,
     pub exits: Vec<Exit>,
+    /// Where one can walk, for the places whose picture draws no paths (the Lost Woods maze): the game's own `Area`
+    /// volumes on the maze floor, as a centre, a size and a turn about the vertical axis. Empty for every other place.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub walk: Vec<Walk>,
     /// Only for places with `within`: a `MASK_W`-wide grid, row-major, '1' where the picture is drawn.
     pub mask: Option<Mask>,
 }
@@ -125,6 +129,17 @@ pub struct Exit {
     pub to: String,
     pub x: f32,
     pub z: f32,
+}
+
+/// One walkable volume: its centre (x, z) in metres, its width and depth along its own axes, and its turn about the
+/// vertical axis in degrees (the same sense as the game's `Rotate.y`: it takes +X toward +Z).
+#[derive(Debug, Clone, Serialize)]
+pub struct Walk {
+    pub x: f32,
+    pub z: f32,
+    pub w: f32,
+    pub d: f32,
+    pub r: f32,
 }
 
 fn num(v: Option<&Val>) -> Option<f32> {
@@ -166,6 +181,61 @@ fn exits(param: Option<&Val>) -> Vec<Exit> {
         .filter_map(|e| {
             let t = e.get("Trans")?.as_arr();
             Some(Exit { to: e.get("Location")?.as_str()?.to_string(), x: num(t.first())?, z: num(t.get(2))? })
+        })
+        .collect()
+}
+
+/// The scene's placed actors (`Banc/<place>/<place>_<Age>_Static`), empty when the file can't be read.
+fn static_actors(files: &GameFiles, place: &str, age: &str) -> Vec<Val> {
+    files
+        .byml(&format!("Banc/{place}/{place}_{age}_Static.bcett.byml.zs"))
+        .ok()
+        .and_then(|d| d.get("Actors").map(|a| a.as_arr().to_vec()))
+        .unwrap_or_default()
+}
+
+fn vec3(v: Option<&Val>) -> Option<[f32; 3]> {
+    let a = v?.as_arr();
+    Some([num(a.first())?, num(a.get(1))?, num(a.get(2))?])
+}
+
+/// The real exits of a place whose map parameters leave their destinations blank (the Lost Woods): the scene's own
+/// entrance actors. Several only send Link back to where he came from after a wrong turn (their event name ends in
+/// `_LostWood`); those aren't exits and are left out. One exit per destination.
+fn scene_exits(actors: &[Val], age: &str) -> Vec<Exit> {
+    let mut out: Vec<Exit> = Vec::new();
+    for a in actors
+        .iter()
+        .filter(|a| a.get("Gyaml").and_then(Val::as_str) == Some("FieldAndDungeonEntranceEventRequestActor"))
+    {
+        let Some(dynamic) = a.get("Dynamic") else { continue };
+        if dynamic.get("FirstEventName").and_then(Val::as_str).is_some_and(|n| n.ends_with("_LostWood")) {
+            continue;
+        }
+        let Some(next) = dynamic.get(&format!("NextBancParamName{age}")).and_then(Val::as_str) else { continue };
+        let to = next.strip_suffix(&format!("_{age}")).unwrap_or(next);
+        let Some(t) = vec3(a.get("Translate")) else { continue };
+        if !out.iter().any(|e| e.to == to) {
+            out.push(Exit { to: to.to_string(), x: t[0], z: t[2] });
+        }
+    }
+    out
+}
+
+/// The Lost Woods maze floor: the scene's `Area` volumes at the height Link walks the maze at (about 99 m). Other
+/// `Area` volumes in the scene sit far above or below it and aren't part of the maze.
+fn maze_walk(actors: &[Val]) -> Vec<Walk> {
+    actors
+        .iter()
+        .filter(|a| a.get("Gyaml").and_then(Val::as_str) == Some("Area"))
+        .filter_map(|a| {
+            let t = vec3(a.get("Translate"))?;
+            if !(97.0..=102.0).contains(&t[1]) {
+                return None;
+            }
+            let s = vec3(a.get("Scale")).unwrap_or([1.0, 1.0, 1.0]);
+            let r = vec3(a.get("Rotate")).map_or(0.0, |r| r[1].to_degrees());
+            Some(Walk { x: t[0], z: t[2], w: s[0], d: s[2], r })
         })
         .collect()
 }
@@ -259,7 +329,17 @@ pub fn map_index(files: &GameFiles) -> Result<MapIndex, Error> {
                     }
                     None => None,
                 };
-                let era = Era { image: format!("field/{t}"), exits: exits(p), mask };
+                let mut exits = exits(p);
+                let mut walk = Vec::new();
+                if exits.iter().any(|e| e.to.is_empty()) {
+                    // (the map parameters name no destinations here: read them from the scene)
+                    let actors = static_actors(files, id, age);
+                    exits = scene_exits(&actors, age);
+                    if id == "LostWood" {
+                        walk = maze_walk(&actors);
+                    }
+                }
+                let era = Era { image: format!("field/{t}"), exits, walk, mask };
                 if slot == 0 {
                     place.child = Some(era)
                 } else {

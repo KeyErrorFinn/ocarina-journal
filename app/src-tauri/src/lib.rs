@@ -10,6 +10,7 @@ use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod platform;
+mod update;
 
 /// How the app is getting its data (see docs/research/COMPANION_APP_ARCHITECTURE.md).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -39,7 +40,15 @@ struct LiveState {
     last_error: Option<String>,
     journal: Snapshot,
     save_dir: Option<String>,
+    /// True when `save_dir` is the folder the player chose, not the one found automatically.
+    save_dir_chosen: bool,
     saves: Vec<SlotSummary>,
+    /// Whether the player asked for a check at every start.
+    /// This app's own version.
+    app_version: String,
+    update_check_auto: bool,
+    /// What the last update check found (not kept between runs).
+    update: Option<update::UpdateInfo>,
     /// The game folder, from the running process or the default install location.
     game_dir: Option<String>,
     /// Earlier days, newest first (kept on disk).
@@ -281,6 +290,152 @@ struct ReportCache {
 
 struct Reports(Mutex<ReportCache>);
 
+// ----------------------------------------------------------------------------------------------- the save folder
+/// What the player chose in the menu, kept in the app's own folder (never in Longshot's).
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
+struct Settings {
+    save_dir: Option<String>,
+    /// Look for a newer release when the app starts. On unless the player switches it off.
+    auto_update_check: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self { save_dir: None, auto_update_check: true }
+    }
+}
+
+fn auto_update_check() -> &'static std::sync::atomic::AtomicBool {
+    static AUTO: std::sync::OnceLock<std::sync::atomic::AtomicBool> = std::sync::OnceLock::new();
+    AUTO.get_or_init(|| std::sync::atomic::AtomicBool::new(load_json::<Settings>("settings.json").auto_update_check))
+}
+
+/// Writes every setting back together, so changing one never drops another.
+fn persist_settings() {
+    let save_dir = chosen_save_dir().lock().unwrap().as_ref().map(|p| p.display().to_string());
+    store_json("settings.json", &Settings { save_dir, auto_update_check: auto_update_check().load(Ordering::Relaxed) });
+}
+
+fn chosen_save_dir() -> &'static Mutex<Option<std::path::PathBuf>> {
+    static CHOSEN: std::sync::OnceLock<Mutex<Option<std::path::PathBuf>>> = std::sync::OnceLock::new();
+    CHOSEN.get_or_init(|| {
+        let s: Settings = load_json("settings.json");
+        Mutex::new(s.save_dir.map(std::path::PathBuf::from))
+    })
+}
+
+/// The user save folder to read: the one the player chose (if it still holds saves), else the newest found near the
+/// game folder `game_dir` or in Longshot's data folder.
+fn save_dir(game_dir: Option<&str>) -> Option<std::path::PathBuf> {
+    let chosen = chosen_save_dir().lock().unwrap().clone();
+    chosen.and_then(|c| oj_savefile::resolve_save_dir(&c)).or_else(|| {
+        let game = find_game_dir(game_dir);
+        oj_savefile::default_save_dir_near(game.as_deref())
+    })
+}
+
+/// `save_dir` for the game folder the app currently knows of.
+fn current_save_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
+    let game_dir = app.state::<Shared>().0.lock().unwrap().game_dir.clone();
+    save_dir(game_dir.as_deref())
+}
+
+/// Whether the folder in use came from the player's choice rather than the automatic search.
+fn save_dir_is_chosen() -> bool {
+    let chosen = chosen_save_dir().lock().unwrap().clone();
+    chosen.is_some_and(|c| oj_savefile::resolve_save_dir(&c).is_some())
+}
+
+/// Looks up the newest release (the app's only network call) and shares the answer. Used by the button and by the start-up
+/// check.
+async fn run_update_check(app: &AppHandle) -> Result<update::UpdateInfo, String> {
+    let found = tauri::async_runtime::spawn_blocking(|| update::check(env!("CARGO_PKG_VERSION")))
+        .await
+        .map_err(|e| e.to_string())??;
+    let snap = {
+        let shared = app.state::<Shared>();
+        let mut s = shared.0.lock().unwrap();
+        s.update = Some(found.clone());
+        s.clone()
+    };
+    emit(app, &snap);
+    Ok(found)
+}
+
+/// Only when the player presses "Check for updates".
+#[tauri::command]
+async fn check_for_update(app: AppHandle) -> Result<update::UpdateInfo, String> {
+    run_update_check(&app).await
+}
+
+/// The "check when the app starts" switch (on unless the player turned it off).
+#[tauri::command]
+fn set_auto_update_check(app: AppHandle, on: bool) {
+    auto_update_check().store(on, Ordering::Relaxed);
+    persist_settings();
+    let snap = {
+        let shared = app.state::<Shared>();
+        let mut s = shared.0.lock().unwrap();
+        s.update_check_auto = on;
+        s.clone()
+    };
+    emit(&app, &snap);
+}
+
+/// Opens the release page found by the last check in the browser. The address comes from the check, not from the page.
+#[tauri::command]
+fn open_release_page(app: AppHandle) {
+    use tauri_plugin_opener::OpenerExt;
+    let url = app.state::<Shared>().0.lock().unwrap().update.as_ref().map(|u| u.url.clone());
+    if let Some(url) = url {
+        let _ = app.opener().open_url(url, None::<&str>);
+    }
+}
+
+/// Opens the system's folder picker and returns the chosen folder, or `None` if it was cancelled. Nothing is read or changed here.
+#[tauri::command]
+async fn pick_folder(app: AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let start = chosen_save_dir().lock().unwrap().clone();
+    let mut dialog = app.dialog().file().set_title("Choose the folder that holds your saves");
+    if let Some(dir) = start.filter(|d| d.is_dir()) {
+        dialog = dialog.set_directory(dir);
+    }
+    dialog.blocking_pick_folder().and_then(|p| p.into_path().ok()).map(|p| p.display().to_string())
+}
+
+/// Sets (or, with an empty path, clears) the folder to read saves from. Read-only: the folder is only listed and read.
+#[tauri::command]
+fn set_save_dir(app: AppHandle, path: String) -> Result<Option<String>, String> {
+    let path = path.trim().trim_matches('"');
+    let resolved = if path.is_empty() {
+        None
+    } else {
+        let given = std::path::PathBuf::from(path);
+        if !given.is_dir() {
+            return Err("That folder doesn't exist.".into());
+        }
+        let found = oj_savefile::resolve_save_dir(&given).ok_or(
+            "No saves found there. Pick the folder that holds your slot_00, slot_01, ... folders, or the one above it.",
+        )?;
+        Some(found)
+    };
+    *chosen_save_dir().lock().unwrap() = resolved.clone();
+    persist_settings();
+    let snap = {
+        let shared = app.state::<Shared>();
+        let mut s = shared.0.lock().unwrap();
+        s.save_dir = save_dir(s.game_dir.as_deref()).map(|p| p.display().to_string());
+        s.save_dir_chosen = save_dir_is_chosen();
+        s.saves = s.save_dir.as_deref().map(|d| oj_savefile::list_slots(std::path::Path::new(d))).unwrap_or_default();
+        s.clone()
+    };
+    app.state::<Reports>().0.lock().unwrap().built = None;
+    emit(&app, &snap);
+    Ok(snap.save_dir)
+}
+
 /// The game folder: `OJ_GAME`, the running game's folder, else the newest build under `~/Games/Longshot` (directly, or inside a channel folder such as `stable/`).
 fn find_game_dir(running: Option<&str>) -> Option<std::path::PathBuf> {
     let ok = |p: &std::path::Path| p.join("romfs").join("GameData").is_dir() || p.join("GameData").is_dir();
@@ -338,7 +493,7 @@ fn report_file() -> Option<ReportFile> {
 }
 
 fn build_report(cache: &mut ReportCache, game_dir: Option<&str>) -> Result<Option<ReportFile>, String> {
-    let saves = oj_savefile::default_save_dir().ok_or("no Longshot save folder found")?;
+    let saves = save_dir(game_dir).ok_or("no Longshot save folder found")?;
     let stamp = newest_save_ms(&saves);
     let dir =
         find_game_dir(game_dir).ok_or("no Longshot game folder found (set OJ_GAME to the folder that holds romfs)")?;
@@ -376,7 +531,7 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
     .map_err(|e| e.to_string())?;
     match res {
         Ok(r) => {
-            if let (Some(file), Some(dir)) = (&r, oj_savefile::default_save_dir()) {
+            if let (Some(file), Some(dir)) = (&r, current_save_dir(&app)) {
                 if let Some(log) = note_saves(&dir, &file.report) {
                     let snap = {
                         let shared = app.state::<Shared>();
@@ -587,14 +742,44 @@ fn launch_game(state: State<'_, Shared>, confirm: bool) -> Result<String, String
     let mut cmd = std::process::Command::new(&exe);
     cmd.current_dir(&dir).env("HOS_CONTROL", endpoint);
     // Without --user a directly started game makes a new empty save folder inside the game folder.
-    let user = oj_savefile::default_save_dir()
-        .and_then(|d| d.parent()?.parent().map(|p| p.to_path_buf()))
-        .or_else(oj_savefile::default_data_dir);
+    // A save folder the player chose outside the usual layout can't be passed on, and starting the game on other
+    // saves than the ones shown would mislead; so say so and let them start Longshot themselves.
+    let user = match save_dir(known.as_deref()) {
+        Some(d) => Some(oj_savefile::data_dir_of(&d).ok_or(
+            "Your chosen save folder isn't inside a Longshot data folder, so the app can't start the game on it. Start Longshot yourself.",
+        )?),
+        None => oj_savefile::default_data_dir(),
+    };
     if let Some(user) = user {
         cmd.arg("--user").arg(user);
     }
     cmd.spawn().map_err(|e| e.to_string())?;
     Ok("Longshot is starting with the bridge on.".into())
+}
+
+// ------------------------------------------------------------------------------------------------- the window itself
+/// Keeps the window above other windows (or stops doing so). The window is the app's own; nothing else is touched.
+#[tauri::command]
+fn set_pinned(window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
+    window.set_always_on_top(on).map_err(|e| e.to_string())
+}
+
+/// Shows or hides the window's title bar and border (hidden, the page draws its own strip to drag it by).
+#[tauri::command]
+fn set_frame(window: tauri::WebviewWindow, visible: bool) -> Result<(), String> {
+    window.set_decorations(visible).map_err(|e| e.to_string())
+}
+
+/// Starts moving the window with the mouse, for the strip drawn when the frame is hidden.
+#[tauri::command]
+fn drag_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|e| e.to_string())
+}
+
+/// Closes the app (the frame's close button is gone while the frame is hidden).
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -622,8 +807,11 @@ const POLL_EVERY: Duration = Duration::from_secs(3);
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(Shared(Arc::new(Mutex::new(LiveState {
             bridge_config_supported: cfg!(windows),
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
             pipe: pipe_name(),
             ..Default::default()
         }))))
@@ -640,10 +828,27 @@ pub fn run() {
             get_sound,
             preview_enable_bridge,
             apply_enable_bridge,
-            launch_game
+            launch_game,
+            set_save_dir,
+            pick_folder,
+            check_for_update,
+            set_auto_update_check,
+            open_release_page,
+            set_pinned,
+            set_frame,
+            drag_window,
+            quit_app
         ])
         .setup(|app| {
             let shared = app.state::<Shared>().0.clone();
+            let auto = auto_update_check().load(Ordering::Relaxed);
+            shared.lock().unwrap().update_check_auto = auto;
+            if auto {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = run_update_check(&handle).await;
+                });
+            }
 
             // Bridge client: live samples feed the journal.
             {
@@ -715,8 +920,10 @@ pub fn run() {
             {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    let save_dir = oj_savefile::default_save_dir();
                     loop {
+                        // Looked up each round, so a folder chosen in the menu (or a new game build) takes effect.
+                        let game_dir = handle.state::<Shared>().0.lock().unwrap().game_dir.clone();
+                        let save_dir = save_dir(game_dir.as_deref());
                         let running = tauri::async_runtime::spawn_blocking({
                             let dir = save_dir.clone();
                             move || {
@@ -748,6 +955,7 @@ pub fn run() {
                                     s.game_dir = game_dir;
                                 }
                                 s.save_dir = save_dir.as_ref().map(|p| p.display().to_string());
+                                s.save_dir_chosen = save_dir_is_chosen();
                                 s.update_mode();
                                 s.clone()
                             };
@@ -766,6 +974,16 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_update_check_starts_on_and_only_a_saved_choice_turns_it_off() {
+        // Settings saved before the update check existed hold only the save folder.
+        let old: Settings = serde_json::from_str(r#"{"save_dir":"x"}"#).unwrap();
+        assert!(old.auto_update_check);
+        assert!(serde_json::from_str::<Settings>("{}").unwrap().auto_update_check);
+        let off: Settings = serde_json::from_str(r#"{"auto_update_check":false}"#).unwrap();
+        assert!(!off.auto_update_check);
+    }
 
     #[test]
     fn finds_builds_directly_under_the_root_and_inside_a_channel_folder() {

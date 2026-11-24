@@ -40,7 +40,9 @@ no-game states; My Journey and Today's Journal use invented demonstration data, 
 
 ## What it does
 
-The app has a freely resizable window with twelve tiles:
+The app has a freely resizable window with twelve tiles. The whole app shrinks with the window (down to about 160 px
+wide) and stays complete. In the Home menu's **Window** section you can keep it on top of other windows, make it
+see-through (with a slider for how solid it is) to overlay it on a game, and hide the title bar:
 
 | Tile | What it shows |
 |---|---|
@@ -74,7 +76,10 @@ uploaded anywhere.
   protocol type in `oj-protocol` has no write commands.
 - **Your saves are never modified.** Save files are only read.
 - **Local only.** The bridge is a same-user Windows named pipe, or a same-user Unix socket on Linux, never a network
-  port. The app does not open any listening socket and talks to no server.
+  port. The app does not open any listening socket. Its only network call is the update check: one plain HTTPS request to
+  GitHub for the newest release, sent only when you press "Check for updates" or leave the start-up check on
+  (it starts on, and one switch in the menu turns it off). A newer version only brings up a question; "yes" opens its
+  GitHub page. Nothing is downloaded or installed for you.
 - **Explicit consent for changes.** The actions that change anything (on Windows, adding `HOS_CONTROL` to
   `longshot_env.txt`; on both, starting Longshot with the bridge on) show what will happen and need a button press.
   The first makes a backup copy of the file before writing. On Linux the app doesn't edit any Longshot file.

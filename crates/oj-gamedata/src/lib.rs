@@ -737,7 +737,8 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
                     area: area.clone(),
                     ident: n.to_string(),
                     label: format!("{label} ({})", humanize(p)),
-                    note: None,
+                    // (the anchor is where the game puts this piece's map marker, even when the piece comes from an event)
+                    note: Some(w.clone()),
                     kind: Kind::Flag(gd.find(p)),
                 }),
                 Anchor::Actor(r) if gd.find(&format!("IsTreasureBoxOpen.{r}")).is_some() => Some(Entry {

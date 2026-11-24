@@ -2,6 +2,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as Ic from "../components/icons";
 import { Sheet, Sync } from "../components/chrome";
+import { WindowPanel } from "../components/WindowControls";
+import { SaveFolder } from "../components/SaveFolder";
+import { UpdateCheck } from "../components/UpdateCheck";
+import type { WindowMode } from "../windowMode";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
 import homeBg from "../assets/bg/home.webp";
@@ -30,7 +34,8 @@ const GLYPHS: Record<string, () => ReactNode> = {
 export function Hearts({ life, max }: { life: number; max: number }) {
   const total = Math.max(1, Math.round(max / 4));
   return (
-    <div className="hearts" style={{ display: "flex", flexWrap: "wrap", gap: ".15em" }} aria-label={`${life / 4} of ${total} hearts`}>
+    // Ten to a row, at most two rows: the second row only has hearts once the first holds ten, and fills after it.
+    <div className="hearts" style={{ display: "grid", gridTemplateColumns: "repeat(10, 1.35em)", gap: ".15em" }} aria-label={`${life / 4} of ${total} hearts`}>
       {Array.from({ length: total }, (_, i) => (
         <span key={i} style={{ width: "1.35em", height: "1.35em", display: "inline-block" }}>
           <Ic.Heart fill={Math.max(0, Math.min(4, life - i * 4)) / 4} />
@@ -194,7 +199,11 @@ export function Home({
   fresh,
   locked,
   reportError,
+  win,
+  setWin,
 }: {
+  win: WindowMode;
+  setWin: (m: WindowMode) => void;
   s: LiveState;
   go: (id: string) => void;
   fresh: string[];
@@ -316,6 +325,9 @@ export function Home({
                 )}
               </p>
             )}
+            <SaveFolder s={s} />
+            <UpdateCheck s={s} />
+            <WindowPanel mode={win} set={setWin} />
             <p className="muted small" style={{ marginTop: "1em" }}>
               Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.
             </p>

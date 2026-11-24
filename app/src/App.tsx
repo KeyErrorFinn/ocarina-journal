@@ -4,6 +4,9 @@ import { listen } from "@tauri-apps/api/event";
 import { EMPTY, TILES, type LiveState } from "./model";
 import { cat, setPlaceNames, type Report, type ReportFile } from "./report";
 import { useLocal } from "./store";
+import { UpdatePrompt } from "./components/UpdatePrompt";
+import { OverlayBar } from "./components/WindowControls";
+import { useApplyWindowMode, WINDOW_DEFAULTS, type WindowMode } from "./windowMode";
 import { useLore } from "./lore";
 import { Home } from "./screens/Home";
 import { Today } from "./screens/Today";
@@ -26,7 +29,13 @@ export function App() {
   // `#today`, `#map:KokiriForest`, `#ocarina:Saria's Song` open a screen directly (handy for review).
   const [route, setRoute] = useState<string>(() => decodeURIComponent(location.hash.slice(1)) || "home");
   const [seen, setSeen] = useLocal<Record<string, string>>("home.seen", {});
+  // The newer version the player already said "not now" to, until the next start.
+  const [laterFor, setLaterFor] = useState<string | null>(null);
   const [repErr, setRepErr] = useState<string | null>(null);
+  // Pin on top, see-through and title-bar settings of the window itself (kept between runs).
+  const [savedWin, setWin] = useLocal<Partial<WindowMode>>("window.mode", {});
+  const win: WindowMode = { ...WINDOW_DEFAULTS, ...savedWin };
+  useApplyWindowMode(win);
 
   useEffect(() => {
     let off: (() => void) | undefined;
@@ -89,6 +98,8 @@ export function App() {
         <Home
           s={s}
           reportError={repErr}
+          win={win}
+          setWin={setWin}
           fresh={fresh}
           locked={locked}
           go={(t) => {
@@ -140,9 +151,15 @@ export function App() {
   }
 
   return (
-    <div className="stage">
-      <div className="phone">{body}</div>
-    </div>
+    <>
+      <div className="stage">
+        <div className="phone">
+          {body}
+          {s.update?.latest !== laterFor && <UpdatePrompt s={s} onLater={() => setLaterFor(s.update?.latest ?? null)} />}
+        </div>
+      </div>
+      {!win.frame && <OverlayBar mode={win} set={setWin} />}
+    </>
   );
 }
 
