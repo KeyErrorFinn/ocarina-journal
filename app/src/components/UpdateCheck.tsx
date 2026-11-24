@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { LiveState } from "../model";
 
 /** Tells the player when a newer release exists. The only network call the app makes: it runs when the button is pressed,
- *  or at start-up if the player switched that on (off by default). Nothing is downloaded or installed. */
+ *  or at start-up unless the player switched that off. Nothing is downloaded or installed. */
 export function UpdateCheck({ s }: { s: LiveState }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

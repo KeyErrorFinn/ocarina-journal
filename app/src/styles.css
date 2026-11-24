@@ -554,6 +554,8 @@ html[data-frameless] .stage { padding-top: 28px; }
 .save-reset { align-self: flex-start; }
 .save-error { color: var(--amber); }
 .updatepanel .save-row { align-items: center; flex-wrap: wrap; }
+.updateprompt .body { padding: 0 1em 1.2em; }
+.updateprompt p { margin: 0 0 .8em; line-height: 1.4; }
 .updatepanel label { display: flex; gap: .5em; align-items: center; font-size: .85em; cursor: pointer; }
 
 /* A short note over the map ("everything is switched off") that stays readable on any picture */

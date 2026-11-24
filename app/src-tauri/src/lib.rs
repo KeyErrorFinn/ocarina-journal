@@ -292,12 +292,18 @@ struct Reports(Mutex<ReportCache>);
 
 // ----------------------------------------------------------------------------------------------- the save folder
 /// What the player chose in the menu, kept in the app's own folder (never in Longshot's).
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
 struct Settings {
     save_dir: Option<String>,
-    /// Look for a newer release when the app starts. Off unless the player switches it on.
+    /// Look for a newer release when the app starts. On unless the player switches it off.
     auto_update_check: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self { save_dir: None, auto_update_check: true }
+    }
 }
 
 fn auto_update_check() -> &'static std::sync::atomic::AtomicBool {
@@ -341,8 +347,8 @@ fn save_dir_is_chosen() -> bool {
     chosen.is_some_and(|c| oj_savefile::resolve_save_dir(&c).is_some())
 }
 
-/// Looks up the newest release (the app's only network call) and shares the answer. Used by the button and by the opt-in
-/// start-up check.
+/// Looks up the newest release (the app's only network call) and shares the answer. Used by the button and by the start-up
+/// check.
 async fn run_update_check(app: &AppHandle) -> Result<update::UpdateInfo, String> {
     let found = tauri::async_runtime::spawn_blocking(|| update::check(env!("CARGO_PKG_VERSION")))
         .await
@@ -363,7 +369,7 @@ async fn check_for_update(app: AppHandle) -> Result<update::UpdateInfo, String> 
     run_update_check(&app).await
 }
 
-/// The opt-in "check when the app starts" switch.
+/// The "check when the app starts" switch (on unless the player turned it off).
 #[tauri::command]
 fn set_auto_update_check(app: AppHandle, on: bool) {
     auto_update_check().store(on, Ordering::Relaxed);
@@ -968,6 +974,16 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_update_check_starts_on_and_only_a_saved_choice_turns_it_off() {
+        // Settings saved before the update check existed hold only the save folder.
+        let old: Settings = serde_json::from_str(r#"{"save_dir":"x"}"#).unwrap();
+        assert!(old.auto_update_check);
+        assert!(serde_json::from_str::<Settings>("{}").unwrap().auto_update_check);
+        let off: Settings = serde_json::from_str(r#"{"auto_update_check":false}"#).unwrap();
+        assert!(!off.auto_update_check);
+    }
 
     #[test]
     fn finds_builds_directly_under_the_root_and_inside_a_channel_folder() {

@@ -13,7 +13,7 @@ From [docs/RULES.md](docs/RULES.md):
   read at runtime from the player's own install only. Test fixtures are hand-made or synthesised.
 - **The player's game and saves are read-only.** Never write saves or game files. The bridge stays read-only
   unless the person explicitly asks and a maintainer agreed. Never bypass DRM, authentication or protection.
-- **Local and private**: nothing binds beyond localhost, no telemetry, and no network calls except the opt-in update check (see `docs/RULES.md`), no personal details
+- **Local and private**: nothing binds beyond localhost, no telemetry, and no network calls except the update check (see `docs/RULES.md`), no personal details
   (user names, save folder ids, machine paths) in committed files.
 - **Never invent** an API, offset, flag name or file structure. Mark facts [V] verified, [I] inferred or
   [U] unknown, and say how a [V] was checked.

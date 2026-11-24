@@ -1,7 +1,7 @@
 //! Telling the player that a newer release exists.
 //!
 //! This is the app's only network call. It runs only when the player presses "Check for updates", or at start-up if
-//! they switched that on (off by default). It sends one plain HTTPS GET to GitHub's public release API, with no
+//! they have not switched that off (it starts on). It sends one plain HTTPS GET to GitHub's public release API, with no
 //! identifier and no body, and only reads the answer. It never downloads or installs anything: the player opens the
 //! release page and installs it themselves.
 

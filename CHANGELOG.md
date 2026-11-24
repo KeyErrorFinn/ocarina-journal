@@ -6,8 +6,10 @@ that changes what players see.
 
 ## Unreleased
 
+## 1.2.0 - 2026-11-24
+
 - **Update check.** The menu has a "Check for updates" button that asks GitHub for the newest release and, if there is
-  one, offers to open its page. The menu also shows which version you have. A switch next to it does the same when the app starts (off by default). This is the
+  one, offers to open its page. The menu also shows which version you have. The app also checks once when it starts (a switch in the same panel turns that off) and, if a newer version exists, asks whether you want it: "yes" opens the release page, and nothing is downloaded or installed for you. This is the
   app's only network call: one plain HTTPS request, no identifier, nothing downloaded or installed for you.
 - **Choose your save folder.** If the app picks the wrong saves (or none), the menu now has a "Save folder" box with a Browse button: pick or paste
   the folder that holds your `slot_00`, `slot_01`, ... folders, or the one above it. The choice is remembered and the
