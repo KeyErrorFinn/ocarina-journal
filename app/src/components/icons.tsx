@@ -31,10 +31,59 @@ export const Refresh = () => (
     <path d="M20 6v5h-5M4 18v-5h5M18 11a7 7 0 00-12-3M6 13a7 7 0 0012 3" />
   </I>
 );
+/** A cog with eight teeth around a hub: the settings button. */
 export const Gear = () => (
   <I>
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+    <path d="M10.1 4.85L10.31 2.14H13.69L13.9 4.85A7.4 7.4 0 0 1 15.71 5.6L17.77 3.83L20.17 6.23L18.4 8.29A7.4 7.4 0 0 1 19.15 10.1L21.86 10.31V13.69L19.15 13.9A7.4 7.4 0 0 1 18.4 15.71L20.17 17.77L17.77 20.17L15.71 18.4A7.4 7.4 0 0 1 13.9 19.15L13.69 21.86H10.31L10.1 19.15A7.4 7.4 0 0 1 8.29 18.4L6.23 20.17L3.83 17.77L5.6 15.71A7.4 7.4 0 0 1 4.85 13.9L2.14 13.69V10.31L4.85 10.1A7.4 7.4 0 0 1 5.6 8.29L3.83 6.23L6.23 3.83L8.29 5.6A7.4 7.4 0 0 1 10.1 4.85z" />
+    <circle cx="12" cy="12" r="3.1" />
+  </I>
+);
+/** A pulse line: how the app is linked to the game. */
+export const Pulse = () => (
+  <I>
+    <path d="M2.5 12.5h4l2.2-5.5 4.6 11 2.5-5.5h5.7" />
+  </I>
+);
+/** A folder. */
+export const Folder = () => (
+  <I>
+    <path d="M3.5 7V17.5A1.5 1.5 0 005 19h14a1.5 1.5 0 001.5-1.5v-8A1.5 1.5 0 0019 8h-7.2l-1.9-2.5H5A1.5 1.5 0 003.5 7z" />
+  </I>
+);
+/** A monitor with a small handheld screen beside it: showing the journal on another screen. */
+export const Screens = () => (
+  <I>
+    <rect x="2.5" y="4.5" width="11" height="9" rx="1.5" />
+    <path d="M5.5 18h5M8 13.5V18" />
+    <rect x="15.5" y="8" width="6" height="11.5" rx="1.2" />
+    <path d="M17.8 17.3h1.4" />
+  </I>
+);
+/** A window frame with its title bar. */
+export const WindowFrame = () => (
+  <I>
+    <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+    <path d="M3 9h18M6 6.8h.01M8.5 6.8h.01" />
+  </I>
+);
+/** A circled "i". */
+export const Info = () => (
+  <I>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5.5M12 7.6v.1" />
+  </I>
+);
+/** Two overlapping sheets: copy to the clipboard. */
+export const Copy = () => (
+  <I>
+    <rect x="8.5" y="8.5" width="11" height="12" rx="1.5" />
+    <path d="M15.5 8.5V5A1.5 1.5 0 0014 3.5H6A1.5 1.5 0 004.5 5v10A1.5 1.5 0 006 16.5h2.5" />
+  </I>
+);
+/** A tick. */
+export const Check = () => (
+  <I>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
   </I>
 );
 /** A navigation arrowhead (the "go to Link" button). */
@@ -126,13 +175,6 @@ export const Grid = () => (
     <rect x="13.5" y="4" width="6.5" height="6.5" />
     <rect x="4" y="13.5" width="6.5" height="6.5" />
     <rect x="13.5" y="13.5" width="6.5" height="6.5" />
-  </I>
-);
-export const Dots = () => (
-  <I>
-    <circle cx="5" cy="12" r="1.4" />
-    <circle cx="12" cy="12" r="1.4" />
-    <circle cx="19" cy="12" r="1.4" />
   </I>
 );
 export const GHistory = () => (

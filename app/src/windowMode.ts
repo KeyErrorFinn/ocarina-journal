@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isRemote } from "./ipc";
 import { useEffect } from "react";
 
 /** How the app's own window behaves: kept above other windows, see-through, and with or without its title bar. */
@@ -27,9 +27,9 @@ export function useApplyWindowMode(m: WindowMode) {
   }, [m.seeThrough, m.opacity]);
   useEffect(() => {
     document.documentElement.toggleAttribute("data-frameless", !m.frame);
-    invoke("set_frame", { visible: m.frame }).catch(() => {});
+    if (!isRemote) invoke("set_frame", { visible: m.frame }).catch(() => {});
   }, [m.frame]);
   useEffect(() => {
-    invoke("set_pinned", { on: m.pin }).catch(() => {});
+    if (!isRemote) invoke("set_pinned", { on: m.pin }).catch(() => {});
   }, [m.pin]);
 }

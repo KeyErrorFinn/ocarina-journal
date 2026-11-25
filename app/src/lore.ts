@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./ipc";
 import { useEffect, useState } from "react";
 
 /** Game text from the player's own files (crates/oj-gamedata/src/lore.rs): place names, item and enemy descriptions. */
@@ -10,15 +10,19 @@ export interface Lore {
 
 let lorePromise: Promise<Lore | null> | null = null;
 
+export function loadLore() {
+  lorePromise ??= invoke<Lore>("get_lore").catch(() => {
+    lorePromise = null;
+    return null;
+  });
+  return lorePromise;
+}
+
 export function useLore(): Lore | null {
   const [l, setL] = useState<Lore | null>(null);
   useEffect(() => {
-    lorePromise ??= invoke<Lore>("get_lore").catch(() => {
-      lorePromise = null;
-      return null;
-    });
     let live = true;
-    lorePromise.then((x) => live && setL(x));
+    loadLore().then((x) => live && setL(x));
     return () => {
       live = false;
     };

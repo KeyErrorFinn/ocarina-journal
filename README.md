@@ -14,13 +14,14 @@
 An unofficial, read-only **companion app for Windows and Linux** for the native PC recompilation of
 *The Legend of Zelda: Ocarina of Time* ([Longshot](https://github.com/Recomper/Longshot)). It is a fan-made
 take on the idea behind Nintendo's *Zelda Notes*: a pocket journal that shows what you have found, what you
-have missed, and how your day of play went. It runs on your own PC, from your own saves and your own game files.
+have missed, and how your day of play went. It runs on your own PC, from your own saves and your own game files, and
+it can show the same journal on your phone, tablet or a second monitor (see [Second screen](#second-screen)).
 
 > **Not affiliated with, endorsed by, or connected to Nintendo or the Longshot project.**
 > Ocarina Journal contains no game files, keys, Nintendo assets or Nintendo source code. All artwork in the
 > app is original. "Zelda", "Ocarina of Time" and related names belong to Nintendo.
 
-**Status: 1.1.1.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
+**Status: 1.3.0.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
 1.1.0: CI builds it and starts it in a virtual display, but it hasn't yet been run against a live Linux Longshot
 game, so treat Linux as an early release (see [`docs/research/LINUX.md`](docs/research/LINUX.md)). Expect rough
 edges, and see [Known gaps](#known-gaps) for what is still unverified.
@@ -40,9 +41,20 @@ no-game states; My Journey and Today's Journal use invented demonstration data, 
 
 ## What it does
 
+- **A pocket journal on your PC**: twelve tiles for maps, rumours, foes, your day's journal, medals, history, the
+  tapestry, the ocarina and more (below), read from your own saves and game files.
+- **Live while you play**: with Longshot's control bridge on, it follows the game as you play; without it, it still
+  reads your saves.
+- **Second screen**: show it all, read-only, on a phone, tablet or another monitor on your network. Scan a QR code, type
+  a 4-digit code, and keep it open next to the game. Devices stay paired, and each can be disconnected from the app
+  or from the device itself. Details in [Second screen](#second-screen).
+- **Settings**: choose your save folder, check for updates, and set how the window behaves (always on top,
+  see-through, no title bar). See [Settings](#settings).
+
 The app has a freely resizable window with twelve tiles. The whole app shrinks with the window (down to about 160 px
-wide) and stays complete. In the Home menu's **Window** section you can keep it on top of other windows, make it
-see-through (with a slider for how solid it is) to overlay it on a game, and hide the title bar:
+wide) and stays complete. The cog on the Home screen opens **Settings**, where the **Window** card lets you keep it on
+top of other windows, make it see-through (with a slider for how solid it is) to overlay it on a game, and hide the
+title bar (see [Settings](#settings)):
 
 | Tile | What it shows |
 |---|---|
@@ -70,15 +82,73 @@ The names, categories, totals, map pictures and tapestry come from your own inst
 itself on your PC (see `docs/research/GAME_MAPS.md`). Nothing from the game is in this repository, and nothing is
 uploaded anywhere.
 
+## Settings
+
+The cog on the Home screen opens a Settings page with a card for each of these:
+
+- **Status**: whether the bridge is connected, the game and app versions, and the game and save folders in use.
+- **Save folder**: if the app picks the wrong saves (or none), choose the folder that holds your `slot_00`,
+  `slot_01`, ... folders with the Browse button, or paste it. The choice is remembered and the folder is only read. The
+  automatic search also looks in Longshot's launcher data folder and uses whichever saves changed most recently.
+- **Second screen**: show the journal on a phone, tablet or another monitor (below).
+- **Updates**: "Check for updates", and a switch for the check that runs when the app starts (on by default). A newer
+  release only brings up a question; "yes" opens its GitHub page. Nothing is downloaded or installed for you.
+- **Window**: always on top, see-through with a slider, and hiding the title bar. While the second screen is on, the
+  window's name shows how many devices have the page open.
+- **About**.
+
+## Second screen
+
+An optional, **read-only** page the app serves while it runs, so a phone, tablet or second monitor can show your live
+journal, maps, tapestry, ocarina and saves progress. It is **off until you turn it on** (Settings, Second screen),
+and after that it starts again whenever the app does. It can't start the game, change a folder or turn the bridge on:
+the server only answers a short fixed list of read commands. Design and threat notes:
+[`docs/research/SECOND_SCREEN.md`](docs/research/SECOND_SCREEN.md).
+
+**Using it**
+
+1. Turn on "Show on another screen". By default only this PC can open it. Turn on "Allow other devices on my network"
+   for a phone or tablet; the app then listens only on this PC's private network address (never on every address)
+   and shows a QR code.
+2. On the other device scan the QR code (or open the address shown). The address carries the **pairing code**, so
+   you only type the **4-digit code**, which the app shows under "Show" and which changes every minute. If you
+   type the address by hand, the page asks for the pairing code first, then the 4-digit code.
+3. Settings lists every paired device by name (for example "iPhone · Safari") with a **Disconnect** button for each,
+   and **New code** signs all of them out.
+
+**What keeps it safe**
+
+- A device that hasn't paired is sent only a small pairing page: no part of the app, no pictures, no data.
+- Pairing needs both codes; every attempt is rate-limited (6 a minute, with a countdown on the page), and 20 wrong
+  tries in a row replace the codes.
+- A paired device stays paired, also across restarts, until you disconnect it, make a new code, or it stays away
+  for 7 days (using the page, or having it open, starts the 7 days over). The app keeps only a hash of each
+  device's cookie.
+- Requests must name an IP address as the host (against DNS rebinding), no cross-site calls are allowed, and the
+  page and data are never reachable from the internet unless you forward the port yourself. Don't.
+
+**On the other device**
+
+- The map index, world picture, tapestry, lore and rumors start loading as soon as the page opens. Opening Map
+  fetches every area's eras and dungeon floors in the background, on desktop and second screens. You can use the
+  map while that runs. Opening a location or changing layers keeps the current picture visible until the chosen
+  destination is ready, then switches directly to it. Encoded files are cached for the session; the app retains
+  only eight decoded pictures, plus active views, instead of decoding the whole catalogue on a phone.
+  Selected maps take priority: new background transfers pause until the chosen picture is ready, then resume.
+- If the app is closed, or its second screen is switched off, the page says it can't reach the app and keeps trying,
+  then reloads by itself when the app is back.
+- Its own Settings page has **Add to home screen** (an install button where the browser offers one, written steps
+  otherwise) and **Disconnect this device**.
+
 ## Safety and privacy
 
 - **Read-only by default.** The bridge client only sends the read-only `status` and `subscribe` requests. The
   protocol type in `oj-protocol` has no write commands.
 - **Your saves are never modified.** Save files are only read.
 - **Local only.** The bridge is a same-user Windows named pipe, or a same-user Unix socket on Linux, never a network
-  port. The app does not open any listening socket. Its only network call is the update check: one plain HTTPS request to
+  port. The app opens no listening socket unless you turn on the optional second screen (Settings), which is read-only, needs two codes to pair and stays on after a restart once you turn it on, and by default listens on this PC only (see `docs/research/SECOND_SCREEN.md`). Its only network call is the update check: one plain HTTPS request to
   GitHub for the newest release, sent only when you press "Check for updates" or leave the start-up check on
-  (it starts on, and one switch in the menu turns it off). A newer version only brings up a question; "yes" opens its
+  (it starts on, and one switch in Settings turns it off). A newer version only brings up a question; "yes" opens its
   GitHub page. Nothing is downloaded or installed for you.
 - **Explicit consent for changes.** The actions that change anything (on Windows, adding `HOS_CONTROL` to
   `longshot_env.txt`; on both, starting Longshot with the bridge on) show what will happen and need a button press.
@@ -94,8 +164,9 @@ uploaded anywhere.
   build tools; Linux: WebKitGTK and GTK development packages, see [Linux](#linux))
 
 Installers are published under [Releases](https://github.com/KeyErrorFinn/ocarina-journal/releases), unsigned.
-Your game files and saves are supplied separately and are never bundled. Downloads are manual; the app does not
-check for updates or contact a server. You can also build from source below.
+Your game files and saves are supplied separately and are never bundled. Downloads are manual: the app can tell you
+when a newer release exists (see [Settings](#settings)) but never downloads or installs anything. You can also build
+from source below.
 
 ### Windows
 
@@ -166,6 +237,7 @@ crates/oj-bridge      Bridge client with reconnect (Windows named pipe, Linux Un
 crates/oj-journal     Turns live samples into a timeline and daily totals
 crates/oj-savefile    Reader for the game's save files (progress.sav flag table)
 crates/oj-gamedata    Reads names, categories and maps from your game files (zstd, SARC, BYML, MSBT, BNTX)
+crates/oj-remote      The second screen's read-only web server (pairing, rate limits, allowlisted commands)
 crates/oj-testkit     Fake bridge and synthetic fixtures for tests
 docs/research/        Investigation notes, formats, architecture, risks and open questions
 docs/workflows/       Step-by-step guides for common contributions
@@ -200,6 +272,10 @@ Honesty about what hasn't been confirmed is part of this project. Open items:
   against a real Unix socket, but it hasn't been run against a live Linux Longshot game. Wayland behaviour and
   distributions other than Ubuntu are untested. Whether Longshot reads an environment file on Linux (so the app
   could offer a persistent bridge switch there) isn't established.
+- **Second screen on Linux and macOS**: the second screen is built for all platforms but has only been run on Windows.
+  Browsers only offer a real "install" on secure (`https`) pages, which a home-network address isn't, so Add to home
+  screen is usually a shortcut made by hand, and a home-screen app may need to pair again (it can keep its own
+  cookies).
 - **Screenshots in the timeline**: not available; capturing the game would need a write-capable command
   with its own consent step.
 - **Online features**: global comparison, leaderboards and amiibo depend on Nintendo's services or the console

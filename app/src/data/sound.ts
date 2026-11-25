@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../ipc";
 import { CHROMATIC, NOTE_PITCH, NOTE_SOUND, type Note } from "./content";
 
 /** The game's own ocarina sounds, decoded from the player's game files by the app's backend (get_sound) and played

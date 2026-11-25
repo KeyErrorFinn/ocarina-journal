@@ -1,11 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isRemote } from "../ipc";
 import * as Ic from "../components/icons";
-import { Sheet, Sync } from "../components/chrome";
-import { WindowPanel } from "../components/WindowControls";
-import { SaveFolder } from "../components/SaveFolder";
-import { UpdateCheck } from "../components/UpdateCheck";
-import type { WindowMode } from "../windowMode";
+import { GearBtn, Sheet, Sync } from "../components/chrome";
 import { friendlyMap, TILES, type LiveState } from "../model";
 import tileFrame from "../assets/tiles/frame.png";
 import homeBg from "../assets/bg/home.webp";
@@ -62,7 +58,7 @@ export function BridgeActions({ s }: { s: LiveState }) {
   // Whether longshot_env.txt already turns the bridge on (read-only check), so the card doesn't offer it twice.
   const [isOn, setIsOn] = useState(false);
   useEffect(() => {
-    if (s.mode === "live" || !persistent) return;
+    if (s.mode === "live" || !persistent || isRemote) return;
     invoke<Preview>("preview_enable_bridge")
       .then((p) => setIsOn(!!p.already))
       .catch(() => setIsOn(false));
@@ -71,7 +67,7 @@ export function BridgeActions({ s }: { s: LiveState }) {
     invoke<string>(cmd, { confirm: true })
       .then(setMsg)
       .catch((e) => setMsg(String(e)));
-  if (s.mode === "live") return null;
+  if (s.mode === "live" || isRemote) return null;
   const added = preview ? preview.after.split(/\r?\n/).filter((l) => !preview.before.split(/\r?\n/).includes(l) && l) : [];
   return (
     <>
@@ -193,26 +189,8 @@ export function BridgeActions({ s }: { s: LiveState }) {
   );
 }
 
-export function Home({
-  s,
-  go,
-  fresh,
-  locked,
-  reportError,
-  win,
-  setWin,
-}: {
-  win: WindowMode;
-  setWin: (m: WindowMode) => void;
-  s: LiveState;
-  go: (id: string) => void;
-  fresh: string[];
-  locked: Record<string, string>;
-  reportError: string | null;
-}) {
-  const [menu, setMenu] = useState(false);
+export function Home({ s, go, fresh, locked }: { s: LiveState; go: (id: string) => void; fresh: string[]; locked: Record<string, string> }) {
   const [why, setWhy] = useState<{ title: string; text: string } | null>(null);
-  const persistent = s.bridge_config_supported !== false;
   const slot = s.saves[0] ?? null;
   const live = s.mode === "live" && s.game;
   const life = live ? s.game!.life : (slot?.life ?? null);
@@ -238,9 +216,7 @@ export function Home({
           JOURNAL
         </div>
         <Sync on={s.connected} />
-        <button className="icon-btn" aria-label="More" onClick={() => setMenu(true)}>
-          <Ic.Dots />
-        </button>
+        <GearBtn onClick={() => go("settings")} />
       </div>
 
       <div className="home-head" style={{ position: "relative", zIndex: 2, padding: ".3em 1.2em 0" }}>
@@ -297,41 +273,6 @@ export function Home({
       {why && (
         <Sheet title={why.title} onClose={() => setWhy(null)}>
           <p style={{ padding: "0 1.2em 1.2em", lineHeight: 1.6 }}>{why.text}</p>
-        </Sheet>
-      )}
-      {menu && (
-        <Sheet title="Ocarina Journal" onClose={() => setMenu(false)}>
-          <div style={{ padding: "0 1.2em", lineHeight: 1.6, fontSize: ".9em" }}>
-            <p>
-              <b>Mode:</b> {s.mode === "live" ? "Live (bridge connected)" : s.mode === "bridge_off" ? "Game running, bridge off" : "Game not running"}
-            </p>
-            {s.version && <p className="muted small">{s.version}</p>}
-            <p className="muted small" style={{ overflowWrap: "anywhere" }}>
-              {persistent ? "Pipe" : "Socket"}: {s.pipe || "longshot"} · saves: {s.save_dir ?? "not found"}
-            </p>
-            <p className="muted small">Game folder: {s.game_dir ?? "not detected (found when the game runs, or set OJ_GAME)"}</p>
-            <p className="small" style={{ color: reportError ? "var(--amber)" : "var(--teal)" }}>
-              Names and positions: {reportError ? `unavailable (${reportError})` : "read from your game folder"}
-            </p>
-            {s.mode === "bridge_off" && (
-              <p style={{ marginTop: ".8em" }}>
-                Longshot was started without its control bridge. Restart the game with <b>HOS_CONTROL={s.pipe || "longshot"}</b>
-                {persistent ? (
-                  <>
-                    , or add that line to <b>longshot_env.txt</b> in the game folder. This app will not change your files without asking.
-                  </>
-                ) : (
-                  <>, or close it and use Start game from this app. This app will not change your files without asking.</>
-                )}
-              </p>
-            )}
-            <SaveFolder s={s} />
-            <UpdateCheck s={s} />
-            <WindowPanel mode={win} set={setWin} />
-            <p className="muted small" style={{ marginTop: "1em" }}>
-              Unofficial companion for Longshot. Not affiliated with or endorsed by Nintendo. Read-only: it never writes to the game or its saves.
-            </p>
-          </div>
         </Sheet>
       )}
     </div>

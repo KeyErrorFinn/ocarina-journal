@@ -10,11 +10,14 @@ import type { Game } from "../model";
 import { useLocal } from "../store";
 import { areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report } from "../report";
 import {
+  isMapImageReady,
+  prepareMapImage,
   floorOf,
   inWalk,
   placeAt,
   placeOfLive,
-  preloadMapImages,
+  preloadAllMapImages,
+  preloadMapSources,
   project,
   regroup,
   useMapImage,
@@ -264,10 +267,46 @@ const MAP_DEFAULTS: Prefs = {
   v: PREFS_VERSION,
 };
 
+/** The first visible layer, shared by navigation and the destination so we prepare exactly what it will show. */
+function startingLayer(place: MapPlace | null, preferred: Era, liveY: number | null, entries: ReturnType<typeof entriesFor>) {
+  const eras = place ? (["child", "adult"] as Era[]).filter((e) => place[e]) : [];
+  const era = eras.includes(preferred) ? preferred : (eras[0] ?? "child");
+  const floors = place?.floors ?? [];
+  let floor = 0;
+  if (floors.length && place) {
+    if (liveY !== null) floor = floorOf(place, liveY);
+    else {
+      const open = new Map<number, number>();
+      for (const e of entries)
+        if (e.pos && e.have < e.of) {
+          const k = floorOf(place, e.pos[1]);
+          open.set(k, (open.get(k) ?? 0) + 1);
+        }
+      const best = [...open.entries()].sort((a, b) => b[1] - a[1])[0];
+      floor = best
+        ? best[0]
+        : Math.max(
+            0,
+            floors.findIndex((f) => f.name === "1F"),
+          );
+    }
+  }
+  return { era, floor, image: place ? (place.dungeon ? floors[floor]?.image : place[era]?.image) : null };
+}
+
 export function MapScreen({ report: raw, game, connected, onHome, start }: Props) {
   const idx = useMapIndex();
   const pending = useMapIndexPending();
   const [area, setArea] = useState<string | null>(start ?? null);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const navigation = useRef(0);
+  useEffect(
+    () => () => {
+      navigation.current++;
+    },
+    [],
+  );
   const [sheet, setSheet] = useState<null | "progress" | "completion" | "filter" | "settings">(null);
   const [sel, setSel] = useState<string | null>(null);
   // (saved settings from before this version lack the newer keys; the defaults fill them in)
@@ -279,6 +318,9 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
     ...(saved.v === PREFS_VERSION ? {} : { kinds: MAP_DEFAULTS.kinds, marks: MAP_DEFAULTS.marks, incompleteOnly: false }),
     v: PREFS_VERSION,
   };
+  useEffect(() => {
+    if (idx && p.gamePictures) void preloadAllMapImages(idx);
+  }, [idx, p.gamePictures]);
   const index = p.gamePictures ? idx : null;
   const report = useMemo(() => regroup(raw, idx), [raw, idx]);
   const rows = useMemo(() => areaRows(report), [report]);
@@ -289,20 +331,56 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   const lastLink = useRef<string | null>(null);
   useEffect(() => {
     if (connected && p.follow && linkPlace && linkPlace !== lastLink.current && lastLink.current !== null) {
-      setArea(linkPlace);
-      setSel(null);
+      void go(linkPlace);
     }
     lastLink.current = linkPlace;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkPlace, connected]);
 
-  const go = (a: string | null) => {
+  const layerFor = (a: string | null) =>
+    startingLayer(
+      a ? (index?.places[a] ?? null) : null,
+      a === linkPlace && linkEra ? linkEra : p.era,
+      a === linkPlace ? (game?.pos?.[1] ?? null) : null,
+      a && report ? entriesFor(report, a) : [],
+    );
+  async function go(a: string | null) {
+    const ticket = ++navigation.current;
+    const image = a ? layerFor(a).image : null;
+    setOpenError(null);
+    if (image && !isMapImageReady(image)) {
+      setOpening(true);
+      try {
+        await prepareMapImage(image);
+      } catch {
+        if (ticket === navigation.current) {
+          setOpening(false);
+          setOpenError("Could not open that map. Check the connection or game files and try the location again.");
+        }
+        return;
+      }
+    }
+    if (ticket !== navigation.current) return;
+    setOpening(false);
     setArea(a);
     setSel(null);
     setSheet(null);
-  };
+  }
 
-  if (pending && p.gamePictures) return <div className="mapwrap" />;
+  if (p.gamePictures && pending) {
+    return (
+      <div className="mapwrap" style={{ background: "#0f0b08" }}>
+        <div className="map-top">
+          <button className="icon-btn" onClick={onHome} aria-label="Home">
+            <Back />
+          </button>
+        </div>
+        <p className="empty" style={{ marginTop: "5em" }} role="status">
+          Opening map...
+        </p>
+      </div>
+    );
+  }
   if (!report || rows.length === 0) {
     return (
       <div className="mapwrap" style={{ background: "#0f0b08" }}>
@@ -325,6 +403,12 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
       <button className="icon-btn" onClick={area ? () => go(null) : onHome} aria-label="Back">
         <Back />
       </button>
+      {opening && <small role="status">Opening map...</small>}
+      {openError && (
+        <small role="alert" style={{ maxWidth: "65%" }}>
+          {openError}
+        </small>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: ".4em" }}>
         <Sync on={connected} />
         <button className="icon-btn" onClick={() => setSheet("settings")} aria-label="Map settings">
@@ -606,28 +690,42 @@ function AreaMap(props: {
 
   // ----- which picture: the era (field maps) or the floor (dungeons)
   const eras: Era[] = place ? (["child", "adult"] as Era[]).filter((e) => place[e]) : [];
-  const [era, setEra] = useState<Era>(() => {
-    const want = here && linkEra ? linkEra : prefs.era;
-    return eras.includes(want) ? want : (eras[0] ?? "child");
-  });
-  const pickEra = (e: Era) => {
-    setEra(e);
-    setPrefs({ ...prefs, era: e });
-  };
+  const firstLayer = startingLayer(place, here && linkEra ? linkEra : prefs.era, here ? (game?.pos?.[1] ?? null) : null, all);
+  const [era, setEra] = useState<Era>(firstLayer.era);
   const floors = place?.floors ?? [];
-  const [floor, setFloor] = useState<number>(() => {
-    if (!floors.length) return 0;
-    if (here && game?.pos) return floorOf(place!, game.pos[1]);
-    const open = new Map<number, number>();
-    for (const e of all) if (e.pos && e.have < e.of) open.set(floorOf(place!, e.pos[1]), (open.get(floorOf(place!, e.pos[1])) ?? 0) + 1);
-    const best = [...open.entries()].sort((a, b) => b[1] - a[1])[0];
-    return best
-      ? best[0]
-      : Math.max(
-          0,
-          floors.findIndex((f) => f.name === "1F"),
-        );
-  });
+  const [floor, setFloor] = useState(firstLayer.floor);
+  const [layerBusy, setLayerBusy] = useState(false);
+  const [layerError, setLayerError] = useState(false);
+  const layerRequest = useRef(0);
+  useEffect(
+    () => () => {
+      layerRequest.current++;
+    },
+    [],
+  );
+  async function pickLayer(nextEra: Era, nextFloor: number) {
+    const ticket = ++layerRequest.current;
+    const image = place ? (place.dungeon ? floors[nextFloor]?.image : place[nextEra]?.image) : null;
+    setLayerError(false);
+    if (image && !isMapImageReady(image)) {
+      setLayerBusy(true);
+      try {
+        await prepareMapImage(image);
+      } catch {
+        if (ticket === layerRequest.current) {
+          setLayerBusy(false);
+          setLayerError(true);
+        }
+        return;
+      }
+    }
+    if (ticket !== layerRequest.current) return;
+    setLayerBusy(false);
+    setEra(nextEra);
+    setFloor(nextFloor);
+    if (nextEra !== era) setPrefs({ ...prefs, era: nextEra });
+  }
+  const pickEra = (next: Era) => void pickLayer(next, floor);
   const imageName = place ? (place.dungeon ? floors[floor]?.image : place[era]?.image) : null;
   const img = useMapImage(imageName);
   const usePicture = !!(place && imageName);
@@ -702,7 +800,7 @@ function AreaMap(props: {
 
   // Read the other era's or floors' pictures now, so switching to them is instant.
   useEffect(() => {
-    if (place) preloadMapImages([place.child?.image, place.adult?.image, ...place.floors.map((f) => f.image)]);
+    if (place) preloadMapSources([place.child?.image, place.adult?.image, ...place.floors.map((f) => f.image)]);
   }, [place]);
 
   const layer = () => (
@@ -793,6 +891,11 @@ function AreaMap(props: {
         </>
       )}
       {top}
+      {(layerBusy || layerError) && (
+        <p className="map-layer-status" role="status">
+          {layerError ? "Could not open that layer. Please try again." : "Opening map layer..."}
+        </p>
+      )}
       <div className="map-title">
         {prettyArea(area)}
         <i />
@@ -809,7 +912,7 @@ function AreaMap(props: {
       {usePicture && place!.dungeon && floors.length > 1 && (
         <div className="floor-tabs">
           {[...floors.keys()].reverse().map((k) => (
-            <button key={k} className={k === floor ? "on" : ""} onClick={() => setFloor(k)} disabled={!floors[k].image}>
+            <button key={k} className={k === floor ? "on" : ""} onClick={() => void pickLayer(era, k)} disabled={!floors[k].image}>
               {floors[k].name}
               {openOn(k) && <i />}
               {here && game?.pos && floorOf(place!, game.pos[1]) === k && <b className="here" aria-label="Link is here" />}

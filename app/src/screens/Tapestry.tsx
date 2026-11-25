@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../ipc";
 import { useEffect, useState } from "react";
 import { Header } from "../components/chrome";
 import { cat, type RepEntry, type Report } from "../report";
@@ -28,15 +28,20 @@ type Look = "woven" | "shadow" | "empty";
 
 let indexPromise: Promise<TapestryIndex | null> | null = null;
 
+/** Starts reading the tapestry (the screen shows it as soon as it opens if this has finished). */
+export function loadTapestry() {
+  indexPromise ??= invoke<TapestryIndex>("get_tapestry").catch(() => {
+    indexPromise = null;
+    return null;
+  });
+  return indexPromise;
+}
+
 function useTapestry(): TapestryIndex | null | undefined {
   const [t, setT] = useState<TapestryIndex | null | undefined>(undefined);
   useEffect(() => {
-    indexPromise ??= invoke<TapestryIndex>("get_tapestry").catch(() => {
-      indexPromise = null;
-      return null;
-    });
     let live = true;
-    indexPromise.then((i) => live && setT(i));
+    loadTapestry().then((i) => live && setT(i));
     return () => {
       live = false;
     };

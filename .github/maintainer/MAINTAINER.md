@@ -1,6 +1,6 @@
 # How Ocarina Journal pull requests are reviewed
 
-Ocarina Journal (KeyErrorFinn/ocarina-journal) is an unofficial, read-only Windows companion for the Longshot PC
+Ocarina Journal (KeyErrorFinn/ocarina-journal) is an unofficial, read-only Windows and Linux companion for the Longshot PC
 recompilation of Ocarina of Time: a Tauri 2 app (React + TypeScript) with Rust crates that read the player's own
 saves and game files and follow the game live over a read-only local bridge. This page is the review policy for
 people and for AI review sessions. Contributors don't need to read it; it explains the verdicts they get.
@@ -27,7 +27,7 @@ From `docs/RULES.md`:
   Notes* art, screenshots, video frames, wording or code. Game data is read at runtime only.
 - The player's saves and game files are read-only. The bridge stays read-only; anything that could change game
   state needs explicit consent and the maintainer.
-- Nothing listens beyond localhost; no network calls, telemetry or auto-update.
+- Nothing listens beyond localhost, except the optional paired, read-only second screen (`docs/research/SECOND_SCREEN.md`); no network calls except the update check; no telemetry or auto-update.
 - No personal details (user names in paths, save folder ids, machine details) in committed files or screenshots.
 - New facts are marked [V]/[I]/[U]; nothing invented. New art is original and says where it came from.
 - No agent or editor configuration that runs commands; no prebuilt binaries; no workflow edits inside a feature.

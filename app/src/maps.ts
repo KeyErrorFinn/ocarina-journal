@@ -1,6 +1,6 @@
 /** The game's own maps, read by the backend from the player's game folder (see crates/oj-gamedata/src/maps.rs).
  *  Pictures are fetched as bytes and shown from object URLs; nothing from the game ships with the app. */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./ipc";
 import { useEffect, useState } from "react";
 import type { Report, RepEntry, Vec3 } from "./report";
 import { coords } from "./report";
@@ -55,7 +55,7 @@ let indexPromise: Promise<MapIndex | null> | null = null;
 /** The index once read (undefined while it hasn't been yet), so screens opened later have it from their first frame. */
 let loadedIndex: MapIndex | null | undefined;
 
-function loadIndex() {
+export function loadIndex() {
   indexPromise ??= invoke<MapIndex>("get_map_index")
     .then((i) => (loadedIndex = i))
     .catch(() => {
@@ -90,39 +90,119 @@ export function useMapIndexPending(): boolean {
   return pending;
 }
 
-type MapImage = { url: string; w: number; h: number };
+type MapImage = { url: string; w: number; h: number; decoded: HTMLImageElement };
+const sources = new Map<string, Promise<string>>();
 const urls = new Map<string, Promise<MapImage>>();
 /** Pictures already decoded: returned on the first render, so switching back to one never flashes. */
 const loaded = new Map<string, MapImage>();
+let foregroundImages = 0;
+let backgroundReads = 0;
+const backgroundQueue: { name: string; done: () => void }[] = [];
+
+function drainBackground() {
+  // Existing transfers can finish; stop starting more until the chosen view has also finished decoding.
+  if (foregroundImages) return;
+  while (backgroundReads < 2 && backgroundQueue.length) {
+    const task = backgroundQueue.shift()!;
+    backgroundReads++;
+    void loadSource(task.name)
+      .catch(() => {})
+      .finally(() => {
+        backgroundReads--;
+        task.done();
+        drainBackground();
+      });
+  }
+}
+
+function warmSources(names: string[]): Promise<void> {
+  const finished = Promise.all(names.map((name) => new Promise<void>((done) => backgroundQueue.push({ name, done }))));
+  drainBackground();
+  return finished.then(() => {});
+}
+
+/** Cache encoded bytes separately: decoding every map at once can consume hundreds of megabytes on a phone. */
+function loadSource(name: string): Promise<string> {
+  let source = sources.get(name);
+  if (!source) {
+    source = invoke<ArrayBuffer>("get_map_image", { name }).then((buf) =>
+      URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })),
+    );
+    sources.set(name, source);
+    void source.catch(() => sources.delete(name));
+  }
+  return source;
+}
 
 function loadImage(name: string): Promise<MapImage> {
   let p = urls.get(name);
   if (!p) {
-    p = invoke<ArrayBuffer>("get_map_image", { name })
-      .then((buf) => URL.createObjectURL(new Blob([buf], { type: name === "world" || name.startsWith("tapestry/") ? "image/jpeg" : "image/png" })))
+    // A chosen image starts immediately, sharing any existing download for that name. Background work resumes
+    // only once it is ready to display, so newly queued maps cannot compete during the transition.
+    foregroundImages++;
+    p = loadSource(name)
       .then(
         (url) =>
           new Promise<MapImage>((ok, bad) => {
             const i = new Image();
-            i.onload = () => {
-              i.decode()
-                .catch(() => {})
-                .finally(() => ok({ url, w: i.naturalWidth, h: i.naturalHeight }));
-            };
+            i.onload = () => i.decode().then(() => ok({ url, w: i.naturalWidth, h: i.naturalHeight, decoded: i }), bad);
             i.onerror = bad;
             i.src = url;
           }),
       )
-      .then((m) => (loaded.set(name, m), m));
-    p.catch(() => urls.delete(name));
+      .then((image) => {
+        loaded.set(name, image);
+        // Keep a few decoded views for back-and-forth navigation, and all encoded sources for the session.
+        while (loaded.size > 8) {
+          const oldest = loaded.keys().next().value!;
+          loaded.delete(oldest);
+          urls.delete(oldest);
+        }
+        return image;
+      })
+      .finally(() => {
+        foregroundImages--;
+        drainBackground();
+      });
+    void p.catch(() => urls.delete(name));
     urls.set(name, p);
   }
   return p;
 }
 
-/** Starts reading pictures that may be wanted soon (the other era, the other floors). */
+export const isMapImageReady = (name: string | null | undefined): boolean => !name || loaded.has(name);
+/** Finish decoding a destination before changing the visible map. */
+export const prepareMapImage = (name: string): Promise<MapImage> => loadImage(name);
+
+/** Fetch likely neighbours without decoding them all into phone memory. */
+export function preloadMapSources(names: (string | null | undefined)[]) {
+  void warmSources(names.filter((name): name is string => !!name));
+}
+
+/** Prepare a few pictures that will be displayed together (the world map or tapestry). */
 export function preloadMapImages(names: (string | null | undefined)[]) {
   for (const n of names) if (n) loadImage(n).catch(() => {});
+}
+
+let warming: Promise<void> | null = null;
+function mapImageNames(idx: MapIndex): string[] {
+  const names = new Set<string>([idx.world.image]);
+  for (const p of Object.values(idx.places)) {
+    if (p.child) names.add(p.child.image);
+    if (p.adult) names.add(p.adult.image);
+    for (const f of p.floors) if (f.image) names.add(f.image);
+  }
+  return [...names];
+}
+
+/** Fetch every era and dungeon floor in the background. Leave decoding to the visible destination so Map opens
+ * promptly and phone memory stays bounded. Reopening Map retries failed sources. */
+export function preloadAllMapImages(idx: MapIndex): Promise<void> {
+  if (warming) return warming;
+  warming = warmSources(mapImageNames(idx)).then(() => {
+    warming = null;
+  });
+  return warming;
 }
 
 /** An object URL for one map picture, with its natural size once loaded. Never returns a different picture than the
@@ -130,7 +210,12 @@ export function preloadMapImages(names: (string | null | undefined)[]) {
 export function useMapImage(name: string | null | undefined): MapImage | null {
   const [img, setImg] = useState<{ name: string; img: MapImage } | null>(null);
   useEffect(() => {
-    if (!name || loaded.has(name)) return;
+    if (!name) return;
+    const cached = loaded.get(name);
+    if (cached) {
+      setImg({ name, img: cached });
+      return;
+    }
     let live = true;
     loadImage(name)
       .then((m) => live && setImg({ name, img: m }))

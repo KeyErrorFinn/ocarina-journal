@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, isRemote, listen, onLink, onNeedPairing } from "./ipc";
 import { EMPTY, TILES, type LiveState } from "./model";
 import { cat, setPlaceNames, type Report, type ReportFile } from "./report";
 import { useLocal } from "./store";
@@ -8,6 +7,7 @@ import { UpdatePrompt } from "./components/UpdatePrompt";
 import { OverlayBar } from "./components/WindowControls";
 import { useApplyWindowMode, WINDOW_DEFAULTS, type WindowMode } from "./windowMode";
 import { useLore } from "./lore";
+import { warmUp } from "./preload";
 import { Home } from "./screens/Home";
 import { Today } from "./screens/Today";
 import { Journey } from "./screens/Journey";
@@ -19,6 +19,7 @@ import { Tapestry } from "./screens/Tapestry";
 import { Ocarina } from "./screens/Ocarina";
 import { Quiz } from "./screens/Quiz";
 import { History } from "./screens/History";
+import { Settings } from "./screens/Settings";
 
 export function App() {
   // Place names everywhere follow the game's own text once it has been read from the game folder.
@@ -36,11 +37,33 @@ export function App() {
   const [savedWin, setWin] = useLocal<Partial<WindowMode>>("window.mode", {});
   const win: WindowMode = { ...WINDOW_DEFAULTS, ...savedWin };
   useApplyWindowMode(win);
+  // A second screen can lose the app (closed on the PC, or its second screen switched off). It says so and keeps asking.
+  const [offline, setOffline] = useState(false);
+  useEffect(() => onLink((l) => setOffline(l === "down")), []);
+  // A second screen only gets this page once it is paired (the server sends a separate pairing page until then). If the
+  // pairing is taken away while the page is open (Disconnect, a new code), load again: the server then sends that page.
+  useEffect(
+    () =>
+      onNeedPairing(() => {
+        const last = Number(sessionStorage.getItem("oj.unpaired") ?? 0);
+        if (Date.now() - last < 5000) return;
+        sessionStorage.setItem("oj.unpaired", String(Date.now()));
+        location.reload();
+      }),
+    [],
+  );
 
   useEffect(() => {
     let off: (() => void) | undefined;
     invoke<LiveState>("get_state")
-      .then(setS)
+      .then((state) => {
+        setS(state);
+        warmUp();
+        // Already paired, so a pairing code left in the address (an old QR scan) has nothing more to do.
+        if (isRemote && new URLSearchParams(location.search).has("code")) {
+          history.replaceState(null, "", location.pathname + location.hash);
+        }
+      })
       .catch(() => {});
     listen<LiveState>("live-state", (e) => setS(e.payload)).then((f) => (off = f));
     return () => off?.();
@@ -97,9 +120,6 @@ export function App() {
       body = (
         <Home
           s={s}
-          reportError={repErr}
-          win={win}
-          setWin={setWin}
           fresh={fresh}
           locked={locked}
           go={(t) => {
@@ -139,6 +159,9 @@ export function App() {
     case "quiz":
       body = <Quiz onHome={home} />;
       break;
+    case "settings":
+      body = <Settings s={s} reportError={repErr} win={win} setWin={setWin} onHome={home} />;
+      break;
     default:
       body = (
         <p className="empty">
@@ -158,7 +181,19 @@ export function App() {
           {s.update?.latest !== laterFor && <UpdatePrompt s={s} onLater={() => setLaterFor(s.update?.latest ?? null)} />}
         </div>
       </div>
-      {!win.frame && <OverlayBar mode={win} set={setWin} />}
+      {!isRemote && !win.frame && <OverlayBar mode={win} set={setWin} />}
+      {offline && (
+        <div className="offline" role="alertdialog" aria-labelledby="offline-title" aria-describedby="offline-text">
+          <h1 id="offline-title">Can't reach Ocarina Journal</h1>
+          <p id="offline-text">
+            The app on your PC has been closed, or its second screen was switched off. Open it again (and keep "Show on another screen" on in Settings). This
+            page will reconnect by itself.
+          </p>
+          <small>
+            <span className="offline-dot" aria-hidden /> Trying again…
+          </small>
+        </div>
+      )}
     </>
   );
 }

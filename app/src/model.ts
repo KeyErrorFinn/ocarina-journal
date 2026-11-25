@@ -88,6 +88,36 @@ export interface UpdateInfo {
   newer: boolean;
 }
 
+/** Showing the journal read-only on another screen (a browser on this PC, or on the local network if allowed). */
+export interface RemoteInfo {
+  enabled: boolean;
+  /** Other devices on the network may connect; off means this PC only. */
+  lan: boolean;
+  /** The address to open on the other screen, while it is on. */
+  url: string | null;
+  /** The address with the pairing code in it, for the QR code. */
+  link: string | null;
+  /** The pairing code the other screen must enter. */
+  code: string | null;
+  /** When the 4-digit code (which changes every minute) stops being the current one, in milliseconds since 1970. The code
+   *  itself is not part of the state: ask for it with `get_remote_pin` while it is shown. */
+  pin_ends_ms: number | null;
+  /** Screens that have paired. */
+  screens: RemoteScreen[];
+  error: string | null;
+}
+
+export interface RemoteScreen {
+  id: string;
+  /** What the browser says it is, such as "iPhone · Safari". */
+  name: string;
+  addr: string;
+  /** When it paired (milliseconds since 1970). */
+  since_ms: number;
+  /** Has the page open right now. */
+  online: boolean;
+}
+
 export interface LiveState {
   bridge_config_supported?: boolean;
   mode: Mode;
@@ -108,6 +138,7 @@ export interface LiveState {
   game_dir: string | null;
   history: DaySummary[];
   save_log: SaveEvent[];
+  remote: RemoteInfo;
 }
 
 export const EMPTY_TOTALS: Totals = {
@@ -143,6 +174,7 @@ export const EMPTY: LiveState = {
   game_dir: null,
   history: [],
   save_log: [],
+  remote: { enabled: false, lan: false, url: null, link: null, code: null, pin_ends_ms: null, screens: [], error: null },
 };
 
 /** The most recently written save slot, if any. */

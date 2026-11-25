@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ocarina Journal</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: #14100c; color: #f1dfb4; font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { min-height: 100vh; display: grid; align-content: center; justify-items: center; gap: .8em; padding: 2em 1.4em; text-align: center; }
+  h1 { margin: 0; font-size: 1.3em; letter-spacing: .08em; }
+  p { margin: 0; max-width: 22em; line-height: 1.5; opacity: .85; }
+  section { display: grid; justify-items: center; gap: .8em; }
+  section[hidden] { display: none; }
+  label { display: grid; gap: .3em; justify-items: center; font-size: .8em; font-weight: 700; letter-spacing: .06em; }
+  input { font: inherit; font-size: 1.6em; letter-spacing: .15em; text-align: center; width: 9em; padding: .4em; border-radius: .5em; border: 1px solid #a39580; background: transparent; color: inherit; text-transform: uppercase; }
+  input#pin { width: 5em; }
+  button { padding: .5em 1.4em; border-radius: .5em; border: 1px solid #a39580; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.again { border: 0; padding: .2em; opacity: .75; text-decoration: underline; font-size: .85em; }
+  #err { min-height: 1.4em; color: #ef9a8a; font-size: .85em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ocarina Journal</h1>
+  <section id="s1">
+    <p>On your PC, open Settings, then Second screen. Type the pairing code shown there.</p>
+    <label>Pairing code<input id="code" placeholder="ABCD-EFGH" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="9" autofocus></label>
+    <button id="next" disabled>Next</button>
+  </section>
+  <section id="s2" hidden>
+    <p>Now type the 4-digit code from the same place. It changes every minute.</p>
+    <label>4-digit code<input id="pin" placeholder="0000" inputmode="numeric" autocomplete="one-time-code" maxlength="4"></label>
+    <button id="go" disabled>Connect</button>
+    <button id="again" class="again">Use a different pairing code</button>
+  </section>
+  <div id="err" role="alert"></div>
+</main>
+<script src="/pair.js"></script>
+</body>
+</html>

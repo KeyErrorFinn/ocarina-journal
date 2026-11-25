@@ -46,6 +46,8 @@ struct LiveState {
     /// Whether the player asked for a check at every start.
     /// This app's own version.
     app_version: String,
+    /// The second screen (a paired browser on the same network).
+    remote: RemoteInfo,
     update_check_auto: bool,
     /// What the last update check found (not kept between runs).
     update: Option<update::UpdateInfo>,
@@ -298,12 +300,25 @@ struct Settings {
     save_dir: Option<String>,
     /// Look for a newer release when the app starts. On unless the player switches it off.
     auto_update_check: bool,
+    /// The second screen was on when the app last ran, so it starts again. Off until the player turns it on.
+    remote: bool,
+    /// ...and it was open to other devices on the network (not just this PC).
+    remote_lan: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { save_dir: None, auto_update_check: true }
+        Self { save_dir: None, auto_update_check: true, remote: false, remote_lan: false }
     }
+}
+
+/// The player's last choice for the second screen: (on, open to the network).
+fn remote_choice() -> &'static Mutex<(bool, bool)> {
+    static CHOICE: std::sync::OnceLock<Mutex<(bool, bool)>> = std::sync::OnceLock::new();
+    CHOICE.get_or_init(|| {
+        let s: Settings = load_json("settings.json");
+        Mutex::new((s.remote, s.remote && s.remote_lan))
+    })
 }
 
 fn auto_update_check() -> &'static std::sync::atomic::AtomicBool {
@@ -314,7 +329,11 @@ fn auto_update_check() -> &'static std::sync::atomic::AtomicBool {
 /// Writes every setting back together, so changing one never drops another.
 fn persist_settings() {
     let save_dir = chosen_save_dir().lock().unwrap().as_ref().map(|p| p.display().to_string());
-    store_json("settings.json", &Settings { save_dir, auto_update_check: auto_update_check().load(Ordering::Relaxed) });
+    let (remote, remote_lan) = *remote_choice().lock().unwrap();
+    store_json(
+        "settings.json",
+        &Settings { save_dir, auto_update_check: auto_update_check().load(Ordering::Relaxed), remote, remote_lan },
+    );
 }
 
 fn chosen_save_dir() -> &'static Mutex<Option<std::path::PathBuf>> {
@@ -520,6 +539,10 @@ fn build_report(cache: &mut ReportCache, game_dir: Option<&str>) -> Result<Optio
 /// (read-only). Falls back to a report file if the game folder cannot be read. `Err` says why nothing could be built.
 #[tauri::command]
 async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
+    report_of(&app).await
+}
+
+async fn report_of(app: &AppHandle) -> Result<Option<ReportFile>, String> {
     let game_dir = app.state::<Shared>().0.lock().unwrap().game_dir.clone();
     let handle = app.clone();
     let res = tauri::async_runtime::spawn_blocking(move || {
@@ -531,7 +554,7 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
     .map_err(|e| e.to_string())?;
     match res {
         Ok(r) => {
-            if let (Some(file), Some(dir)) = (&r, current_save_dir(&app)) {
+            if let (Some(file), Some(dir)) = (&r, current_save_dir(app)) {
                 if let Some(log) = note_saves(&dir, &file.report) {
                     let snap = {
                         let shared = app.state::<Shared>();
@@ -539,7 +562,7 @@ async fn get_report(app: AppHandle) -> Result<Option<ReportFile>, String> {
                         s.save_log = log;
                         s.clone()
                     };
-                    emit(&app, &snap);
+                    emit(app, &snap);
                 }
             }
             Ok(r)
@@ -574,6 +597,10 @@ fn map_source(
 
 #[tauri::command]
 async fn get_map_index(app: AppHandle) -> Result<serde_json::Value, String> {
+    map_index_of(app).await
+}
+
+async fn map_index_of(app: AppHandle) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || map_source(&app).map(|(_, _, i)| i))
         .await
         .map_err(|e| e.to_string())?
@@ -582,6 +609,10 @@ async fn get_map_index(app: AppHandle) -> Result<serde_json::Value, String> {
 /// The Threads of Time tapestry's sections, from the same game folder as the maps.
 #[tauri::command]
 async fn get_tapestry(app: AppHandle) -> Result<oj_gamedata::tapestry::Tapestry, String> {
+    tapestry_of(app).await
+}
+
+async fn tapestry_of(app: AppHandle) -> Result<oj_gamedata::tapestry::Tapestry, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (_, files, _) = map_source(&app)?;
         oj_gamedata::tapestry::tapestry_index(&files).map_err(|e| e.to_string())
@@ -592,6 +623,10 @@ async fn get_tapestry(app: AppHandle) -> Result<oj_gamedata::tapestry::Tapestry,
 
 #[tauri::command]
 async fn get_lore(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
+    lore_of(app).await
+}
+
+async fn lore_of(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (_, files, _) = map_source(&app)?;
         oj_gamedata::lore::lore(&files).map_err(|e| e.to_string())
@@ -604,11 +639,15 @@ async fn get_lore(app: AppHandle) -> Result<oj_gamedata::lore::Lore, String> {
 /// own game files. Only ocarina sounds can be asked for (see `oj_gamedata::sound::allowed`).
 #[tauri::command]
 async fn get_sound(app: AppHandle, name: String, whole: bool) -> Result<tauri::ipc::Response, String> {
+    sound_of(app, name, whole).await.map(tauri::ipc::Response::new)
+}
+
+async fn sound_of(app: AppHandle, name: String, whole: bool) -> Result<Vec<u8>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (_, files, _) = map_source(&app)?;
         // Notes are long sustained recordings; four seconds is plenty for a held note. Songs (`whole`) play to the end.
         let secs = if whole { 60.0 } else { 4.0 };
-        oj_gamedata::sound::wav(&files, &name, secs).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+        oj_gamedata::sound::wav(&files, &name, secs).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -616,6 +655,10 @@ async fn get_sound(app: AppHandle, name: String, whole: bool) -> Result<tauri::i
 
 #[tauri::command]
 async fn get_rumors(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, String> {
+    rumors_of(app).await
+}
+
+async fn rumors_of(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (_, files, _) = map_source(&app)?;
         oj_gamedata::rumors::rumors(&files).map_err(|e| e.to_string())
@@ -627,7 +670,11 @@ async fn get_rumors(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, S
 /// One picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`, `tapestry/<layer>`) as JPEG or PNG bytes.
 #[tauri::command]
 async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Response, String> {
-    let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+    map_image_of(app, name).await.map(tauri::ipc::Response::new)
+}
+
+async fn map_image_of(app: AppHandle, name: String) -> Result<Vec<u8>, String> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
         let (dir, files, _) = map_source(&app)?;
         let build = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let file = data_dir()
@@ -653,8 +700,7 @@ async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Respo
         Ok(bytes)
     })
     .await
-    .map_err(|e| e.to_string())??;
-    Ok(tauri::ipc::Response::new(bytes))
+    .map_err(|e| e.to_string())?
 }
 
 // -------------------------------------------------------------------------------------------- consented actions
@@ -798,6 +844,296 @@ fn now_ms() -> u64 {
 
 fn emit(handle: &AppHandle, s: &LiveState) {
     let _ = handle.emit("live-state", s);
+    if let Some(server) = running_remote(handle) {
+        server.push(&remote_view(s));
+    }
+}
+
+// --------------------------------------------------------------------------------------------------- second screen
+/// What the Settings page shows about the second screen.
+#[derive(Debug, Clone, Default, Serialize)]
+struct RemoteInfo {
+    enabled: bool,
+    /// Reachable from other devices on the network (otherwise only from this PC).
+    lan: bool,
+    /// The address to open.
+    url: Option<String>,
+    /// The same address with the pairing code in it: what the QR code holds. The page uses the code once and removes it
+    /// from the address bar; the 4-digit code is never in it.
+    link: Option<String>,
+    /// The pairing code, `ABCD-EFGH`.
+    code: Option<String>,
+    /// When the 4-digit code stops being the current one (milliseconds since 1970). The code itself is not part of the
+    /// state: the Settings page asks for it (`get_remote_pin`) only while the player has it shown.
+    pin_ends_ms: Option<u64>,
+    /// Screens that have paired.
+    screens: Vec<RemoteScreen>,
+    error: Option<String>,
+}
+
+/// A paired screen as it is kept between runs (the cookie's token is never kept, only its hash).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SavedScreen {
+    id: String,
+    token_hash: String,
+    name: String,
+    addr: String,
+    since_ms: u64,
+    /// Last time it used the page, in milliseconds since 1970 (0 in a file from before this was kept).
+    #[serde(default)]
+    last_seen_ms: u64,
+}
+
+const SESSIONS_FILE: &str = "remote_sessions.json";
+
+fn load_sessions() -> Vec<oj_remote::SavedSession> {
+    load_json::<Vec<SavedScreen>>(SESSIONS_FILE)
+        .into_iter()
+        .map(|x| oj_remote::SavedSession {
+            id: x.id,
+            token_hash: x.token_hash,
+            name: x.name,
+            addr: x.addr,
+            since_ms: x.since_ms,
+            last_seen_ms: if x.last_seen_ms == 0 { now_ms() } else { x.last_seen_ms },
+        })
+        .collect()
+}
+
+/// Keeps the paired screens so they are still paired the next time the app runs. Written only when the list changed.
+fn save_sessions(server: &oj_remote::Server) {
+    static LAST: Mutex<String> = Mutex::new(String::new());
+    let list: Vec<SavedScreen> = server
+        .saved_sessions()
+        .into_iter()
+        .map(|x| SavedScreen {
+            id: x.id,
+            token_hash: x.token_hash,
+            name: x.name,
+            addr: x.addr,
+            since_ms: x.since_ms,
+            last_seen_ms: x.last_seen_ms,
+        })
+        .collect();
+    let json = serde_json::to_string(&list).unwrap_or_default();
+    let mut last = LAST.lock().unwrap();
+    if *last != json {
+        store_json(SESSIONS_FILE, &list);
+        *last = json;
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RemoteScreen {
+    id: String,
+    name: String,
+    addr: String,
+    since_ms: u64,
+    online: bool,
+}
+
+#[derive(Default)]
+struct RemoteSlot(Mutex<Option<Arc<oj_remote::Server>>>);
+
+/// The running second-screen server, if any. Callers use the copy and leave the slot unlocked, so nothing they ask of
+/// the server can end up waiting for the slot.
+fn running_remote(app: &AppHandle) -> Option<Arc<oj_remote::Server>> {
+    app.state::<RemoteSlot>().0.lock().unwrap().clone()
+}
+
+/// The state a browser on another device gets: no folder paths, no pipe name, no error text that could hold one.
+fn remote_view(s: &LiveState) -> serde_json::Value {
+    let mut v = s.clone();
+    v.save_dir = None;
+    v.game_dir = None;
+    v.pipe = String::new();
+    v.last_error = None;
+    v.remote = RemoteInfo::default();
+    v.update = None;
+    v.update_check_auto = false;
+    serde_json::to_value(v).unwrap_or(serde_json::Value::Null)
+}
+
+struct RemoteBackend(AppHandle);
+
+impl oj_remote::Backend for RemoteBackend {
+    fn call(
+        &self,
+        cmd: String,
+        args: serde_json::Value,
+    ) -> futures::future::BoxFuture<'static, Result<oj_remote::Reply, String>> {
+        use oj_remote::Reply;
+        let app = self.0.clone();
+        let name = args.get("name").and_then(|v| v.as_str()).map(str::to_string);
+        let whole = args.get("whole").and_then(|v| v.as_bool()).unwrap_or(false);
+        Box::pin(async move {
+            let json = |v: Result<serde_json::Value, serde_json::Error>| v.map(Reply::Json).map_err(|e| e.to_string());
+            match cmd.as_str() {
+                "get_state" => Ok(Reply::Json(remote_view(&app.state::<Shared>().0.lock().unwrap()))),
+                "get_report" => json(serde_json::to_value(report_of(&app).await?)),
+                "get_map_index" => Ok(Reply::Json(map_index_of(app).await?)),
+                "get_tapestry" => json(serde_json::to_value(tapestry_of(app).await?)),
+                "get_lore" => json(serde_json::to_value(lore_of(app).await?)),
+                "get_rumors" => json(serde_json::to_value(rumors_of(app).await?)),
+                "get_map_image" => map_image_of(app, name.ok_or("name is missing")?).await.map(Reply::Bytes),
+                "get_sound" => sound_of(app, name.ok_or("name is missing")?, whole).await.map(Reply::Bytes),
+                _ => Err("No such command.".into()),
+            }
+        })
+    }
+    fn state(&self) -> serde_json::Value {
+        remote_view(&self.0.state::<Shared>().0.lock().unwrap())
+    }
+}
+
+/// The app's own built page, served to the second screen.
+struct AppPage(AppHandle);
+
+impl oj_remote::Assets for AppPage {
+    fn get(&self, path: &str) -> Option<(Vec<u8>, String)> {
+        let asset = self.0.asset_resolver().get(path.to_string())?;
+        Some((asset.bytes.to_vec(), asset.mime_type))
+    }
+}
+
+/// Refreshes what the Settings page shows about the second screen from the running server.
+fn refresh_remote(app: &AppHandle, error: Option<String>) {
+    let info = match running_remote(app) {
+        Some(server) => {
+            save_sessions(&server);
+            let addr = server.addr();
+            let pin_ends_ms = server.pin().1;
+            RemoteInfo {
+                enabled: true,
+                lan: !addr.ip().is_loopback(),
+                url: Some(format!("http://{addr}/")),
+                link: Some(format!("http://{addr}/?code={}", server.code().replace('-', ""))),
+                code: Some(server.code()),
+                pin_ends_ms: Some(pin_ends_ms),
+                screens: server
+                    .screens()
+                    .into_iter()
+                    .map(|x| RemoteScreen {
+                        id: x.id,
+                        name: x.name,
+                        addr: x.addr,
+                        since_ms: x.since_ms,
+                        online: x.online,
+                    })
+                    .collect(),
+                error,
+            }
+        }
+        None => RemoteInfo { error, ..Default::default() },
+    };
+    let snap = {
+        let shared = app.state::<Shared>();
+        let mut s = shared.0.lock().unwrap();
+        s.remote = info;
+        s.clone()
+    };
+    emit(app, &snap);
+    set_window_title(app, &snap.remote);
+}
+
+/// The window's name says how many screens have the page open, while the second screen is on.
+fn set_window_title(app: &AppHandle, remote: &RemoteInfo) {
+    let open = remote.screens.iter().filter(|x| x.online).count();
+    let title = if remote.enabled {
+        format!("Ocarina Journal · {open} {} connected", if open == 1 { "device" } else { "devices" })
+    } else {
+        "Ocarina Journal".to_string()
+    };
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_title(&title);
+    }
+}
+
+/// The player's choice for the second screen, from the Settings page: starts or stops it, and remembers the choice so it
+/// comes back the next time the app starts.
+#[tauri::command]
+async fn set_remote(app: AppHandle, enabled: bool, lan: bool) -> Result<(), String> {
+    let started = start_remote(&app, enabled, lan).await;
+    if started.is_ok() {
+        *remote_choice().lock().unwrap() = (enabled, enabled && lan);
+        persist_settings();
+    }
+    started
+}
+
+/// Starts or stops the second screen. `lan` listens on this PC's private network address (never on every address);
+/// without it only this PC can reach it.
+async fn start_remote(app: &AppHandle, enabled: bool, lan: bool) -> Result<(), String> {
+    let app = app.clone();
+    // Stop first, so the port is free again for a restart with the other choice.
+    let old = app.state::<RemoteSlot>().0.lock().unwrap().take();
+    drop(old);
+    if !enabled {
+        refresh_remote(&app, None);
+        return Ok(());
+    }
+    let bind = if lan {
+        match oj_remote::private_lan_ip() {
+            Some(ip) => ip,
+            None => {
+                let msg = "No private network address found (this PC isn't on a home or office network).".to_string();
+                refresh_remote(&app, Some(msg.clone()));
+                return Err(msg);
+            }
+        }
+    } else {
+        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+    };
+    let changed = {
+        let app = app.clone();
+        Arc::new(move || refresh_remote(&app, None))
+    };
+    match oj_remote::start(oj_remote::Config {
+        bind,
+        port: 8765,
+        backend: Arc::new(RemoteBackend(app.clone())),
+        assets: Arc::new(AppPage(app.clone())),
+        sessions: load_sessions(),
+        idle_life: Duration::from_secs(7 * 24 * 60 * 60),
+        on_change: changed,
+    })
+    .await
+    {
+        Ok(server) => {
+            *app.state::<RemoteSlot>().0.lock().unwrap() = Some(Arc::new(server));
+            refresh_remote(&app, None);
+            Ok(())
+        }
+        Err(e) => {
+            let msg = format!("Couldn't start the second screen: {e}");
+            refresh_remote(&app, Some(msg.clone()));
+            Err(msg)
+        }
+    }
+}
+
+/// A new pairing code; every paired screen has to pair again. (`async` so it never runs on the window's own thread.)
+#[tauri::command]
+async fn rotate_remote_code(app: AppHandle) {
+    if let Some(server) = running_remote(&app) {
+        server.rotate_code();
+    }
+    refresh_remote(&app, None);
+}
+
+/// The 4-digit code, for the Settings page while the player has it shown. Only the app's own window can ask.
+#[tauri::command]
+async fn get_remote_pin(app: AppHandle) -> Option<String> {
+    running_remote(&app).map(|server| server.pin().0)
+}
+
+/// Signs one paired screen out; it has to pair again. `id` is the one the Settings page got from the list.
+#[tauri::command]
+async fn disconnect_remote_screen(app: AppHandle, id: String) {
+    if let Some(server) = running_remote(&app) {
+        server.disconnect(&id);
+    }
+    refresh_remote(&app, None);
 }
 
 /// Samples arrive about ten times a second; the UI does not need every one.
@@ -817,6 +1153,7 @@ pub fn run() {
         }))))
         .manage(Reports(Mutex::new(ReportCache::default())))
         .manage(Maps::default())
+        .manage(RemoteSlot::default())
         .invoke_handler(tauri::generate_handler![
             get_state,
             get_report,
@@ -834,6 +1171,10 @@ pub fn run() {
             check_for_update,
             set_auto_update_check,
             open_release_page,
+            set_remote,
+            rotate_remote_code,
+            disconnect_remote_screen,
+            get_remote_pin,
             set_pinned,
             set_frame,
             drag_window,
@@ -847,6 +1188,15 @@ pub fn run() {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     let _ = run_update_check(&handle).await;
+                });
+            }
+
+            // The second screen comes back the way the player left it.
+            let (remote_on, remote_lan) = *remote_choice().lock().unwrap();
+            if remote_on {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = start_remote(&handle, true, remote_lan).await;
                 });
             }
 
@@ -983,6 +1333,33 @@ mod tests {
         assert!(serde_json::from_str::<Settings>("{}").unwrap().auto_update_check);
         let off: Settings = serde_json::from_str(r#"{"auto_update_check":false}"#).unwrap();
         assert!(!off.auto_update_check);
+    }
+
+    #[test]
+    fn the_second_screen_stays_off_until_the_player_turns_it_on_and_then_stays_on() {
+        let fresh: Settings = serde_json::from_str("{}").unwrap();
+        assert!(!fresh.remote && !fresh.remote_lan);
+        let saved = serde_json::to_string(&Settings { remote: true, remote_lan: true, ..Default::default() }).unwrap();
+        let back: Settings = serde_json::from_str(&saved).unwrap();
+        assert!(back.remote && back.remote_lan);
+        // Switching one setting must not lose the others.
+        assert!(back.auto_update_check);
+    }
+
+    #[test]
+    fn a_browser_never_gets_folders_pipe_names_or_error_text() {
+        let s = LiveState {
+            save_dir: Some(r"C:\Users\me\saves".into()),
+            game_dir: Some(r"D:\Games\Longshot".into()),
+            pipe: "longshot-secret".into(),
+            last_error: Some(r"could not open C:\Users\me\saves".into()),
+            update_check_auto: true,
+            ..Default::default()
+        };
+        let seen = remote_view(&s).to_string();
+        for private in ["Users", "Games", "longshot-secret", "could not open"] {
+            assert!(!seen.contains(private), "{private} reached a browser");
+        }
     }
 
     #[test]

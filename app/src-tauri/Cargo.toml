@@ -27,6 +27,8 @@ sysinfo = { version = "0.40", default-features = false, features = ["system"] }
 tauri-plugin-dialog = "2"
 ureq = "3"
 tauri-plugin-opener = "2"
+oj-remote = { path = "../../crates/oj-remote" }
+futures.workspace = true
 
 [lints]
 workspace = true

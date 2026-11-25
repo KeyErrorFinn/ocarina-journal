@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../ipc";
 import type { LiveState } from "../model";
 
 /** Asks whether to get a newer release. "Yes" opens the release page in the browser; nothing is downloaded or installed

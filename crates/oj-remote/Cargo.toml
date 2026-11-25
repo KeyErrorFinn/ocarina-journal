@@ -1,0 +1,20 @@
+[package]
+name = "oj-remote"
+description = "Read-only second-screen server: shows the app's state to a paired browser on the same network"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws", "json"] }
+tokio.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+getrandom = "0.3"
+sha2 = "0.10"
+
+[dev-dependencies]
+tokio-tungstenite = "0.28"
+
+[lints]
+workspace = true

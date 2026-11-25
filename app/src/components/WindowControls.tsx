@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../ipc";
 import { MIN_OPACITY, type WindowMode } from "../windowMode";
-import { Toggle } from "./chrome";
+import { SettingRow, Toggle } from "./chrome";
 
 type Props = { mode: WindowMode; set: (m: WindowMode) => void };
 
@@ -16,39 +16,28 @@ const slider = (mode: WindowMode, set: Props["set"], label: string) => (
   />
 );
 
-/** The window settings, in the Home menu. */
+/** The window settings, on the Settings page. */
 export function WindowPanel({ mode, set }: Props) {
   return (
-    <div className="winpanel">
-      <h3>Window</h3>
-      <div className="setting">
-        <span>
-          Keep on top of other windows
-          <small>So other apps can't cover it while you play.</small>
-        </span>
-        <Toggle on={mode.pin} label="keep on top of other windows" onChange={(v) => set({ ...mode, pin: v })} />
-      </div>
-      <div className="setting">
-        <span>
-          See-through mode
-          <small>Lets what is behind the window show through, to overlay it on a game.</small>
-        </span>
-        <Toggle on={mode.seeThrough} label="see-through mode" onChange={(v) => set({ ...mode, seeThrough: v })} />
-      </div>
+    <>
+      <SettingRow label="Keep on top of other windows" hint="So other apps can't cover it while you play.">
+        <Toggle on={mode.pin} label="Keep on top of other windows" onChange={(v) => set({ ...mode, pin: v })} />
+      </SettingRow>
+      <SettingRow label="See-through mode" hint="Lets what is behind the window show through, to overlay it on a game.">
+        <Toggle on={mode.seeThrough} label="See-through mode" onChange={(v) => set({ ...mode, seeThrough: v })} />
+      </SettingRow>
       {mode.seeThrough && (
-        <div className="setting">
-          <span>How solid it is</span>
-          {slider(mode, set, "How solid the window is")}
-        </div>
+        <SettingRow label="How solid it is" stack>
+          <div className="set-range">
+            {slider(mode, set, "How solid the window is")}
+            <output className="set-range-val">{Math.round(mode.opacity * 100)}%</output>
+          </div>
+        </SettingRow>
       )}
-      <div className="setting">
-        <span>
-          Hide the title bar
-          <small>A slim bar with these controls replaces it. Drag that bar to move the window.</small>
-        </span>
-        <Toggle on={!mode.frame} label="hide the title bar" onChange={(v) => set({ ...mode, frame: !v })} />
-      </div>
-    </div>
+      <SettingRow label="Hide the title bar" hint="A slim bar with these controls replaces it. Drag that bar to move the window.">
+        <Toggle on={!mode.frame} label="Hide the title bar" onChange={(v) => set({ ...mode, frame: !v })} />
+      </SettingRow>
+    </>
   );
 }
 

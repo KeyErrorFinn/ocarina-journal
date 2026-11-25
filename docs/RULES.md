@@ -25,7 +25,9 @@ the project legal to share and safe to run on someone's own game and saves.
 
 ## Private and local
 
-- Nothing listens to other computers. Local interfaces bind to the local machine only.
+- Nothing listens to other computers. Local interfaces bind to the local machine only. The one exception is the
+  optional second screen (`docs/research/SECOND_SCREEN.md`): off until the player turns it on, read-only, paired with two codes, and
+  only on this PC's private network address when the player chooses "Allow other devices on my network".
 - No telemetry, analytics or auto-updates. The one network call is the update check: a single plain HTTPS request
   to GitHub's public release API, sent only when the player presses "Check for updates" or leaves the start-up
   check on (it starts on; one switch in the menu turns it off). It sends no identifier and downloads and installs nothing.

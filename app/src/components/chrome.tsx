@@ -126,6 +126,20 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
   return <button role="switch" aria-checked={on} aria-label={label} className={`toggle ${on ? "on" : ""}`} onClick={() => onChange(!on)} />;
 }
 
+/** One line of the Settings page: what it is (and a short explanation) on the left, its control on the right. With
+ *  `stack`, the control sits below the text instead, for wide controls such as a path box. */
+export function SettingRow({ label, hint, stack, children }: { label: ReactNode; hint?: ReactNode; stack?: boolean; children?: ReactNode }) {
+  return (
+    <div className={`set-row ${stack ? "stack" : ""}`}>
+      <div className="set-label">
+        <span>{label}</span>
+        {hint && <small>{hint}</small>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <>

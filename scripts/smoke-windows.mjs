@@ -44,8 +44,11 @@ const activePort = () => {
 // Ports that WebView2's own processes are listening on (the browser's debugging port is one of them), in case the
 // profile folder isn't where DevToolsActivePort ends up.
 const listeningPorts = () => {
-  const out = spawnSync("tasklist", ["/FI", "IMAGENAME eq msedgewebview2.exe", "/FO", "CSV", "/NH"], { encoding: "utf8" }).stdout ?? "";
-  const pids = new Set(out.split(/\r?\n/).map((l) => l.split('","')[1]).filter(Boolean));
+  // Another development copy may have its own debugging port. Inspect only this test app's descendants.
+  const out = spawnSync("powershell", ["-NoProfile", "-Command",
+    `$all = @(Get-CimInstance Win32_Process); $owned = @(${app.pid}); do { $next = @($all | Where-Object { $_.ParentProcessId -in $owned -and $_.ProcessId -notin $owned }); $owned += @($next.ProcessId) } while ($next.Count); $all | Where-Object { $_.ProcessId -in $owned -and $_.Name -eq 'msedgewebview2.exe' } | ForEach-Object ProcessId`,
+  ], { encoding: "utf8" }).stdout ?? "";
+  const pids = new Set(out.trim().split(/\s+/).filter(Boolean));
   const net = spawnSync("netstat", ["-ano", "-p", "TCP"], { encoding: "utf8" }).stdout ?? "";
   const ports = [];
   for (const line of net.split(/\r?\n/)) {
@@ -123,6 +126,10 @@ try {
   const origin = await evaluate("location.origin");
   if (!/tauri\.localhost|^tauri:/.test(origin ?? "")) failures.push(`the page is ${origin}, not the app's own origin, so the policy isn't being tested`);
   if (!text.trim()) failures.push("the app's page stayed empty");
+  const expectedVersion = JSON.parse(readFileSync(new URL("../app/package.json", import.meta.url), "utf8")).version;
+  const actualVersion = await evaluate("window.__TAURI_INTERNALS__.invoke('get_state').then(s => s.app_version)");
+  if (actualVersion !== expectedVersion) failures.push(`tested version ${actualVersion}, expected ${expectedVersion}`);
+
 
   // Pictures the app makes from game files are shown from blob: URLs; they must load.
   const probe = (src) =>

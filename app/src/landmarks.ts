@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./ipc";
 import { useEffect, useState } from "react";
 import type { Game } from "./model";
 
@@ -27,15 +27,19 @@ export const LANDMARK: Record<LandKind, { name: string; plural: string; points: 
 let promise: Promise<Landmark[] | null> | null = null;
 
 /** The landmarks; `undefined` while loading, `null` when the game folder cannot be read. */
+export function loadLandmarks() {
+  promise ??= invoke<Landmark[]>("get_rumors").catch(() => {
+    promise = null;
+    return null;
+  });
+  return promise;
+}
+
 export function useLandmarks(): Landmark[] | null | undefined {
   const [r, setR] = useState<Landmark[] | null | undefined>(undefined);
   useEffect(() => {
-    promise ??= invoke<Landmark[]>("get_rumors").catch(() => {
-      promise = null;
-      return null;
-    });
     let live = true;
-    promise.then((x) => live && setR(x));
+    loadLandmarks().then((x) => live && setR(x));
     return () => {
       live = false;
     };

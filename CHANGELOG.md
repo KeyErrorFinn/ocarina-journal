@@ -6,6 +6,50 @@ that changes what players see.
 
 ## Unreleased
 
+## 1.3.0 - 2026-11-25
+
+- Selected map pictures take priority over queued preloads. New background downloads pause until the selected
+  picture finishes decoding, then resume; an existing download for the same picture is reused.
+
+- Opening Map fetches every area's encoded pictures, eras and dungeon floors in the background, without
+  blocking the world map. Reopening Map retries failed downloads, and the game-picture preference is respected.
+- Location, era and floor changes keep the current view visible until the chosen destination has decoded,
+  then switch directly to it. The decoded cache retains eight pictures plus active views, avoiding the large
+  memory cost and initial delay of decoding the entire catalogue on a phone.
+- A second screen detects an unreachable app even if its WebSocket stays open. Reachability checks and reconnect
+  attempts time out, returning to the page checks again, and stale responses cannot dismiss the disconnect screen.
+
+- **Settings page.** The three dots are now a settings cog that opens a full Settings page instead of a sheet: Status
+  (connection, game and app versions, the game and save folders), Save folder, Updates, Window and About, each in its
+  own card, with switches in place of the old checkbox. A "Second screen" card is laid out for showing the journal
+  read-only on another screen.
+- **Second screen.** Show your journal, maps, tapestry, ocarina and saves progress on a phone, tablet or second monitor,
+  read-only. It is off until you turn it on in Settings, then starts again with the app. The parts:
+  - **This PC or your network.** By default only this PC can reach it. "Allow other devices on my network" opens it to
+    your home network, on this PC's private address only (never every address).
+  - **QR code pairing.** On the network setting the app shows a QR code. Scanning it opens the page with the pairing
+    code filled in, so only the 4-digit code is left to type. By hand, the page asks for the pairing code, then the
+    4-digit code.
+  - **A 4-digit code that refreshes every minute.** It is hidden in the app until you press Show, has a countdown, and is
+    always typed on the other device, never put in an address.
+  - **Rate limiting.** Pairing tries are limited to 6 a minute with a countdown on the page, and 20 wrong tries in a row
+    replace the codes.
+  - **Nothing before pairing.** A device that hasn't paired is sent only a small pairing page: no part of the app, no
+    pictures, no data, and no flash of the app first.
+  - **Connected screens.** Settings lists every paired device by name (such as "iPhone · Safari") and address, with a
+    Disconnect button on each, and "New code" signs them all out.
+  - **Stays paired.** Devices stay paired, also after restarting the app, until you disconnect them, make a new code, or
+    one stays away for 7 days (using the page, or having it open, starts the 7 days over).
+  - **Disconnect from the phone.** The page's own Settings has "Disconnect this device".
+  - **Add to home screen.** That Settings page also has "Add to home screen" (an install button where the browser offers
+    one, written steps otherwise).
+  - **Loads fast.** Maps, tapestry (and its pictures), lore and rumors are loaded as soon as the page opens, so they
+    aren't blank when you open them.
+  - **If the app closes.** The page says it can't reach the app and reconnects by itself when the app is back.
+  - **Window name.** While the second screen is on, the window's name shows how many devices have the page open.
+  - **Read-only and private.** The page can't start the game or change anything, and never receives your folder paths.
+  Details: `docs/research/SECOND_SCREEN.md`.
+
 ## 1.2.0 - 2026-11-24
 
 - **Update check.** The menu has a "Check for updates" button that asks GitHub for the newest release and, if there is
