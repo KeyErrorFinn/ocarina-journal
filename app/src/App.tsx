@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { invoke, isRemote, listen, onLink, onNeedPairing } from "./ipc";
 import { EMPTY, TILES, type LiveState } from "./model";
 import { cat, setPlaceNames, type Report, type ReportFile } from "./report";
-import { useLocal } from "./store";
+import { useLocal, useShared } from "./store";
+import { progress } from "./sharedProgress";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { OverlayBar } from "./components/WindowControls";
 import { useApplyWindowMode, WINDOW_DEFAULTS, type WindowMode } from "./windowMode";
@@ -29,7 +30,7 @@ export function App() {
   const [rep, setRep] = useState<ReportFile | null>(null);
   // `#today`, `#map:KokiriForest`, `#ocarina:Saria's Song` open a screen directly (handy for review).
   const [route, setRoute] = useState<string>(() => decodeURIComponent(location.hash.slice(1)) || "home");
-  const [seen, setSeen] = useLocal<Record<string, string>>("home.seen", {});
+  const [seen, setSeen] = useShared<Record<string, string>>("home.seen", {});
   // The newer version the player already said "not now" to, until the next start.
   const [laterFor, setLaterFor] = useState<string | null>(null);
   const [repErr, setRepErr] = useState<string | null>(null);
@@ -109,8 +110,9 @@ export function App() {
   const sigs = tileSignatures(report, s.journal.entries.length);
   const fresh = Object.keys(sigs).filter((t) => seen[t] !== undefined && seen[t] !== sigs[t]);
   useEffect(() => {
+    if (!s.app_version) return;
     const first = Object.keys(sigs).filter((t) => seen[t] === undefined);
-    if (first.length) setSeen({ ...seen, ...Object.fromEntries(first.map((t) => [t, sigs[t]])) });
+    if (first.length) progress.update("home.seen", { ...seen, ...Object.fromEntries(first.map((t) => [t, sigs[t]])) }, true);
   });
   const locked: Record<string, string> = report?.hall_open === false ? { foes: "Opens once the owl has told Link about the Hall of Fallen Foes." } : {};
 

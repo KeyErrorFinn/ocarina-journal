@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "../components/chrome";
 import { QUIZ, type Q } from "../data/content";
-import { useLocal } from "../store";
+import { useShared } from "../store";
 import { useLore, type Lore } from "../lore";
 import { useMapIndex, type MapIndex } from "../maps";
 import { MapCrop } from "../components/MapCrop";
@@ -113,7 +113,7 @@ export function Quiz({ onHome }: { onHome: () => void }) {
   const lore = useLore();
   const idx = useMapIndex();
   const extra = useMemo(() => generated(lore, idx), [lore, idx]);
-  const [best, setBest] = useLocal<Record<string, number>>("quiz.best", {});
+  const [best, setBest] = useShared<Record<string, number>>("quiz.best", {});
   const [lvl, setLvl] = useState<Level | null>(null);
   const [qs, setQs] = useState<ReturnType<typeof build>>([]);
   const [i, setI] = useState(0);

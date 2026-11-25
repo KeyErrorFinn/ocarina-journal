@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, Header, RefreshBtn, Tabs } from "../components/chrome";
 import { SpotCrop } from "../components/MapCrop";
-import { useLocal } from "../store";
+import { useShared } from "../store";
 import { prettyArea, type Report } from "../report";
 import { useMapIndex } from "../maps";
 import { useLore } from "../lore";
@@ -27,8 +27,8 @@ export function Rumors({ game, onHome }: { report: Report | null; game: Game | n
   const lore = useLore();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Quests");
   const [sort, setSort] = useState<(typeof SORTS)[number]>("Number");
-  const [found, setFound] = useLocal<Record<string, number>>("gossip.found", {});
-  const [helped, setHelped] = useLocal<Record<string, true>>("gossip.helped", {});
+  const [found, setFound] = useShared<Record<string, number>>("gossip.found", {});
+  const [helped, setHelped] = useShared<Record<string, true>>("gossip.helped", {});
   const [owned, buy, spent] = useOwned();
   const [open, setOpen] = useState<string | null>(null);
   const [cheer, setCheer] = useState<Rumor | null>(null);

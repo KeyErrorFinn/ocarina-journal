@@ -1,4 +1,4 @@
-import { useLocal } from "../store";
+import { useShared } from "../store";
 
 /** What Gossip Points buy. The original trades points for ocarina scores of the game's music; this app trades them for
  *  its own ocarinas instead (the music is Nintendo's). */
@@ -17,7 +17,7 @@ export const REWARDS: Reward[] = [
 
 /** Rewards the player has bought, and the points spent on them. */
 export function useOwned(): [Record<string, true>, (id: string) => void, number] {
-  const [owned, setOwned] = useLocal<Record<string, true>>("rewards.owned", {});
+  const [owned, setOwned] = useShared<Record<string, true>>("rewards.owned", {});
   const spent = REWARDS.filter((r) => owned[r.id]).reduce((a, r) => a + r.cost, 0);
   return [owned, (id) => setOwned({ ...owned, [id]: true }), spent];
 }

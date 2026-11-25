@@ -80,7 +80,7 @@ if (isRemote) {
 }
 
 /** Runs a command: through the app's own channel in its window, or over HTTP when this page is a second screen. Only
- *  read-only commands exist on the second screen's server, so anything else fails there with "No such command". */
+ *  read-only data commands and validated app-progress sync exist on the second-screen server. */
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isRemote) return tauriInvoke<T>(cmd, args);
   let res: Response;

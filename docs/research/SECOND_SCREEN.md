@@ -25,7 +25,7 @@ chooses "Allow other devices on my network". Without that choice it listens on t
 | A screen signs itself out | `POST /api/signout` ends only the caller's own pairing (not on the `READ_ONLY` list; origin and JSON checks apply; it clears the cookie). The page offers it as "Disconnect this device". | [V] test |
 | A paired screen should no longer be trusted | Settings lists every paired screen by what its browser says it is (such as "iPhone · Safari") and its address, and a Disconnect button signs out that one screen only. | [V] test |
 | The app froze when "New code" was pressed | The app asked the server for a change while holding the lock the server's change handler takes. The handler now never runs on the caller's thread, and the app no longer holds the lock while it calls the server. | [V] test + real build |
-| A page reaches commands that change things | The server has a fixed list of eight read-only commands (`READ_ONLY`). Launching the game, turning the bridge on, choosing folders, the window and updates are not on it and answer "No such command" even to a paired browser. | [V] test + unit test |
+| A page reaches commands that change things | The server has eight read-only data commands (`READ_ONLY`) and one validated app-progress command (`sync_ui`, described below). Launching the game, turning the bridge on, choosing folders, the window and updates are refused even to a paired browser. | [V] test + unit test |
 | Another website in the player's browser calls the server | No CORS headers; JSON-only requests; a browser's `Origin` must equal the host; the cookie is `HttpOnly; SameSite=Strict`. | [V] test |
 | DNS rebinding | The `Host` must be an IP address or `localhost`; a name is refused. | [V] test |
 | Listening on every interface | The server refuses `0.0.0.0`. The "other devices" choice binds only the PC's private address (10/8, 172.16/12, 192.168/16); with none, it fails with a message. | [V] test; address choice [V] on a real network |
@@ -38,8 +38,26 @@ Read-only: the app's state, the report, maps, tapestry, lore, rumors and ocarina
 change the save folder, turn the bridge on, or change the window. The Window, Save folder and Updates cards are not
 shown on a second screen. Each device keeps its own view settings (they live in that browser).
 
+App-owned progress is shared between the desktop and paired screens: tile notification acknowledgements, Rumor
+Hunt discoveries and help, visited landmarks, explored Lost Woods rooms, quiz best scores and reward unlocks.
+The PC keeps `shared_progress.json`; only the allowlisted `sync_ui` command can update these bounded, validated
+values. It cannot choose a path or write settings, game files or saves. Changes broadcast through live state.
+Existing browser-local records are imported: existing shared tile acknowledgements win over stale imports,
+numeric progress keeps the larger value, and explored rooms are combined. Updates send changed entries rather
+than replacing another screen's whole record. Pending changes stay in memory and retry while the page stays open;
+each screen also keeps a local copy. Display filters, window settings, profile customisation and ocarina recordings
+stay local. [V] Rust merge/validation tests, paired/origin socket tests and two-store browser regressions cover
+acknowledgements in both directions, stale snapshots and connection failure/retry. Physical-phone behaviour has
+not been rechecked for this patch.
+
 ## The page on the other device
 
+- **Scanning again:** the pairing page checks `/api/session` before submitting the QR code. A valid existing
+  session reloads straight into the app without a new pairing attempt. The endpoint returns only a status, with
+  no app data and no caching; origin checks and the `SameSite=Strict` cookie remain in place. [V] socket and browser
+  regressions simulate an initial navigation without a cookie, then a same-origin request with it. A scanner can
+  omit a Strict cookie on its initial navigation [I]; this has not been verified on every phone/scanner. A separate
+  browser, private tab or home-screen cookie store still needs its own pairing.
 - **App closed:** a separate state request checks reachability every 5 seconds while the page is visible, even if
   the WebSocket never reports closure. It times out after 4 seconds, shows the disconnected overlay and retries
   every 2.5 seconds with the same timeout. Returning to the page or regaining a network connection also checks.

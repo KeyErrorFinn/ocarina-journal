@@ -85,14 +85,31 @@
     refresh();
   });
 
-  // The address the QR code opens carries the pairing code. Use it once and take it out of the address bar, which
-  // skips the first step.
-  var given = new URLSearchParams(location.search).get("code");
-  if (given) {
-    history.replaceState(null, "", location.pathname + location.hash);
-    $("code").value = given.toUpperCase();
+  function beginPairing() {
+    busy = false;
+    // Keep the QR code out of browser history, but only submit it after checking for an existing session.
+    var given = new URLSearchParams(location.search).get("code");
+    if (given) {
+      history.replaceState(null, "", location.pathname + location.hash);
+      $("code").value = given.toUpperCase();
+      refresh();
+      submitCode();
+    }
     refresh();
-    submitCode();
   }
+  // Strict cookies can be withheld when arriving from a scanner or another site. This request originates here,
+  // so it can recognise an already paired browser without weakening the cookie or consuming a pairing attempt.
+  busy = true;
   refresh();
+  var controller = new AbortController();
+  var timeout = setTimeout(function () { controller.abort(); }, 4000);
+  fetch("/api/session", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+    .then(function (res) {
+      clearTimeout(timeout);
+      if (res.status === 204) { location.reload(); return; }
+      beginPairing();
+    }).catch(function () {
+      clearTimeout(timeout);
+      beginPairing();
+    });
 })();

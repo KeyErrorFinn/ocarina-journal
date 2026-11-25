@@ -80,5 +80,8 @@ Tests that read the game skip silently without `OJ_TEST_GAME`; say so if you cou
 
 ## Before you finish
 
+For releases, follow [docs/workflows/release.md](docs/workflows/release.md). Patch release descriptions must include
+all changelogs back through the latest minor release, including that minor release.
+
 Run the commands above, update the docs a change affects (README, `docs/research/`), and describe in the pull
 request what you tested and with which Longshot version, or that no game was available.

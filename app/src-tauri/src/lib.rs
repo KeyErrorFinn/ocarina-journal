@@ -10,6 +10,7 @@ use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod platform;
+mod ui_state;
 mod update;
 
 /// How the app is getting its data (see docs/research/COMPANION_APP_ARCHITECTURE.md).
@@ -28,6 +29,7 @@ enum Mode {
 /// Everything the UI shows; sent whole on each change (it is small).
 #[derive(Debug, Clone, Default, Serialize)]
 struct LiveState {
+    ui_state: ui_state::UiState,
     /// Linux launches use HOS_CONTROL in the process environment, not the persistent Windows env-file switch.
     bridge_config_supported: bool,
     mode: Mode,
@@ -956,6 +958,33 @@ fn remote_view(s: &LiveState) -> serde_json::Value {
 
 struct RemoteBackend(AppHandle);
 
+/// Updates only the app's shared progress file; game files, saves and desktop settings are unreachable here.
+#[tauri::command]
+fn sync_ui(
+    app: AppHandle,
+    key: String,
+    value: serde_json::Value,
+    initialize: bool,
+) -> Result<ui_state::UiState, String> {
+    let snap = {
+        let shared = app.state::<Shared>();
+        let mut s = shared.0.lock().unwrap();
+        let mut next = s.ui_state.clone();
+        next.apply(&key, value, initialize)?;
+        if next.revision != s.ui_state.revision {
+            let path = data_dir().ok_or("App data folder is unavailable.")?.join("shared_progress.json");
+            let bytes = serde_json::to_vec(&next).map_err(|_| "Could not encode shared progress.")?;
+            let temp = path.with_extension("tmp");
+            std::fs::write(&temp, bytes).map_err(|_| "Could not save shared progress.")?;
+            std::fs::rename(temp, path).map_err(|_| "Could not save shared progress.")?;
+            s.ui_state = next;
+        }
+        s.clone()
+    };
+    emit(&app, &snap);
+    Ok(snap.ui_state)
+}
+
 impl oj_remote::Backend for RemoteBackend {
     fn call(
         &self,
@@ -970,6 +999,12 @@ impl oj_remote::Backend for RemoteBackend {
             let json = |v: Result<serde_json::Value, serde_json::Error>| v.map(Reply::Json).map_err(|e| e.to_string());
             match cmd.as_str() {
                 "get_state" => Ok(Reply::Json(remote_view(&app.state::<Shared>().0.lock().unwrap()))),
+                "sync_ui" => json(serde_json::to_value(sync_ui(
+                    app,
+                    args.get("key").and_then(|v| v.as_str()).ok_or("Missing progress key.")?.into(),
+                    args.get("value").cloned().ok_or("Missing progress value.")?,
+                    args.get("initialize").and_then(|v| v.as_bool()).unwrap_or(false),
+                )?)),
                 "get_report" => json(serde_json::to_value(report_of(&app).await?)),
                 "get_map_index" => Ok(Reply::Json(map_index_of(app).await?)),
                 "get_tapestry" => json(serde_json::to_value(tapestry_of(app).await?)),
@@ -1146,6 +1181,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Shared(Arc::new(Mutex::new(LiveState {
+            ui_state: load_json("shared_progress.json"),
             bridge_config_supported: cfg!(windows),
             app_version: env!("CARGO_PKG_VERSION").to_string(),
             pipe: pipe_name(),
@@ -1156,6 +1192,7 @@ pub fn run() {
         .manage(RemoteSlot::default())
         .invoke_handler(tauri::generate_handler![
             get_state,
+            sync_ui,
             get_report,
             get_map_index,
             get_map_image,

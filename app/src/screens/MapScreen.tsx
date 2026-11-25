@@ -7,7 +7,7 @@ import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks"
 import { Seg, Sheet, Sync, Toggle } from "../components/chrome";
 import { WORLD } from "../data/content";
 import type { Game } from "../model";
-import { useLocal } from "../store";
+import { useLocal, useShared } from "../store";
 import { areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report } from "../report";
 import {
   isMapImageReady,
@@ -676,14 +676,14 @@ function AreaMap(props: {
   const { area, place, report, rows, game, linkPlace, linkEra, prefs, setPrefs, sel, setSel, sheet, setSheet, top, settings, onGo } = props;
   const idx = useMapIndex();
   const landmarks = useLandmarks();
-  const [found] = useLocal<Record<string, number>>("gossip.found", {});
+  const [found] = useShared<Record<string, number>>("gossip.found", {});
   // Landmarks Link has stood right beside while the app was connected (when, as a time). The save has no flag for "spoke to this
   // stone" or "entered this grotto", so this is the best the app can tell; it is kept apart from the Rumor Hunt points.
-  const [visited, setVisited] = useLocal<Record<string, number>>("landmark.visited", {});
+  const [visited, setVisited] = useShared<Record<string, number>>("landmark.visited", {});
   const [mark, setMark] = useState<string | null>(null);
   // (a landmark picked on one map isn't picked on the next)
   useEffect(() => setMark(null), [area]);
-  const [seenWalk, setSeenWalk] = useLocal<number[]>("lostwood.seen", []);
+  const [seenWalk, setSeenWalk] = useShared<number[]>("lostwood.seen", []);
   const here = linkPlace === area;
   const all = entriesFor(report, area);
   const row = rows.find((r) => r.area === area) ?? { area, kinds: {}, have: 0, of: 0 };

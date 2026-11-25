@@ -3,6 +3,7 @@
 //! Safety comes from what the server is, not from what it is told:
 //! - It only ever calls the commands in [`READ_ONLY`]. Launching the game, turning the bridge on, choosing folders and
 //!   everything about the window are not on the list, so no request can reach them.
+//!   One separate exception, `sync_ui`, merges validated app-owned progress through the backend, never game data.
 //! - Nothing but the page itself is served before the browser has paired with two codes the player reads off their own
 //!   screen: the pairing code, then a 4-digit code that changes every minute. The server only ever reads codes from a
 //!   request body (the page may take the pairing code from the address it was opened with, and sends it on). Every
@@ -506,6 +507,7 @@ pub async fn start(cfg: Config) -> std::io::Result<Server> {
     let addr = listener.local_addr()?;
     let app = Router::new()
         .route("/pair", post(pair))
+        .route("/api/session", get(session))
         .route("/api/invoke/{cmd}", post(invoke))
         .route("/api/signout", post(signout))
         .route("/ws", get(socket))
@@ -649,7 +651,8 @@ async fn invoke(
     if !s.authed(&headers) {
         return text(StatusCode::UNAUTHORIZED, "Pair this screen first.");
     }
-    if !READ_ONLY.contains(&cmd.as_str()) {
+    // This single exception only updates validated app-owned progress, never game/save files or desktop settings.
+    if !READ_ONLY.contains(&cmd.as_str()) && cmd != "sync_ui" {
         return text(StatusCode::NOT_FOUND, "No such command.");
     }
     let args = if body.is_empty() {
@@ -745,6 +748,15 @@ async fn live(s: Shared, id: String, mut sock: WebSocket) {
 const PAIR_HTML: &str = include_str!("pair.html");
 const PAIR_JS: &str = include_str!("pair.js");
 
+/// A QR scanner may omit the Strict cookie on navigation. Once here, the page can check it with a same-origin request.
+async fn session(State(s): State<Shared>, headers: HeaderMap) -> Response {
+    if let Err(code) = check_origin(&headers) {
+        return text(code, "Not allowed.");
+    }
+    let status = if s.authed(&headers) { StatusCode::NO_CONTENT } else { StatusCode::UNAUTHORIZED };
+    (status, [(header::CACHE_CONTROL, "no-store")]).into_response()
+}
+
 /// What a screen that hasn't paired is sent: the pairing page and its script, and `401` for anything else.
 fn unpaired(path: &str) -> Response {
     let last = path.rsplit('/').next().unwrap_or("");
@@ -782,7 +794,9 @@ async fn page(State(s): State<Shared>, method: Method, uri: Uri, headers: Header
     let path = if path.is_empty() { "index.html" } else { path };
     // A screen that hasn't paired gets the pairing page and nothing of the app: no page, no scripts, no pictures. The app
     // is only sent once the cookie is a paired one, so there is no flash of the app before the pairing screen either.
-    if !s.authed(&headers) {
+    // The initial scanner navigation can omit a Strict cookie while the following script request includes it.
+    // Keep this public script available in both cases so it can perform the same-origin session check.
+    if path == "pair.js" || !s.authed(&headers) {
         return unpaired(path);
     }
     let found = s.assets.get(path).or_else(|| {

@@ -102,7 +102,9 @@ The cog on the Home screen opens a Settings page with a card for each of these:
 An optional, **read-only** page the app serves while it runs, so a phone, tablet or second monitor can show your live
 journal, maps, tapestry, ocarina and saves progress. It is **off until you turn it on** (Settings, Second screen),
 and after that it starts again whenever the app does. It can't start the game, change a folder or turn the bridge on:
-the server only answers a short fixed list of read commands. Design and threat notes:
+game and save access stays read-only. Tile notification acknowledgements and app-owned journal progress
+(discoveries, landmarks, quiz scores and reward unlocks) sync between paired screens. Display preferences remain
+per device. Design and threat notes:
 [`docs/research/SECOND_SCREEN.md`](docs/research/SECOND_SCREEN.md).
 
 **Using it**

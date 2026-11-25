@@ -143,6 +143,34 @@ async fn a_paired_screen_gets_the_app() {
 }
 
 #[tokio::test]
+async fn qr_arrivals_can_check_an_existing_session_without_pairing_or_reading_app_data() {
+    let (s, fake, reads) = up_counting().await;
+    let cookie = pair(&s).await;
+    // Simulate the scanner's initial navigation without its Strict cookie.
+    let arrival = http(&s, "GET", "/?code=ABCDEFGH", &[], "").await;
+    assert!(String::from_utf8_lossy(&arrival.body).contains("pair.js"));
+    let script = http(&s, "GET", "/pair.js", &[("Cookie", &cookie)], "").await;
+    assert_eq!(script.status, 200, "the script's request can already carry the Strict cookie");
+    assert!(String::from_utf8_lossy(&script.body).contains("/api/session"));
+    for (headers, status) in [
+        (vec![], 401),
+        (vec![("Cookie", "oj_session=invalid")], 401),
+        (vec![("Cookie", cookie.as_str())], 204),
+        (vec![("Cookie", cookie.as_str()), ("Origin", "http://untrusted.example")], 403),
+    ] {
+        let res = http(&s, "GET", "/api/session", &headers, "").await;
+        assert_eq!(res.status, status);
+        assert!(res.head.to_ascii_lowercase().contains("cache-control: no-store"));
+    }
+    assert_eq!(fake.calls.load(Ordering::Relaxed), 0);
+    assert_eq!(reads.load(Ordering::Relaxed), 0);
+    // Recognising a session must not create another one, and Disconnect must still invalidate it.
+    assert_eq!(s.screens().len(), 1);
+    s.rotate_code();
+    assert_eq!(http(&s, "GET", "/api/session", &[("Cookie", &cookie)], "").await.status, 401);
+}
+
+#[tokio::test]
 async fn paired_screens_stay_paired_when_the_app_restarts() {
     let (first, _) = up().await;
     let cookie = pair(&first).await;
@@ -190,6 +218,23 @@ async fn a_paired_browser_can_read_but_only_the_listed_commands() {
         assert_eq!(r.status, 404, "{banned}");
     }
     assert_eq!(fake.calls.load(Ordering::Relaxed), calls, "a command outside the list reached the app");
+}
+
+#[tokio::test]
+async fn app_progress_sync_requires_pairing_and_same_origin() {
+    let (s, fake) = up().await;
+    let args = r#"{"key":"home.seen","value":{"map":"1"},"initialize":false}"#;
+    assert_eq!(http(&s, "POST", "/api/invoke/sync_ui", &[JSON], args).await.status, 401);
+    let cookie = pair(&s).await;
+    assert_eq!(
+        http(&s, "POST", "/api/invoke/sync_ui", &[JSON, ("Cookie", &cookie), ("Origin", "http://other.example")], args)
+            .await
+            .status,
+        403
+    );
+    assert_eq!(fake.calls.load(Ordering::Relaxed), 0);
+    assert_eq!(http(&s, "POST", "/api/invoke/sync_ui", &[JSON, ("Cookie", &cookie)], args).await.status, 200);
+    assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
 }
 
 #[tokio::test]

@@ -6,6 +6,19 @@ that changes what players see.
 
 ## Unreleased
 
+## 1.3.1 - 2026-11-25
+
+- Tile notification dots now share their acknowledged state between the desktop and paired browsers. Opening a
+  tile on either clears its notification on the other screens. Rumor Hunt discoveries, visited landmarks, explored
+  Lost Woods rooms, quiz best scores and reward unlocks also sync through app-owned progress on the PC. Existing
+  local progress is imported; map filters, window options and other display preferences stay per device. Game
+  files and saves remain read-only.
+- Scanning the second-screen QR code in an already paired browser now checks the existing session before
+  starting pairing again. The pairing script remains available when a scanner omits the session cookie on
+  its initial navigation but the browser includes it on subsequent requests. Cookie protection is unchanged.
+- New browsers still receive the scanned pairing code automatically, then ask for the separate 4-digit code.
+  Disconnected and expired sessions must still pair again.
+
 ## 1.3.0 - 2026-11-25
 
 - Selected map pictures take priority over queued preloads. New background downloads pause until the selected
