@@ -4,7 +4,35 @@ Notable changes, newest first. The format follows [Keep a Changelog](https://kee
 versions follow [Semantic Versioning](https://semver.org/). Add a line under **Unreleased** in any pull request
 that changes what players see.
 
-## Unreleased
+## 1.4.0 - 2026-11-26
+
+- **Child and Adult on the map.** The world map has a Child/Adult switch that filters collectible counts and opens area
+  maps in the selected era. Collectible details show their placement era when the player's files specify one. Shared
+  collectibles keep one completion state; unspecified-era items stay visible rather than guessing their age
+  restrictions.
+- **"Needed as" reminder.** Location maps show a note below the era switch when collectibles exclusive to the other
+  era are still needed, naming Child or Adult on a separate line. Completed, shared and unspecified-era entries do not
+  trigger it.
+- **Magic bean soil on the map.** A new "Magic bean soil and rides" layer (Filters, off until you switch it on) marks
+  the ten soft-soil spots on their area maps: Death Mountain Crater and Trail, Desert Colossus, Gerudo Valley, the
+  Graveyard, Kokiri Forest, Lake Hylia, the Lost Woods (two) and Zora's River. Tapping one draws the route its magic
+  bean ride takes, as a dashed loop with arrows showing the way it goes (it starts at the soil) and a dot at every
+  place the ride lets you off. A small card in the corner keeps the map and route in view. The spots and routes come
+  from your own game files, and paired second screens get them too.
+- **Overlapping map markers sit side by side.** Markers that would cover each other (a chest and the Piece of Heart in
+  it, two Skulltulas in one tree, a soil spot beside a chest) are set in a row on a soft pill instead of piled up. How
+  close counts follows the zoom, so zooming in pulls them apart again.
+- **Hyrule Field spoilers.** The locked Piece of Heart chest (Chest 2) and the Business Scrub Piece of Heart (Heart
+  piece 4) now say what they need: the chest has no key (a fairy's note beside it, read as Adult Link, says the lock
+  was left undone, so open it as Child Link) and the scrub wants a password that another fairy's note, also only there
+  as Adult Link, gives. The scrub's long game name in brackets is shortened to "Business Scrub".
+- **Hyrule Castle's buried Skulltula.** The Gold Skulltula under the soil that opens with the Song of Storms is marked
+  as Child Link only (the game's files don't say), so the Adult view reminds you it still needs Child Link, and its
+  spoiler says how to reach it.
+- **Hyrule Castle's grotto and Gossip Stones are on the map.** Rumor Hunt only read scenes with Child or Adult in their
+  name, and the castle's has neither, so its hidden grotto (the one the Song of Storms opens) and its three Gossip
+  Stones were missing. They are now places on its map and in Rumor Hunt, for both ages. The "Nothing to show here"
+  note also no longer appears while landmarks or bean soil are showing.
 
 ## 1.3.1 - 2026-11-25
 

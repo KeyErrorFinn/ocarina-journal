@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke, isRemote, listen, onLink, onNeedPairing } from "./ipc";
 import { EMPTY, TILES, type LiveState } from "./model";
+import { withEras } from "./eraOverrides";
 import { cat, setPlaceNames, type Report, type ReportFile } from "./report";
 import { useLocal, useShared } from "./store";
 import { progress } from "./sharedProgress";
@@ -79,7 +80,7 @@ export function App() {
           setRepErr(null);
           if (r && r.modified_ms !== last) {
             last = r.modified_ms;
-            setRep(r);
+            setRep(withEras(r));
           }
         })
         .catch((e) => {
@@ -90,7 +91,7 @@ export function App() {
               .then((r) => r.json())
               .then((r: ReportFile) => {
                 last = 1;
-                setRep(r);
+                setRep(withEras(r));
               })
               .catch(() => {});
         });

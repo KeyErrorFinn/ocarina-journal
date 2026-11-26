@@ -1,14 +1,31 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Back, Chevron, Close, ExitArrow, Funnel, Gear, Locate } from "../components/icons";
-import { LandIcon, LinkArrow, Marker } from "../components/art";
+import { BeanIcon, LandIcon, LinkArrow, Marker } from "../components/art";
 import { Maze } from "../components/Maze";
-import { hintsFor, type Near } from "../hints";
+import { hintsFor, shortLabel, type Near } from "../hints";
+import { beanName, rideArrows, useBeanSoil } from "../beans";
+import { emPx, GROUP_STEP, spreadMarkers } from "../markerSpread";
 import { LAND_KINDS, LANDMARK, useLandmarks, type LandKind } from "../landmarks";
 import { Seg, Sheet, Sync, Toggle } from "../components/chrome";
 import { WORLD } from "../data/content";
 import type { Game } from "../model";
 import { useLocal, useShared } from "../store";
-import { areaRows, cat, entriesFor, KIND_NAME, MAP_KINDS, overall, pct, prettyArea, type AreaRow, type MapKind, type Report } from "../report";
+import {
+  areaRows,
+  cat,
+  entriesFor,
+  inEra,
+  otherEraNeeded,
+  reportForEra,
+  KIND_NAME,
+  MAP_KINDS,
+  overall,
+  pct,
+  prettyArea,
+  type AreaRow,
+  type MapKind,
+  type Report,
+} from "../report";
 import {
   isMapImageReady,
   prepareMapImage,
@@ -231,6 +248,8 @@ type Prefs = {
   kinds: Record<MapKind, boolean>;
   /** Rumor Hunt landmarks shown on area maps. */
   marks: Record<LandKind, boolean>;
+  /** Magic bean soft soil (and, when one is picked, its ride) shown on area maps. */
+  beans: boolean;
   incompleteOnly: boolean;
   contents: boolean;
   showLink: boolean;
@@ -249,10 +268,12 @@ const PREFS_VERSION = 3;
 const ALL_OFF = {
   kinds: { chests: false, skulltulas: false, "heart-pieces": false, "heart-containers": false },
   marks: { stone: false, grotto: false, cow: false, scarecrow: false, frog: false, owl: false, beehive: false },
+  beans: false,
 };
 const ALL_ON = {
   kinds: { chests: true, skulltulas: true, "heart-pieces": true, "heart-containers": true },
   marks: { stone: true, grotto: true, cow: true, scarecrow: true, frog: true, owl: true, beehive: true },
+  beans: true,
 };
 
 const MAP_DEFAULTS: Prefs = {
@@ -270,7 +291,7 @@ const MAP_DEFAULTS: Prefs = {
 /** The first visible layer, shared by navigation and the destination so we prepare exactly what it will show. */
 function startingLayer(place: MapPlace | null, preferred: Era, liveY: number | null, entries: ReturnType<typeof entriesFor>) {
   const eras = place ? (["child", "adult"] as Era[]).filter((e) => place[e]) : [];
-  const era = eras.includes(preferred) ? preferred : (eras[0] ?? "child");
+  const era = !place || place.dungeon || !eras.length ? preferred : eras.includes(preferred) ? preferred : eras[0];
   const floors = place?.floors ?? [];
   let floor = 0;
   if (floors.length && place) {
@@ -323,7 +344,8 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   }, [idx, p.gamePictures]);
   const index = p.gamePictures ? idx : null;
   const report = useMemo(() => regroup(raw, idx), [raw, idx]);
-  const rows = useMemo(() => areaRows(report), [report]);
+  const eraReport = useMemo(() => reportForEra(report, p.era), [report, p.era]);
+  const rows = useMemo(() => areaRows(eraReport), [eraReport]);
   const linkPlace = placeOfLive(idx, game?.map, game?.pos);
   const linkEra: Era | null = game?.age === "adult" ? "adult" : game?.age === "child" ? "child" : null;
 
@@ -337,16 +359,16 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkPlace, connected]);
 
-  const layerFor = (a: string | null) =>
+  const layerFor = (a: string | null, preferred: Era) =>
     startingLayer(
       a ? (index?.places[a] ?? null) : null,
-      a === linkPlace && linkEra ? linkEra : p.era,
+      preferred,
       a === linkPlace ? (game?.pos?.[1] ?? null) : null,
       a && report ? entriesFor(report, a) : [],
     );
-  async function go(a: string | null) {
+  async function go(a: string | null, preferred: Era = p.era) {
     const ticket = ++navigation.current;
-    const image = a ? layerFor(a).image : null;
+    const image = a ? layerFor(a, preferred).image : null;
     setOpenError(null);
     if (image && !isMapImageReady(image)) {
       setOpening(true);
@@ -381,7 +403,7 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
       </div>
     );
   }
-  if (!report || rows.length === 0) {
+  if (!report || areaRows(report).length === 0) {
     return (
       <div className="mapwrap" style={{ background: "#0f0b08" }}>
         <div className="map-top" style={{ background: "none" }}>
@@ -421,9 +443,9 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   const progress = sheet === "progress" && (
     <Sheet title="Completion Progress" onClose={() => setSheet(null)}>
       <div style={{ textAlign: "center", padding: ".4em 0 1em" }}>
-        <div className="big">{overall(report)}%</div>
+        <div className="big">{overall(eraReport)}%</div>
         <div className="small muted" style={{ padding: "0 1.4em" }}>
-          Area Achievement Rate (chests, skulltulas and hearts, weighted by count)
+          {p.era === "child" ? "Child" : "Adult"} placements, including unspecified-era items (weighted by count)
         </div>
       </div>
       {[...rows]
@@ -445,17 +467,43 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
   if (!area) {
     return (
       <div className="mapwrap">
-        <WorldMap index={index} rows={rows} linkPlace={linkPlace} showLink={p.showLink} onPick={go} />
+        <WorldMap index={index} rows={rows} linkPlace={linkPlace} showLink={p.showLink && (!linkEra || linkEra === p.era)} onPick={go} />
         {top}
         <div className="map-title">
           Hyrule
           <i />
         </div>
-        <button className="round" style={{ top: "6.4em" }} aria-label="Go to Link" onClick={() => linkPlace && go(linkPlace)}>
+        <div className="era-box">
+          <div className="era-tabs" role="group" aria-label="World map era">
+            {(["child", "adult"] as Era[]).map((era) => (
+              <button key={era} className={p.era === era ? "on" : ""} aria-pressed={p.era === era} onClick={() => setPrefs({ ...p, era })}>
+                {era === "child" ? "Child" : "Adult"}
+              </button>
+            ))}
+          </div>
+          <div className="era-note-slot">
+            <p className="map-era-note">
+              Child/Adult progress
+              <br />
+              are combined
+            </p>
+          </div>
+        </div>
+        <button
+          className="round"
+          style={{ top: "6.4em" }}
+          aria-label="Go to Link"
+          onClick={() => {
+            if (linkPlace) {
+              setPrefs({ ...p, era: linkEra ?? p.era });
+              void go(linkPlace, linkEra ?? p.era);
+            }
+          }}
+        >
           <Locate />
         </button>
         <button className="pill-map" onClick={() => setSheet("progress")}>
-          <Chevron /> Completion Progress {overall(report)}%
+          <Chevron /> {p.era === "child" ? "Child" : "Adult"} Completion {overall(eraReport)}%
         </button>
         {progress}
         {settings}
@@ -469,7 +517,6 @@ export function MapScreen({ report: raw, game, connected, onHome, start }: Props
       area={area}
       place={index?.places[area] ?? null}
       report={report}
-      rows={rows}
       game={game}
       linkPlace={linkPlace}
       linkEra={linkEra}
@@ -659,7 +706,6 @@ function AreaMap(props: {
   area: string;
   place: MapPlace | null;
   report: Report;
-  rows: ReturnType<typeof areaRows>;
   game: Game | null;
   linkPlace: string | null;
   linkEra: Era | null;
@@ -673,9 +719,12 @@ function AreaMap(props: {
   settings: ReactNode;
   onGo: (a: string | null) => void;
 }) {
-  const { area, place, report, rows, game, linkPlace, linkEra, prefs, setPrefs, sel, setSel, sheet, setSheet, top, settings, onGo } = props;
+  const { area, place, report, game, linkPlace, linkEra, prefs, setPrefs, sel, setSel, sheet, setSheet, top, settings, onGo } = props;
   const idx = useMapIndex();
   const landmarks = useLandmarks();
+  const beanSpots = useBeanSoil();
+  // The soft soil picked on this map, whose ride is drawn (a collectible or landmark picked instead clears it).
+  const [bean, setBean] = useState<string | null>(null);
   const [found] = useShared<Record<string, number>>("gossip.found", {});
   // Landmarks Link has stood right beside while the app was connected (when, as a time). The save has no flag for "spoke to this
   // stone" or "entered this grotto", so this is the best the app can tell; it is kept apart from the Rumor Hunt points.
@@ -683,15 +732,24 @@ function AreaMap(props: {
   const [mark, setMark] = useState<string | null>(null);
   // (a landmark picked on one map isn't picked on the next)
   useEffect(() => setMark(null), [area]);
+  useEffect(() => setBean(null), [area]);
   const [seenWalk, setSeenWalk] = useShared<number[]>("lostwood.seen", []);
   const here = linkPlace === area;
-  const all = entriesFor(report, area);
-  const row = rows.find((r) => r.area === area) ?? { area, kinds: {}, have: 0, of: 0 };
+  const allEntries = entriesFor(report, area);
 
   // ----- which picture: the era (field maps) or the floor (dungeons)
   const eras: Era[] = place ? (["child", "adult"] as Era[]).filter((e) => place[e]) : [];
-  const firstLayer = startingLayer(place, here && linkEra ? linkEra : prefs.era, here ? (game?.pos?.[1] ?? null) : null, all);
+  const firstLayer = startingLayer(
+    place,
+    prefs.era,
+    here ? (game?.pos?.[1] ?? null) : null,
+    allEntries.filter((e) => inEra(e, prefs.era)),
+  );
   const [era, setEra] = useState<Era>(firstLayer.era);
+  const otherNeeded = otherEraNeeded(allEntries, era);
+  const canSwitchEra = eras.length > 1 || !!place?.dungeon || !place;
+  const all = allEntries.filter((e) => inEra(e, era));
+  const row = areaRows(reportForEra(report, era)).find((r) => r.area === area) ?? { area, kinds: {}, have: 0, of: 0 };
   const floors = place?.floors ?? [];
   const [floor, setFloor] = useState(firstLayer.floor);
   const [layerBusy, setLayerBusy] = useState(false);
@@ -750,6 +808,16 @@ function AreaMap(props: {
   const onFloor = (y: number) => !place?.dungeon || !usePicture || floorOf(place, y) === floor;
   const shown = all.filter((e) => prefs.kinds[e.kind] && (!prefs.incompleteOnly || e.have < e.of) && (!e.pos || onFloor(e.pos[1])));
   const selected = shown.find((e) => e.id === sel) ?? null;
+  // Magic bean soil on this map (field pictures only; it is there as a child and, grown, as an adult).
+  const soils = prefs.beans && usePicture && !place!.dungeon ? (beanSpots ?? []).filter((s) => placeAt(idx, s.area, s.pos[0], s.pos[2]) === area) : [];
+  const soil = soils.find((s) => s.id === bean) ?? null;
+  // Rumor Hunt landmarks on this map (field pictures only).
+  const lands =
+    usePicture && !place!.dungeon
+      ? (landmarks ?? []).filter(
+          (m) => (prefs.marks ?? MAP_DEFAULTS.marks)[m.kind] && m.eras.includes(era) && placeAt(idx, m.area, m.pos[0], m.pos[2]) === area,
+        )
+      : [];
   const nearby: Near[] = [
     ...((usePicture && !place?.dungeon ? place?.[era]?.exits : null) ?? [])
       .filter((x) => x.to)
@@ -787,7 +855,8 @@ function AreaMap(props: {
   }, [game?.pos?.[0], game?.pos?.[2], here, walk.length]);
   const pct2 = (v: number) => `${v}%`;
   // How many layers are switched on (item kinds and landmark kinds).
-  const layersOn = MAP_KINDS.filter((k) => prefs.kinds[k]).length + LAND_KINDS.filter((k) => (prefs.marks ?? MAP_DEFAULTS.marks)[k]).length;
+  const layersOn =
+    MAP_KINDS.filter((k) => prefs.kinds[k]).length + LAND_KINDS.filter((k) => (prefs.marks ?? MAP_DEFAULTS.marks)[k]).length + (prefs.beans ? 1 : 0);
   // Without Link to follow, open on the middle of what is drawn (the area's pictures have wide empty margins).
   const drawn = [...all.filter((e) => e.pos && onFloor(e.pos[1])).map((e) => proj(e.pos![0], e.pos![2])), ...exits.map((x) => proj(x.x, x.z))];
   const centre = drawn.length
@@ -803,80 +872,153 @@ function AreaMap(props: {
     if (place) preloadMapSources([place.child?.image, place.adult?.image, ...place.floors.map((f) => f.image)]);
   }, [place]);
 
-  const layer = () => (
-    <>
-      {usePicture && img && <img className="pz-img" src={img.url} alt="" draggable={false} />}
-      {walk.length > 0 && <Maze walk={walk} place={place!} aspect={aspect} seen={prefs.reveal ? walked : null} />}
-      {exits.map((x, i) => {
-        const q = proj(x.x, x.z);
-        const ang = (Math.atan2(q.top - 50, (q.left - 50) / aspect) * 180) / Math.PI + 90;
-        return (
-          <button key={i} className="exit" style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => onGo(x.to)} aria-label={`To ${prettyArea(x.to)}`}>
-            <span className="chev">
-              <span style={{ display: "grid", transform: `rotate(${ang}deg)` }}>
-                <ExitArrow />
+  // `px`: the picture's width on screen, which decides which markers cover each other (the paper stand-in fills the view).
+  const layer = (px: number = emPx() * 26) => {
+    const em = emPx();
+    const spots = [
+      ...shown.flatMap((e) => (e.pos ? [{ key: `i:${e.id}`, ...proj(e.pos[0], e.pos[2]) }] : [])),
+      ...lands.map((m) => ({ key: `l:${m.id}`, ...proj(m.pos[0], m.pos[2]) })),
+      ...soils.map((s) => ({ key: `b:${s.id}`, ...proj(s.pos[0], s.pos[2]) })),
+    ];
+    const spread = spreadMarkers(spots, px, aspect, em);
+    // Markers that would cover each other are set in a row on their group's centre.
+    const at = (key: string, q: { left: number; top: number }) => {
+      const m = spread.shift.get(key);
+      return { left: pct2(q.left), top: pct2(q.top), ...(m ? ({ "--dx": `${m.dx}em`, "--dy": `${m.dy}em` } as CSSProperties) : {}) };
+    };
+    // Arrows along the picked ride, so the way it goes is clear: the ride starts at the soil and follows the route in order.
+    const arrows = soil ? rideArrows(soil.path, proj, aspect) : [];
+    return (
+      <>
+        {usePicture && img && <img className="pz-img" src={img.url} alt="" draggable={false} />}
+        {walk.length > 0 && <Maze walk={walk} place={place!} aspect={aspect} seen={prefs.reveal ? walked : null} />}
+        {exits.map((x, i) => {
+          const q = proj(x.x, x.z);
+          const ang = (Math.atan2(q.top - 50, (q.left - 50) / aspect) * 180) / Math.PI + 90;
+          return (
+            <button key={i} className="exit" style={{ left: pct2(q.left), top: pct2(q.top) }} onClick={() => onGo(x.to)} aria-label={`To ${prettyArea(x.to)}`}>
+              <span className="chev">
+                <span style={{ display: "grid", transform: `rotate(${ang}deg)` }}>
+                  <ExitArrow />
+                </span>
               </span>
-            </span>
-            <small>{prettyArea(x.to)}</small>
-          </button>
-        );
-      })}
-      {shown.map((e) => {
-        if (!e.pos) return null;
-        const q = proj(e.pos[0], e.pos[2]);
-        return (
-          <button
-            key={e.id}
-            className={`mk ${e.id === sel ? "sel" : ""} ${e.have >= e.of ? "done" : ""}`}
-            style={{ left: pct2(q.left), top: pct2(q.top) }}
-            onClick={() => {
-              setMark(null);
-              setSel(e.id);
-            }}
-            aria-label={e.label}
+              <small>{prettyArea(x.to)}</small>
+            </button>
+          );
+        })}
+        {spread.groups.map((g, i) => (
+          <span key={i} className="mk-grp" style={{ left: pct2(g.left), top: pct2(g.top), width: `${(g.n - 1) * GROUP_STEP + 2.4}em` }} aria-hidden />
+        ))}
+        {soil && (
+          <>
+            <svg className="bean-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+              <polyline
+                points={soil.path
+                  .map((p) => {
+                    const q = proj(p[0], p[2]);
+                    return `${q.left},${q.top}`;
+                  })
+                  .join(" ")}
+                className="under"
+              />
+              <polyline
+                points={soil.path
+                  .map((p) => {
+                    const q = proj(p[0], p[2]);
+                    return `${q.left},${q.top}`;
+                  })
+                  .join(" ")}
+                className="line"
+              />
+            </svg>
+            {arrows.map((a, i) => (
+              <span
+                key={i}
+                className="bean-arrow"
+                style={{ left: pct2(a.left), top: pct2(a.top), transform: `translate(-50%, -50%) rotate(${a.deg}deg)` }}
+                aria-hidden
+              />
+            ))}
+            {soil.stops.map((p, i) => {
+              const q = proj(p[0], p[2]);
+              return <span key={i} className="bean-stop" style={{ left: pct2(q.left), top: pct2(q.top) }} title="Where the ride lets you off" />;
+            })}
+          </>
+        )}
+        {soils.map((s) => {
+          const q = proj(s.pos[0], s.pos[2]);
+          return (
+            <button
+              key={s.id}
+              className={`mk bean ${s.id === bean ? "sel" : ""}`}
+              style={at(`b:${s.id}`, q)}
+              onClick={() => {
+                setSel(null);
+                setMark(null);
+                setBean(s.id === bean ? null : s.id);
+              }}
+              aria-label={`Magic bean soil, ${beanName(s, beanSpots ?? [])}`}
+              aria-pressed={s.id === bean}
+            >
+              <BeanIcon />
+            </button>
+          );
+        })}
+        {shown.map((e) => {
+          if (!e.pos) return null;
+          const q = proj(e.pos[0], e.pos[2]);
+          return (
+            <button
+              key={e.id}
+              className={`mk ${e.id === sel ? "sel" : ""} ${e.have >= e.of ? "done" : ""}`}
+              style={at(`i:${e.id}`, q)}
+              onClick={() => {
+                setMark(null);
+                setBean(null);
+                setSel(e.id);
+              }}
+              aria-label={shortLabel(e.label)}
+            >
+              <Marker kind={e.kind} done={e.have >= e.of} />
+            </button>
+          );
+        })}
+        {lands.map((m) => {
+          const q = proj(m.pos[0], m.pos[2]);
+          return (
+            <button
+              key={m.id}
+              className={`mk land ${m.id === mark ? "sel" : ""} ${found[m.id] || visited[m.id] ? "done" : ""}`}
+              style={at(`l:${m.id}`, q)}
+              onClick={() => {
+                setSel(null);
+                setBean(null);
+                setMark(m.id === mark ? null : m.id);
+              }}
+              aria-label={LANDMARK[m.kind].name}
+            >
+              <LandIcon kind={m.kind} done={!!(found[m.id] || visited[m.id])} />
+            </button>
+          );
+        })}
+        {link && prefs.showLink && (
+          <div
+            className="link"
+            style={{ left: pct2(link.left), top: pct2(link.top), transform: `translate(-50%, -50%) rotate(${180 - (game?.facing ?? 180)}deg)` }}
           >
-            <Marker kind={e.kind} done={e.have >= e.of} />
-          </button>
-        );
-      })}
-      {usePicture &&
-        !place!.dungeon &&
-        (landmarks ?? [])
-          .filter((m) => (prefs.marks ?? MAP_DEFAULTS.marks)[m.kind] && m.eras.includes(era) && placeAt(idx, m.area, m.pos[0], m.pos[2]) === area)
-          .map((m) => {
-            const q = proj(m.pos[0], m.pos[2]);
-            return (
-              <button
-                key={m.id}
-                className={`mk land ${m.id === mark ? "sel" : ""} ${found[m.id] || visited[m.id] ? "done" : ""}`}
-                style={{ left: pct2(q.left), top: pct2(q.top) }}
-                onClick={() => {
-                  setSel(null);
-                  setMark(m.id === mark ? null : m.id);
-                }}
-                aria-label={LANDMARK[m.kind].name}
-              >
-                <LandIcon kind={m.kind} done={!!(found[m.id] || visited[m.id])} />
-              </button>
-            );
-          })}
-      {link && prefs.showLink && (
-        <div
-          className="link"
-          style={{ left: pct2(link.left), top: pct2(link.top), transform: `translate(-50%, -50%) rotate(${180 - (game?.facing ?? 180)}deg)` }}
-        >
-          <LinkArrow />
-        </div>
-      )}
-    </>
-  );
+            <LinkArrow />
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="mapwrap">
       {usePicture ? (
         <>
           <PanZoom aspect={aspect} cover={1.7} focus={link ? { x: link.left / 100, y: link.top / 100 } : centre} focusKey={`${area}:${floor}:${!!link}`}>
-            {img ? layer() : null}
+            {(_zoom, view) => (img ? layer(view.px) : null)}
           </PanZoom>
           {!img && (
             <p className="empty" style={{ position: "absolute", top: "45%", left: 0, right: 0, textAlign: "center" }}>
@@ -900,13 +1042,24 @@ function AreaMap(props: {
         {prettyArea(area)}
         <i />
       </div>
-      {eras.length > 1 && !place?.dungeon && (
-        <div className="era-tabs">
-          {eras.map((e) => (
-            <button key={e} className={e === era ? "on" : ""} onClick={() => pickEra(e)}>
-              {e === "child" ? "Young" : "Adult"}
-            </button>
-          ))}
+      {canSwitchEra && (
+        <div className="era-box">
+          <div className="era-tabs">
+            {(eras.length ? eras : (["child", "adult"] as Era[])).map((e) => (
+              <button key={e} className={e === era ? "on" : ""} aria-pressed={e === era} onClick={() => pickEra(e)}>
+                {e === "child" ? "Child" : "Adult"}
+              </button>
+            ))}
+          </div>
+          {otherNeeded > 0 && (
+            <div className="era-note-slot">
+              <p className="map-era-note" aria-live="polite">
+                {otherNeeded} {otherNeeded === 1 ? "collectible still" : "collectibles still"}
+                <br />
+                needed as <b>{era === "child" ? "Adult" : "Child"}</b>.
+              </p>
+            </div>
+          )}
         </div>
       )}
       {usePicture && place!.dungeon && floors.length > 1 && (
@@ -928,7 +1081,7 @@ function AreaMap(props: {
         <span>Filters</span>
         {layersOn > 0 && <b>{layersOn}</b>}
       </button>
-      {shown.length === 0 && (
+      {shown.length === 0 && lands.length === 0 && soils.length === 0 && (
         <p className="map-hint">
           {layersOn === 0 ? "Everything is switched off. Open Filters to choose what to see." : "Nothing to show here with these filters."}
         </p>
@@ -949,6 +1102,21 @@ function AreaMap(props: {
         </div>
       )}
 
+      {soil && (
+        <aside className="bean-card" aria-label="Magic bean soil">
+          <header>
+            <b>Magic bean soil</b>
+            <button className="x" onClick={() => setBean(null)} aria-label="Close">
+              <Close />
+            </button>
+          </header>
+          <div className="small">{beanName(soil, beanSpots ?? [])}</div>
+          <div className="small muted">
+            Ride: {Math.round(soil.length)} m loop, {soil.stops.length} {soil.stops.length === 1 ? "stop" : "stops"} (dots)
+          </div>
+          <div className="small muted">It starts at the soil and goes the way the arrows point.</div>
+        </aside>
+      )}
       {mark &&
         (() => {
           const m = landmarks?.find((x) => x.id === mark);
@@ -987,7 +1155,7 @@ function AreaMap(props: {
                 <Marker kind={selected.kind} done={selected.have >= selected.of} />
               </span>
               <span>
-                <div>{prefs.contents ? selected.label.replace(/ in .*? \(/, " (") : KIND_NAME[selected.kind].replace(/s$/, "")}</div>
+                <div>{prefs.contents ? shortLabel(selected.label).replace(/ in .*? \(/, " (") : KIND_NAME[selected.kind].replace(/s$/, "")}</div>
                 <div className="small muted" style={{ fontWeight: 600 }}>
                   {selected.have >= selected.of ? "Complete" : "Not yet"}
                 </div>
@@ -1000,6 +1168,10 @@ function AreaMap(props: {
           <div className="body">
             <div className="card" style={{ margin: ".4em 1em" }}>
               <h3 style={{ textAlign: "center" }}>Where</h3>
+              <div className="rowline small">
+                <span>Placement era</span>
+                <span>{selected.eras?.length ? selected.eras.map((e) => (e === "child" ? "Child" : "Adult")).join(" / ") : "Unspecified"}</span>
+              </div>
               <div className="rowline small">
                 <span>Area</span>
                 <span>{prettyArea(selected.area)}</span>
@@ -1091,6 +1263,18 @@ function AreaMap(props: {
               </div>
             ))}
             <div className="small muted" style={{ margin: "1.2em 0 .4em" }}>
+              Magic beans
+            </div>
+            <div className="rowline" style={{ padding: ".55em 0" }}>
+              <span style={{ display: "flex", gap: ".7em", alignItems: "center" }}>
+                <span style={{ width: "1.8em", height: "1.8em", display: "inline-block" }}>
+                  <BeanIcon />
+                </span>
+                Magic bean soil and rides
+              </span>
+              <Toggle on={!!prefs.beans} label="Magic bean soil and rides" onChange={(v) => setPrefs({ ...prefs, beans: v })} />
+            </div>
+            <div className="small muted" style={{ margin: "1.2em 0 .4em" }}>
               Landmarks (Rumor Hunt places)
             </div>
             {LAND_KINDS.map((k) => {
@@ -1168,7 +1352,7 @@ function Spoiler({ hints }: { hints: { title: string; text: string }[] }) {
               <b>{h.title}.</b> {h.text}
             </p>
           ))}
-          <p className="src">From your own game files. The app can't see how to reach a spot, only where it is and what the game calls it.</p>
+          <p className="src">Where it is and what the game calls it come from your own game files. Anything about how to get there is a tip written by hand.</p>
           <button className="spoil-btn" onClick={() => setOpen(false)}>
             Hide it again
           </button>

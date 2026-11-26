@@ -1,4 +1,5 @@
 import { isRemote } from "./ipc";
+import { loadBeans } from "./beans";
 import { loadLandmarks } from "./landmarks";
 import { loadLore } from "./lore";
 import { loadIndex, preloadMapImages } from "./maps";
@@ -14,5 +15,6 @@ export function warmUp() {
   loadTapestry().then((idx) => idx && preloadMapImages(["tapestry/base", "tapestry/shadow", "tapestry/woven"]));
   loadLore();
   loadLandmarks();
+  loadBeans();
   preloadMapImages(["world"]);
 }

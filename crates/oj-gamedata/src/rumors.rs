@@ -1,8 +1,9 @@
 //! Places worth finding for this app's own Gossip Quests, read from the maps of the player's game (`Banc`). The original
 //! app's rumours (photos and wording) live in Nintendo's app, not in the game, so this app makes its own from landmarks
 //! the game places: gossip stones, grotto entrances, cows, the owl's perches, scarecrow spots, frogs, soft soil for
-//! magic beans and beehives. Only field maps (`<Area>_Child`, `<Area>_Adult`) are read, so every rumour has a spot on a
-//! map picture; one landmark placed in both eras is one rumour, and actors of a kind standing together are one place.
+//! magic beans and beehives. Only places with a map picture are read: field maps (`<Area>_Child`, `<Area>_Adult`) and
+//! overworld places whose scene file has no age in its name (Hyrule Castle), which both ages share. Dungeons are left out.
+//! One landmark placed in both eras is one rumour, and actors of a kind standing together are one place.
 
 use std::collections::BTreeMap;
 
@@ -44,6 +45,9 @@ fn kind_of(gyaml: &str) -> Option<&'static str> {
 
 pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
     let mut by_id: BTreeMap<String, Rumor> = BTreeMap::new();
+    // A dungeon is a place with floors in the game's map parameters; its scene file has no age either.
+    let param = files.byml("Banc/BancBasedResource/MapParam.byml.zs").ok();
+    let is_dungeon = |dir: &str| param.as_ref().and_then(|p| p.get(dir)).is_some_and(|p| p.get("Floor").is_some());
     for dir in files.list("Banc") {
         for file in files.list(&format!("Banc/{dir}")) {
             let Some(banc) =
@@ -51,10 +55,12 @@ pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
             else {
                 continue;
             };
-            let era = if banc.contains("_Child") {
-                "child"
+            let eras: &[&str] = if banc.contains("_Child") {
+                &["child"]
             } else if banc.contains("_Adult") {
-                "adult"
+                &["adult"]
+            } else if !is_dungeon(&dir) {
+                &["child", "adult"] // one scene for both ages (Hyrule Castle)
             } else {
                 continue;
             };
@@ -86,8 +92,10 @@ pub fn rumors(files: &GameFiles) -> Result<Vec<Rumor>, Error> {
                     pos: [x, y, z],
                     eras: vec![],
                 });
-                if !r.eras.iter().any(|e| e == era) {
-                    r.eras.push(era.into());
+                for era in eras {
+                    if !r.eras.iter().any(|e| e == era) {
+                        r.eras.push((*era).into());
+                    }
                 }
             }
         }

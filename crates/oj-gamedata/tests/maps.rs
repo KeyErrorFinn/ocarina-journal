@@ -2,6 +2,68 @@
 //! repository). The expected values are the ones checked by hand when the reader was written (v3.0.0-rc.5).
 
 #[test]
+fn collectible_eras_come_from_the_players_placements() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let game = oj_gamedata::Game::open(std::path::Path::new(&game)).unwrap();
+    let (mut child, mut adult, mut both, mut unknown) = (0, 0, 0, 0);
+    for category in &game.catalogue {
+        if !["chests", "skulltulas", "heart-pieces", "heart-containers"].contains(&category.id) {
+            continue;
+        }
+        for entry in &category.entries {
+            match game.eras(entry) {
+                None => unknown += 1,
+                Some(eras) => {
+                    assert!(eras.iter().all(|age| age == "child" || age == "adult"));
+                    if eras.len() == 2 {
+                        both += 1;
+                    } else if eras[0] == "child" {
+                        child += 1;
+                    } else {
+                        adult += 1;
+                    }
+                }
+            }
+        }
+    }
+    assert!(child > 0 && adult > 0 && both > 0 && unknown > 0);
+    eprintln!("Placement provenance: {child} child-only, {adult} adult-only, {both} both, {unknown} unspecified");
+}
+
+#[test]
+fn bean_soil_spots_come_with_their_rides() {
+    let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
+    let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
+    let spots = oj_gamedata::beans::bean_spots(&files).unwrap();
+    let ids: Vec<&str> = spots.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "DeathMountainCrater",
+            "DeathMountainTrail",
+            "DesertColossus",
+            "GerudoValley",
+            "Graveyard",
+            "KokiriForest",
+            "LakeHylia",
+            "LostWood01",
+            "LostWood02",
+            "ZoraRiver02"
+        ]
+    );
+    for s in &spots {
+        assert!(s.path.len() > 2 && s.length > 1.0, "{} has no route", s.id);
+        assert!(!s.stops.is_empty(), "{} has no stops", s.id);
+    }
+    // Checked by hand against the rails: Zora's River is a 318 m loop with three stops, the Graveyard's a 4 m hop.
+    let zora = spots.iter().find(|s| s.id == "ZoraRiver02").unwrap();
+    assert_eq!(zora.stops.len(), 3);
+    assert!((zora.length - 318.0).abs() < 40.0, "{}", zora.length);
+    assert!(spots.iter().find(|s| s.id == "Graveyard").unwrap().length < 10.0);
+    eprintln!("bean soil: {} spots, Zora's River route {:.0} m", spots.len(), zora.length);
+}
+
+#[test]
 fn reads_the_game_maps() {
     let Ok(game) = std::env::var("OJ_TEST_GAME") else { return };
     let files = oj_gamedata::files::GameFiles::open(std::path::Path::new(&game)).unwrap();
@@ -90,6 +152,14 @@ fn finds_landmarks_for_rumours() {
         ["stone", "grotto", "cow", "owl", "scarecrow", "frog", "beehive"].map(|k| (k, count(k)))
     );
     assert!(count("stone") >= 10 && count("grotto") >= 10);
+    // Hyrule Castle's scene file has no age in its name; its grotto and Gossip Stones are still places on its map, for both ages.
+    let castle: Vec<_> = r.iter().filter(|x| x.area == "HyruleCastle").collect();
+    assert!(castle.iter().any(|x| x.kind == "grotto") && castle.iter().filter(|x| x.kind == "stone").count() >= 3);
+    assert!(castle.iter().all(|x| x.eras.len() == 2));
+    // Dungeons have no landmarks on their maps.
+    for dungeon in ["DodongoCavern", "FireTemple", "WaterTemple", "SpiritTemple", "ShadowTemple", "ForestTemple"] {
+        assert!(r.iter().all(|x| x.area != dungeon), "{dungeon} has landmarks");
+    }
     assert!(r.iter().all(|x| !x.eras.is_empty()));
     // No two rumours of a kind share a spot.
     for (i, a) in r.iter().enumerate() {
