@@ -21,7 +21,7 @@ it can show the same journal on your phone, tablet or a second monitor (see [Sec
 > Ocarina Journal contains no game files, keys, Nintendo assets or Nintendo source code. All artwork in the
 > app is original. "Zelda", "Ocarina of Time" and related names belong to Nintendo.
 
-**Status: 1.3.0.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
+**Status: 1.4.0.** The Windows app (first released as 1.0.0) runs and reads real saves. The Linux build is new in
 1.1.0: CI builds it and starts it in a virtual display, but it hasn't yet been run against a live Linux Longshot
 game, so treat Linux as an early release (see [`docs/research/LINUX.md`](docs/research/LINUX.md)). Expect rough
 edges, and see [Known gaps](#known-gaps) for what is still unverified.
@@ -58,7 +58,7 @@ title bar (see [Settings](#settings)):
 
 | Tile | What it shows |
 |---|---|
-| **Map** | The game's own world, area and dungeon-floor maps (read from your game folder), with the chests, Gold Skulltulas and hearts you have and haven't found, exits, floors, and Link live |
+| **Map** | The game's own world, area and dungeon-floor maps (read from your game folder), with a Child/Adult switch, era-specific collectible counts where known, exits, floors, and Link live. Unspecified-era items stay visible. An optional layer marks the ten magic bean soil spots and draws the route of each bean ride |
 | **Rumor Hunt** | Rumours about landmarks in your own game (gossip stones, grottos, cows, frogs and more): go there with the bridge on and tap Found! for points, then spend them on ocarinas |
 | **Hall of Foes** | Enemies and bosses defeated, kill counts, Hall rematch records and the three trials, locked until the save opens the Hall |
 | **Today's Journal** | What each save gained today (works without the bridge, even with the app closed), plus a live timeline and stats with the bridge on |

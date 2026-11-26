@@ -194,7 +194,7 @@ h1, h2, h3, p { margin: 0; }
 .chip { display: inline-grid; place-items: center; }
 .cap { position: absolute; z-index: 4; transform: translate(-50%, -50%); background: linear-gradient(180deg,#e9c76a,#c89e3d); border: 1.5px solid #6b4a14; color: #3d2a0c; font: 800 .8em var(--body); padding: .25em .9em; box-shadow: 0 2px 3px #0005; white-space: nowrap; }
 .cap small { display: block; font-size: .72em; font-weight: 700; opacity: .75; text-align: center; }
-.mk { position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 2em; height: 2em; background: none; border: 0; padding: 0; }
+.mk { position: absolute; z-index: 4; transform: translate(calc(-50% + var(--dx, 0em)), calc(-50% + var(--dy, 0em))); width: 2em; height: 2em; background: none; border: 0; padding: 0; }
 .mk.land { width: 1.7em; height: 1.7em; z-index: 3; }
 .mk svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #0008); }
 .mk-pic { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
@@ -209,6 +209,20 @@ h1, h2, h3, p { margin: 0; }
 @keyframes mk-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mk:not(.done)::after { animation: none; } }
 .mk.sel::before { content: ""; position: absolute; inset: -.35em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #7a60d8, 0 0 12px #9d8cf0; }
+/* Markers that would cover each other sit in a row on a soft pill (see markerSpread.ts). */
+.mk-grp { position: absolute; z-index: 2; height: 2.5em; transform: translate(-50%, -50%); border-radius: 99px; background: rgba(20,16,12,.38); box-shadow: 0 0 0 1px rgba(255,255,255,.28); pointer-events: none; }
+.bean-arrow { position: absolute; z-index: 3; width: .95em; height: .95em; background: #8fe58a; clip-path: polygon(0 5%, 100% 50%, 0 95%, 22% 50%); filter: drop-shadow(0 0 1px #14100c); pointer-events: none; }
+.mk.bean { width: 1.9em; height: 1.9em; z-index: 5; }
+.bean-route { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; overflow: visible; }
+.bean-route polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.bean-route .under { stroke: #14100c; stroke-width: 5px; opacity: .75; }
+.bean-route .line { stroke: #8fe58a; stroke-width: 2.5px; stroke-dasharray: 7 5; }
+.bean-stop { position: absolute; z-index: 4; width: .9em; height: .9em; transform: translate(-50%, -50%); border-radius: 50%; background: #8fe58a; border: 2px solid #14100c; box-shadow: 0 0 0 1px #8fe58a; pointer-events: none; }
+/* Small and low in the corner, so the picked soil, its route and its stops stay in view. */
+.bean-card { position: absolute; z-index: 7; left: .8em; bottom: 8em; max-width: min(15em, 55%); padding: .45em .6em .55em; border-radius: .6em; border: 1px solid #4a3a28; background: rgba(20,16,12,.92); color: #f1dfb4; display: grid; gap: .15em; }
+.bean-card header { display: flex; align-items: center; justify-content: space-between; gap: .6em; font-size: .85em; }
+.bean-card .x { background: #2a2018; border: 0; width: 1.8em; height: 1.8em; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.bean-card .x svg { width: 1em; height: 1em; }
 .link { position: absolute; z-index: 5; width: 1.25em; height: 1.25em; transform: translate(-50%, -50%); pointer-events: none; }
 .wisp { position: relative; display: block; width: 100%; height: 100%; }
 .wisp img { position: absolute; inset: -20%; width: 140%; height: 140%; animation: wisp 2.4s ease-in-out infinite; }
@@ -268,7 +282,8 @@ h1, h2, h3, p { margin: 0; }
 .exit .chev svg { width: 1.35em; height: 1.35em; fill: none; stroke: #3d2a0c; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 0 #fff6); }
 .exit:hover .chev, .exit:focus-visible .chev { transform: scale(1.12); box-shadow: 0 3px 8px #000a, 0 0 0 3px #fff7d6aa, inset 0 1px 1px #fff9; }
 .exit small { background: linear-gradient(180deg, #f6e8bd, #e2c880); border: 1.5px solid #4a3416; color: #3d2a0c; padding: .08em .6em; border-radius: 99px; font-size: .64em; font-weight: 800; white-space: nowrap; box-shadow: 0 1px 3px #0007; }
-.era-tabs { position: absolute; z-index: 5; top: 7.1em; left: 1.2em; display: flex; border: 2px solid #3b2815; border-radius: 99px; overflow: hidden; }
+.era-box { position: absolute; z-index: 5; top: 7.1em; left: 1.2em; width: max-content; display: flex; flex-direction: column; align-items: center; gap: .65em; pointer-events: none; }
+.era-tabs { display: flex; border: 2px solid #3b2815; border-radius: 99px; overflow: hidden; pointer-events: auto; }
 .era-tabs button { border: 0; background: rgba(251,240,212,.85); color: #3b2815; font: 800 .74em var(--body); padding: .35em .9em; }
 .era-tabs button.on { background: #3b2815; color: #fbf0d4; }
 .floor-tabs { position: absolute; z-index: 5; right: .9em; top: 14.4em; display: flex; flex-direction: column; gap: .3em; }
@@ -647,3 +662,6 @@ html[data-frameless] .stage { padding-top: 28px; }
   border-radius: 99px; background: rgba(34,28,22,.92); border: 1.5px solid #4a3a28; color: #f1dfb4; font-size: .82em; font-weight: 700; text-align: center; box-shadow: 0 2px 8px #0008; pointer-events: none; }
 
 .map-layer-status { position: absolute; z-index: 12; bottom: 7em; left: 50%; transform: translateX(-50%); max-width: 85%; padding: .6em 1em; background: #17110de8; color: #f0d69c; border: 1px solid #8a6a3f; border-radius: .5em; text-align: center; }
+/* The note is centred under the switch without making the box wider than the switch: a zero-width slot that stretches to it. */
+.era-note-slot { width: 0; min-width: 100%; display: flex; justify-content: center; }
+.map-era-note { flex: none; margin: 0; padding: .25em .5em; border-radius: .4em; background: rgba(251,240,212,.9); color: #3b2815; font-size: .72em; white-space: nowrap; pointer-events: none; }

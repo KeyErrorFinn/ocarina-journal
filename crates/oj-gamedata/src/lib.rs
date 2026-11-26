@@ -6,6 +6,7 @@
 //! checks it against a save. The rules follow Longshot's save editor (PR #1655); this is an independent Rust
 //! implementation, tested against that tool's output. **Nothing from the game is stored in this repository.**
 
+pub mod beans;
 pub mod files;
 pub mod lore;
 pub mod maps;
@@ -436,6 +437,7 @@ pub struct Game {
     pub data: GameData,
     pub catalogue: Vec<Category>,
     hall: Vec<HallSlot>,
+    placement_eras: HashMap<String, BTreeSet<String>>,
 }
 
 impl Game {
@@ -447,7 +449,7 @@ impl Game {
         let place = Placements::scan(&files)?;
         let mut cats: BTreeMap<&str, Vec<Entry>> = BTreeMap::new();
         items(&files, &data, &names, &mut cats);
-        placed(&files, &data, &names, &place, &mut cats);
+        let placement_eras = placed(&files, &data, &names, &place, &mut cats);
         quests(&files, &data, &names, &mut cats);
         let catalogue: Vec<Category> = TITLES
             .iter()
@@ -457,7 +459,18 @@ impl Game {
             })
             .collect();
         let hall = hall_slots(&data, &names, &catalogue);
-        Ok(Self { files, data, catalogue, hall })
+        Ok(Self { files, data, catalogue, hall, placement_eras })
+    }
+
+    /// Placement provenance, not a guarantee that current quests/equipment allow reaching the item.
+    pub fn eras(&self, entry: &Entry) -> Option<Vec<String>> {
+        let key = match entry.kind {
+            Kind::Flag(Some(h)) => format!("f{h}"),
+            Kind::Key(h) => format!("k{h}"),
+            _ => return None,
+        };
+        let eras = self.placement_eras.get(&key)?;
+        (!eras.contains("unknown")).then(|| eras.iter().cloned().collect())
     }
 }
 
@@ -565,7 +578,23 @@ fn actor_fields(a: &Actor) -> (String, Option<i128>) {
     (where_, a.hash.as_ref().and_then(Val::int))
 }
 
-fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, out: &mut BTreeMap<&str, Vec<Entry>>) {
+fn record_era(eras: &mut HashMap<String, BTreeSet<String>>, key: String, banc: &str) {
+    let age = match banc.split('_').find(|p| matches!(*p, "Child" | "Adult")) {
+        Some("Child") => "child",
+        Some("Adult") => "adult",
+        _ => "unknown",
+    };
+    eras.entry(key).or_default().insert(age.into());
+}
+
+fn placed(
+    files: &GameFiles,
+    gd: &GameData,
+    names: &Names,
+    place: &Placements,
+    out: &mut BTreeMap<&str, Vec<Entry>>,
+) -> HashMap<String, BTreeSet<String>> {
+    let mut eras = HashMap::new();
     let keyflag: HashSet<i128> = gd
         .flags
         .values()
@@ -599,6 +628,30 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
             let gy = a.gyaml.as_str();
             let dyn_ = &a.dynamic;
             let drop = dyn_.get("Drop__DropActor").and_then(Val::as_str).unwrap_or("");
+            if let Some(h) = hs {
+                if gy.starts_with("Obj_TBox") {
+                    if let Some(flag) = gd.find(&format!("IsTreasureBoxOpen.{h}")) {
+                        record_era(&mut eras, format!("f{flag}"), banc);
+                    }
+                }
+                if matches!(gy, "Enemy_Skulltula_Gold" | "Obj_Heart_Container") {
+                    record_era(&mut eras, format!("k{h}"), banc);
+                }
+                if gy == "HeartPieceAnchor" {
+                    let path =
+                        dyn_.get("HeartPieceAnchor_GameDataPath").and_then(Val::as_str).filter(|s| !s.is_empty());
+                    if let Some(flag) = path.and_then(|p| gd.find(p)) {
+                        record_era(&mut eras, format!("f{flag}"), banc);
+                    } else if path.is_none() {
+                        if let Some(r) = a.links.iter().find(|(src, _)| *src == Some(h)).and_then(|(_, dst)| *dst) {
+                            record_era(&mut eras, format!("k{r}"), banc);
+                            if let Some(flag) = gd.find(&format!("IsTreasureBoxOpen.{r}")) {
+                                record_era(&mut eras, format!("f{flag}"), banc);
+                            }
+                        }
+                    }
+                }
+            }
             if let (true, Some(h)) = (gy.starts_with("Obj_TBox"), hs) {
                 if !chests.contains_key(&h)
                     && gd.find(&format!("IsTreasureBoxOpen.{}", py_int(a.hash.as_ref()))).is_some()
@@ -869,6 +922,7 @@ fn placed(files: &GameFiles, gd: &GameData, names: &Names, place: &Placements, o
         }
     }
     list.sort_by_key(|e| e.label.to_lowercase());
+    eras
 }
 
 fn py_int(v: Option<&Val>) -> String {
@@ -954,6 +1008,9 @@ pub struct RepEntry {
     pub have: u32,
     pub of: u32,
     pub note: Option<String>,
+    /// Eras explicitly named by the placement sources. None means unspecified, not both.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eras: Option<Vec<String>>,
     /// How many times it was defeated (enemies and bosses only): the game's `DefeatedEnemyNum` counter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<u32>,
@@ -1102,6 +1159,7 @@ impl Game {
                             have: h,
                             of: e.size(&self.data, sav),
                             note: e.describe(&self.data, sav),
+                            eras: self.eras(e),
                             count: e.count(&self.data, sav),
                             step: e.step(&self.data, sav),
                         })
@@ -1153,6 +1211,18 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn era_sources_merge_and_unspecified_sources_remain_unknown() {
+        let mut eras = HashMap::new();
+        record_era(&mut eras, "chest".into(), "SyntheticField_Child");
+        record_era(&mut eras, "chest".into(), "SyntheticField_Adult_Alternative");
+        assert_eq!(eras["chest"], BTreeSet::from(["adult".into(), "child".into()]));
+        record_era(&mut eras, "chest".into(), "SyntheticDungeon");
+        assert!(eras["chest"].contains("unknown"));
+        record_era(&mut eras, "other".into(), "SyntheticChildhoodField");
+        assert_eq!(eras["other"], BTreeSet::from(["unknown".into()]));
+    }
 
     #[test]
     fn quest_objectives_read_as_one_line() {

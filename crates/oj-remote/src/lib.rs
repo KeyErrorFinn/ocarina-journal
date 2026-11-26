@@ -32,7 +32,7 @@ use serde_json::Value;
 use tokio::sync::{broadcast, oneshot};
 
 /// The only commands a browser can ask for. Every one only reads.
-pub const READ_ONLY: [&str; 8] = [
+pub const READ_ONLY: [&str; 9] = [
     "get_state",
     "get_report",
     "get_map_index",
@@ -40,6 +40,7 @@ pub const READ_ONLY: [&str; 8] = [
     "get_tapestry",
     "get_lore",
     "get_rumors",
+    "get_bean_soil",
     "get_sound",
 ];
 

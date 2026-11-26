@@ -56,6 +56,76 @@ Hyrule Field's coordinates. The bridge also reports Link as in `HyruleField_*` t
 "is drawn" grid of each of their pictures and moves a Hyrule Field point to Lake Hylia or Lon Lon Ranch when it
 falls on that picture. The game itself probably uses the location shapes in `Work/Location/*.gyml` (not read). [I]
 
+## Collectible eras (2026-11-25)
+
+The report now retains the union of explicit `_Child` / `_Adult` placement-source names for chests, Gold
+Skulltulas, heart containers and heart-piece anchors. Identities use the same save flag or actor key already
+used to deduplicate the collectible, so collecting a shared item still completes one item, not two. Anchor
+references and `HeartPieceAnchor_GameDataPath` retain their source era too. [V] reader inspection, synthetic
+union/unknown tests and a read-only run against locally available game files (exact binary version unconfirmed).
+That local catalogue has 41 child-only, 36 adult-only, 62 both and 189 unspecified map collectibles.
+
+An unspecified source, such as a dungeon Banc without an era suffix, makes that item's era unknown. The reader
+does not infer dungeon ages from familiar game lore. Membership in an era's placement is not a proof of current
+reachability: equipment, quest conditions, night/day and event logic are not evaluated here. [U] Parity with
+the game's own age-specific map counters has not been established.
+
+The world map has a persistent Child/Adult switch. Area counts, completion sheets and collectible markers use
+that era; unknown-era entries remain included and are labelled Unspecified in the item details. The world map
+picture itself is shared; area pictures use their existing per-era layers. Ordinary navigation keeps the chosen
+era; Go to Link explicitly uses Link's current era when known. [V] frontend filtering regression and code review.
+Older cached reports without era metadata remain usable, with their entries treated as unspecified.
+The world-map note reads "Child/Adult progress" followed by "are combined" on a separate line. On location maps,
+a note below the switch names the other era and counts its remaining exclusive collectibles. Completed items,
+shared placements and unspecified-era entries do not trigger a request to switch. [V] filtering and rendered
+Child/Adult regressions.
+Placement eras cannot express how an item is reached. The Business Scrub Seed chest in Zora's River
+("Chest 1 in Zora River") is the same actor in `ZoraRiver_Child` and `ZoraRiver_Adult`: identical hash, position,
+parameters and links, inside the area's hidden-hole interior. Around its hole entrance the two scenes differ only in
+enemies, a Gold Skulltula, an NPC and some scenery, and the magic-bean leaf actors are present in both. So the app lists
+that chest for both ages; a requirement such as "plant a magic bean as Child, then reach it as Adult" is game logic
+that the placement data does not carry. [V] reader dump of both scenes.
+
+Synthetic world-map layouts were rendered and inspected at 450 and 1280 pixels wide: the era buttons and
+unspecified-era note do not overlap or overflow. This checks the controls, not game-derived map imagery.
+
+## Magic bean soil (2026-11-25)
+
+Each adult-scene `*_Adult_Static` file holds the soil spot and its ride. The soil is `Obj_SmallFarm_A_01` or `_A_02`
+(present while Link is a child) with its flag in `Dynamic.DiveInsectGameData`, named `Gimmick_MagicBeanSoil_<Area>`.
+The ride is `Obj_SmallFarm_A_03` at the same spot (present while Link is an adult), which links back to the soil with a
+`Plant` link and follows a closed `Guide` rail: ordered points with bezier controls (`Translate`, `Control0`, `Control1`)
+in the same file's `Rails`. The `DestinationAnchor` actors it links to are the places the ride lets Link off. All ten
+flags exist in the game data and read from a save like any other flag. [V] reader dump.
+
+| Soil flag | Soil position (x, y, z) | Ride (points, length, stops) |
+|---|---|---|
+| `..._DeathMountainCrater` | 4, 111, -1 | 18, 218 m, 2 |
+| `..._DeathMountainTrail` | -45, 109, -20 | 10, 100 m, 2 |
+| `..._DesertColossus` | -157, 95, 17 | 16, 288 m, 7 |
+| `..._GerudoValley` | -11, 48, 2 | 10, 244 m, 2 |
+| `..._Graveyard` | -12, 103, -12 | 2, 4 m, 1 |
+| `..._KokiriForest` | 8, 112, -23 | 12, 215 m, 1 |
+| `..._LakeHylia` | -168, 138, 413 | 11, 349 m, 1 |
+| `..._LostWood01` | 11, 99, -52 | 7, 60 m, 1 |
+| `..._LostWood02` | -33, 100, 31 | 19, 134 m, 2 |
+| `..._ZoraRiver02` | -55, 100, -12 | 15, 318 m, 3 |
+
+A second Kokiri Forest soil actor at -116, 119, -56 has no flag and no rail, so it is not listed. The map's "Magic bean
+soil and rides" layer shows these ten spots and, for a picked one, the sampled route (cubic bezier segments between the
+rail points, closed) and its stops (`crates/oj-gamedata/src/beans.rs`). [V] reader and `bean_soil_spots_come_with_their_rides`.
+
+Whether a bean is planted is not shown yet. The ten named flags are `ResetTypeValue` 9 (the persistent ones, such as
+`MagicBean_Talked`, are 8) and read 0 in every save checked, so they are a per-visit copy, not the stored state. The
+stored state is probably one of three bool arrays of ten that appear in the save table (`TotalSize` 10): in every save
+from 19 November on, `1081550449` has all ten bits set and `3964846234` (default true) has none, while in every older
+save the two are the other way round; nothing in between, so no save yet tells a partly planted state apart, and which
+bit belongs to which spot is not known. [U]
+
+The Zora's River ride starts at the soil and runs east along the upper bank to stops at 0, 112, -32; 15, 115, -24 and
+75, 116, -18. The hole holding the Business Scrub Seed chest has its entrance at -16, 115, 15, which is not one of
+those stops. [V]
+
 ## Not settled
 
 - **Water Temple** floors have three water levels (`_Lv1_` to `_Lv3_`). The app shows level 1; which level the game

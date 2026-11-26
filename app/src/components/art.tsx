@@ -63,6 +63,19 @@ export function Marker({ kind, done }: { kind: MapKind; done?: boolean }) {
   }
 }
 
+/** Magic bean soft soil: a mound with a sprout. */
+export function BeanIcon() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden>
+      <ellipse cx="16" cy="23" rx="11" ry="5.5" fill="#6b4a2a" stroke="#2c1c0e" strokeWidth="1.6" />
+      <ellipse cx="16" cy="21.5" rx="8" ry="3" fill="#8a6038" />
+      <path d="M16 21V12" stroke="#2c6a2c" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M16 14c-1-5-6-6-9-5 1 4 5 6 9 5z" fill="#6fd16a" stroke="#2c6a2c" strokeWidth="1.3" />
+      <path d="M16 13c1-5 6-6 9-5-1 4-5 6-9 5z" fill="#8fe58a" stroke="#2c6a2c" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 /** Landmark markers drawn for this app (Rumor Hunt places on the map). */
 export function LandIcon({ kind, done }: { kind: import("../landmarks").LandKind; done?: boolean }) {
   if (mark(MARK_OF[kind])) return <Painted kind={kind} done={done} />;

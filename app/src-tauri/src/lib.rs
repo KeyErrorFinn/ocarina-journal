@@ -669,6 +669,21 @@ async fn rumors_of(app: AppHandle) -> Result<Vec<oj_gamedata::rumors::Rumor>, St
     .map_err(|e| e.to_string())?
 }
 
+/// Magic bean soft soil, where each is and the route of the ride that grows from it.
+#[tauri::command]
+async fn get_bean_soil(app: AppHandle) -> Result<Vec<oj_gamedata::beans::BeanSpot>, String> {
+    bean_soil_of(app).await
+}
+
+async fn bean_soil_of(app: AppHandle) -> Result<Vec<oj_gamedata::beans::BeanSpot>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_, files, _) = map_source(&app)?;
+        oj_gamedata::beans::bean_spots(&files).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// One picture (`world`, `field/<texture>`, `floor/<dungeon>/<floor>`, `tapestry/<layer>`) as JPEG or PNG bytes.
 #[tauri::command]
 async fn get_map_image(app: AppHandle, name: String) -> Result<tauri::ipc::Response, String> {
@@ -1010,6 +1025,7 @@ impl oj_remote::Backend for RemoteBackend {
                 "get_tapestry" => json(serde_json::to_value(tapestry_of(app).await?)),
                 "get_lore" => json(serde_json::to_value(lore_of(app).await?)),
                 "get_rumors" => json(serde_json::to_value(rumors_of(app).await?)),
+                "get_bean_soil" => json(serde_json::to_value(bean_soil_of(app).await?)),
                 "get_map_image" => map_image_of(app, name.ok_or("name is missing")?).await.map(Reply::Bytes),
                 "get_sound" => sound_of(app, name.ok_or("name is missing")?, whole).await.map(Reply::Bytes),
                 _ => Err("No such command.".into()),
@@ -1199,6 +1215,7 @@ pub fn run() {
             get_tapestry,
             get_lore,
             get_rumors,
+            get_bean_soil,
             get_sound,
             preview_enable_bridge,
             apply_enable_bridge,

@@ -7,6 +7,8 @@ export interface RepEntry {
   have: number;
   of: number;
   note: string | null;
+  /** Explicit placement eras. Missing means unspecified, not confirmed available in both. */
+  eras?: ("child" | "adult")[];
   /** Times defeated (enemies and bosses). */
   count?: number;
   /** A quest's current step as the game names it internally ("Ready", "Step01_01"); `note` has its objective. */
@@ -66,6 +68,26 @@ export interface ReportFile {
 }
 
 export const MAP_KINDS = ["chests", "skulltulas", "heart-pieces", "heart-containers"] as const;
+export const inEra = (entry: RepEntry, era: "child" | "adult") => !entry.eras?.length || entry.eras.includes(era);
+
+/** Only an explicit placement exclusive to the other era warrants telling the player to switch. */
+export const otherEraNeeded = (entries: RepEntry[], era: "child" | "adult") =>
+  entries
+    .filter((entry) => entry.eras?.includes(era === "child" ? "adult" : "child") && !inEra(entry, era))
+    .reduce((sum, entry) => sum + Math.max(0, entry.of - entry.have), 0);
+
+/** Keep unspecified placements visible rather than guessing their age restrictions. */
+export function reportForEra(report: Report | null, era: "child" | "adult"): Report | null {
+  if (!report) return null;
+  return {
+    ...report,
+    categories: report.categories.map((category) => {
+      if (!(MAP_KINDS as readonly string[]).includes(category.id)) return category;
+      const entries = category.entries.filter((entry) => inEra(entry, era));
+      return { ...category, entries, have: entries.reduce((sum, e) => sum + e.have, 0), of: entries.reduce((sum, e) => sum + e.of, 0) };
+    }),
+  };
+}
 export type MapKind = (typeof MAP_KINDS)[number];
 
 export const KIND_NAME: Record<MapKind, string> = {

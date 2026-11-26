@@ -30,6 +30,20 @@ export function bracketed(label: string): string | null {
   return m ? m[1] : null;
 }
 
+/** The game's name for a thing, trimmed for display: "Hyrule Field Enemy Scrub Business Heart Piece 01" is "Business
+ *  Scrub". Names that don't have that shape are left as they are. */
+export function shortBracket(inside: string): string {
+  const m = /\bEnemy (.+?)(?: Heart ?Piece)?(?: \d+)?$/i.exec(inside.trim());
+  if (!m || !m[1]) return inside;
+  return m[1].replace(/^Scrub Business$/i, "Business Scrub");
+}
+
+/** An entry's label with its last bracket shortened by `shortBracket`. */
+export function shortLabel(label: string): string {
+  const inside = bracketed(label);
+  return inside ? label.replace(`(${inside})`, `(${shortBracket(inside)})`) : label;
+}
+
 /** Plain words the game's own name can carry. These are readings of the name, not facts the game states. */
 const NAME_WORDS: [RegExp, string][] = [
   [/scrub[ _]?business/i, "a Business Scrub"],
@@ -49,7 +63,8 @@ const looksLikeCoordinates = (t: string) => /^at -?\d/.test(t) || /^-?\d/.test(t
 export function hintsFor(e: RepEntry, kind: MapKind, here: { x: number; z: number } | null, near: Near[]): Hint[] {
   const out: Hint[] = [];
   const tip = TIPS[e.id];
-  if (tip) out.push({ title: "Tip", text: tip });
+  if (typeof tip === "string") out.push({ title: "Tip", text: tip });
+  else if (tip) out.push(...tip);
 
   const inside = bracketed(e.label);
   if (kind === "chests" && inside && !looksLikeCoordinates(inside)) out.push({ title: "Inside", text: inside });
